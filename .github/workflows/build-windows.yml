@@ -15,7 +15,9 @@ jobs:
         with:
           node-version: '22'
       
-      - run: npm ci
+      # Delete Mac lockfile and regenerate on Windows
+      - run: rm -f package-lock.json
+      - run: npm install
       - run: npm run build
       - run: npx electron-builder --win --x64
       
