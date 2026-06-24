@@ -15,8 +15,11 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Delete Mac lockfile
+        run: del package-lock.json
+
       - name: Install dependencies
-        run: npm install --no-package-lock
+        run: npm install
 
       - name: Build Electron app
         run: npx electron-builder --win --x64
