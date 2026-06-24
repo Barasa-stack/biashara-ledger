@@ -30,7 +30,7 @@ export default function DownloadPage() {
     setDownloading(true);
     setError(null);
     try {
-      const resp = await fetch('/api/download?type=desktop-source');
+      const resp = await fetch('/api/download?type=windows');
       if (!resp.ok) throw new Error(await resp.text().then(t => {
         try { return JSON.parse(t).error; } catch { return t; }
       }));
@@ -38,7 +38,7 @@ export default function DownloadPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'biashara-ledger-desktop.tar.gz';
+      a.download = 'BiasharaLedger-Setup.exe';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -54,7 +54,7 @@ export default function DownloadPage() {
     setDownloading(true);
     setError(null);
     try {
-      const resp = await fetch('/api/download?type=desktop-source');
+      const resp = await fetch('/api/download?type=mac');
       if (!resp.ok) throw new Error(await resp.text().then(t => {
         try { return JSON.parse(t).error; } catch { return t; }
       }));
@@ -62,7 +62,7 @@ export default function DownloadPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'biashara-ledger-desktop.tar.gz';
+      a.download = 'BiasharaLedger-macOS.dmg';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

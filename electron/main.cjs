@@ -1,50 +1,28 @@
 const { app, BrowserWindow, ipcMain, session } = require('electron');
-const { fork } = require('child_process');
 const path = require('path');
 const { initLocalDatabase } = require('./database.cjs');
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+const isDev = !app.isPackaged;
 let mainWindow;
-let serverProcess;
-
-function startNextServer() {
-  return new Promise((resolve, reject) => {
-    const serverPath = path.join(__dirname, '..', 'node_modules', 'next', 'dist', 'bin', 'next');
-    serverProcess = fork(serverPath, ['start', '-p', '3456'], {
-      cwd: path.join(__dirname, '..'),
-      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-    });
-    serverProcess.stdout.on('data', (data) => {
-      const msg = data.toString();
-      console.log('[next]', msg);
-      if (msg.includes('Ready')) resolve();
-    });
-    serverProcess.stderr.on('data', (data) => console.error('[next:err]', data.toString()));
-    serverProcess.on('error', reject);
-    setTimeout(() => resolve(), 8000);
-  });
-}
 
 async function createWindow() {
-  if (!isDev) await startNextServer();
   mainWindow = new BrowserWindow({
     width: 1280, height: 800, minWidth: 960, minHeight: 600,
-    icon: path.join(__dirname, '..', 'public', 'favicon.svg'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false, contextIsolation: true, sandbox: false,
     },
     show: false, backgroundColor: '#ffffff',
   });
-  const url = isDev ? 'http://localhost:3000' : 'http://localhost:3456';
-  mainWindow.loadURL(url);
+
+  // Always load from the live website
+  mainWindow.loadURL('https://biasharaledger.qzz.io/sign-in');
+  
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('closed', () => { mainWindow = null; });
+
   if (!isDev) {
     mainWindow.webContents.on('devtools-opened', () => mainWindow.webContents.closeDevTools());
-    mainWindow.webContents.on('will-navigate', (e, url) => {
-      if (!url.startsWith('file://') && !url.startsWith('http://localhost')) e.preventDefault();
-    });
     session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(permission === 'notifications'));
   }
 }
@@ -56,11 +34,8 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (serverProcess) serverProcess.kill();
   if (process.platform !== 'darwin') app.quit();
 });
-
-app.on('before-quit', () => { if (serverProcess) serverProcess.kill(); });
 
 ipcMain.handle('get-platform', () => process.platform);
 ipcMain.handle('get-version', () => app.getVersion());

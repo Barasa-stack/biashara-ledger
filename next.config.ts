@@ -1,11 +1,10 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
-  serverExternalPackages: ['bcryptjs', 'puppeteer'],
-  experimental: {
-    serverActions: { bodySizeLimit: '2mb' },
-  },
+  output: 'export',
+  images: {
+    unoptimized: true
+  }
 };
 
 export default nextConfig;

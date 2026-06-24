@@ -10,8 +10,10 @@ files:
   - electron/**/*
   - .next/**/*
   - public/**/*
-  - node_modules/**/*
   - package.json
+  - next.config.ts
+
+asar: false
 
 mac:
   target:
