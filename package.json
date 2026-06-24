@@ -1,0 +1,48 @@
+{
+  "name": "biashara-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack -p 3000",
+    "build": "next build --webpack",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "electron:dev": "NODE_ENV=development electron electron/main.cjs",
+    "electron:build": "npm run build && electron-builder build --mac --x64",
+    "dist:win": "electron-builder build --win --x64",
+    "generate:license": "node scripts/generate-license.js"
+  },
+  "dependencies": {
+    "@next/swc-darwin-x64": "^16.2.9",
+    "@types/pg": "^8.20.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^11.0.0",
+    "lucide-react": "^0.400.0",
+    "next": "^16.0.0",
+    "nodemailer": "^6.9.0",
+    "pg": "^8.22.0",
+    "puppeteer": "^25.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.12.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^22.0.0",
+    "@types/nodemailer": "^6.4.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.0",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  },
+  "allowScripts": {
+    "better-sqlite3": true
+  }
+}

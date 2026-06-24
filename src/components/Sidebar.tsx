@@ -1,0 +1,173 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
+import {
+  LayoutDashboard, Users, ShoppingCart,
+  Package, UsersRound, Receipt, FileBarChart, Settings,
+  ChevronDown, ChevronRight, CreditCard,
+} from 'lucide-react';
+import { memo, useEffect, useState } from 'react';
+
+const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  {
+    label: 'Customers & Suppliers',
+    icon: Users,
+    children: [
+      { href: '/dashboard/customers', label: 'Customers' },
+      { href: '/dashboard/clients', label: 'Suppliers' },
+    ],
+  },
+  {
+    label: 'Sales',
+    icon: ShoppingCart,
+    children: [
+      { href: '/dashboard/sales/quotations', label: 'Quotations' },
+      { href: '/dashboard/sales/invoices', label: 'Invoices' },
+      { href: '/dashboard/sales/payments', label: 'Payments' },
+      { href: '/dashboard/sales/credit-notes', label: 'Credit Notes' },
+    ],
+  },
+  {
+    label: 'Purchases',
+    icon: Package,
+    children: [
+      { href: '/dashboard/purchases/pos', label: 'Purchase Orders' },
+      { href: '/dashboard/purchases/invoices', label: 'Purchase Invoices' },
+      { href: '/dashboard/purchases/debit-notes', label: 'Debit Notes' },
+    ],
+  },
+  {
+    label: 'HR & Payroll',
+    icon: UsersRound,
+    children: [
+      { href: '/dashboard/payroll', label: 'Employees' },
+      { href: '/dashboard/payroll/salaries', label: 'Salaries' },
+    ],
+  },
+  { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt },
+  {
+    label: 'Financial Reports',
+    icon: FileBarChart,
+    children: [
+      { href: '/dashboard/reports?type=profit-loss', label: 'Profit & Loss' },
+      { href: '/dashboard/reports?type=balance-sheet', label: 'Balance Sheet' },
+      { href: '/dashboard/reports?type=cash-flow', label: 'Cash Flow' },
+      { href: '/dashboard/reports?type=trial-balance', label: 'Trial Balance' },
+      { href: '/dashboard/reports?type=general-ledger', label: 'General Ledger' },
+      { href: '/dashboard/reports?type=receivables-aging', label: 'Receivables Aging' },
+      { href: '/dashboard/reports?type=payables-aging', label: 'Payables Aging' },
+      { href: '/dashboard/reports?type=expenses', label: 'Expense Report' },
+      { href: '/dashboard/reports?type=sales', label: 'Sales Report' },
+      { href: '/dashboard/reports?type=inventory', label: 'Inventory Valuation' },
+      { href: '/dashboard/reports?type=budget-vs-actual', label: 'Budget vs Actual' },
+      { href: '/dashboard/reports?type=equity', label: "Owner's Equity" },
+      { href: '/dashboard/reports?type=tax', label: 'Tax Report' },
+      { href: '/dashboard/reports?type=audit-trail', label: 'Audit Trail' },
+    ],
+  },
+  { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard },
+  { href: '/dashboard/settings', label: 'Company Settings', icon: Settings },
+];
+
+function NavLink({ href, icon: Icon, label }: { href: string; icon?: any; label: string }) {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+
+  return (
+    <Link
+      href={href}
+      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all ${
+        isActive
+          ? 'bg-brand/10 text-brand font-semibold'
+          : 'text-white hover:bg-brand/10 hover:text-brand'
+      }`}
+    >
+      {Icon && <Icon className="h-4 w-4 shrink-0" />}
+      <span>{label}</span>
+    </Link>
+  );
+}
+
+function Sidebar() {
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const fullPath = pathname + (searchParams.toString() ? '?' + searchParams.toString() : '');
+
+  useEffect(() => {
+    setExpandedMenus(
+      navItems.filter(item => 'children' in item && item.children?.some(c => fullPath === c.href)).map(i => i.label)
+    );
+  }, [fullPath]);
+
+  function toggleMenu(label: string) {
+    setExpandedMenus((prev) =>
+      prev.includes(label) ? prev.filter((m) => m !== label) : [...prev, label]
+    );
+  }
+
+  return (
+    <aside className="w-60 border-r border-dark-border bg-dark flex flex-col shrink-0">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" />
+        {navItems.slice(1).map((item) => {
+          if ('children' in item && item.children) {
+            const isExpanded = expandedMenus.includes(item.label);
+            const isActive = item.children.some((c) => fullPath === c.href);
+
+            return (
+              <div key={item.label}>
+                <button
+                  onClick={() => toggleMenu(item.label)}
+                  className={`flex items-center justify-between w-full rounded-md px-3 py-2 text-sm transition-all ${
+                    isActive
+                      ? 'bg-brand/10 text-brand font-semibold'
+                      : 'text-white hover:bg-brand/10 hover:text-brand'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-white" />
+                  )}
+                </button>
+                <div
+                  className={`ml-7 mt-0.5 space-y-0.5 overflow-hidden transition-all duration-200 ${
+                    isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  {item.children.map((child) => {
+                    const isChildActive = fullPath === child.href;
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-all ${
+                          isChildActive
+                            ? 'bg-brand/10 text-brand font-medium'
+                            : 'text-white/60 hover:bg-brand/10 hover:text-brand'
+                        }`}
+                      >
+                        <span className="w-1 h-1 rounded-full bg-current shrink-0" />
+                        <span>{child.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+          return <NavLink key={item.href || ''} href={item.href || '/'} icon={item.icon} label={item.label} />;
+        })}
+      </nav>
+    </aside>
+  );
+}
+
+export default memo(Sidebar);

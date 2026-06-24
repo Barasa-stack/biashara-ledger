@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #df1c1c;
+  --color-brand-hover: #c01515;
+  --color-brand-light: #fef2f2;
+  --color-brand-muted: #fecaca;
+  --color-surface: #faf8f5;
+  --color-border: #dcd6cc;
+  --color-dark: #141414;
+  --color-dark-border: #222222;
+  --color-dark-hover: #333333;
+}
+
+html {
+  scroll-behavior: smooth;
+}

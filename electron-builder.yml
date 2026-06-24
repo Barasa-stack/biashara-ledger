@@ -1,0 +1,35 @@
+appId: com.biasharaledger.app
+productName: BiasharaLedger
+directories:
+  output: dist-electron
+
+npmRebuild: false
+nodeGypRebuild: false
+
+files:
+  - electron/**/*
+  - .next/**/*
+  - public/**/*
+  - node_modules/**/*
+  - package.json
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+  category: public.app-category.finance
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: BiasharaLedger
+  runAfterFinish: true

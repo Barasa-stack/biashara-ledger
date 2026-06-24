@@ -1,0 +1,263 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { Check, Loader, CreditCard, Smartphone, ArrowLeft } from 'lucide-react';
+
+const plans = [
+  { name: 'Monthly', price: '1,500', period: 'month', popular: false },
+  { name: 'Quarterly', price: '3,600', period: 'quarter', popular: true, saved: 'Save 20%' },
+  { name: 'Yearly', price: '12,000', period: 'year', popular: false, saved: 'Save 33%' },
+];
+
+export default function RenewPage() {
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('Monthly');
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card'>('mpesa');
+  const [mpesaPhone, setMpesaPhone] = useState('');
+  const [step, setStep] = useState<'plans' | 'payment' | 'confirm' | 'success'>('plans');
+  const [transactionId, setTransactionId] = useState('');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!loading && !user) router.replace('/sign-in');
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#ffffff]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-brand animate-pulse" />
+          <span className="text-sm text-[#000000]">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  async function handleInitiatePayment() {
+    setBusy(true);
+    setMessage('');
+    const plan = selectedPlan === 'Monthly' ? 'Basic' : selectedPlan === 'Quarterly' ? 'Standard' : 'Premium';
+    const endpoint = paymentMethod === 'card' ? '/api/payments/stripe' : '/api/payments/mpesa';
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan,
+          paymentMethod,
+          phone: mpesaPhone || user!.phone,
+          email: user!.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTransactionId(data.transactionId);
+        setMessage(data.message || 'Payment initiated!');
+        if (data._demoAutoConfirm) {
+          setStep('confirm');
+        }
+      } else {
+        setMessage(data.error || 'Payment failed');
+      }
+    } catch {
+      setMessage('Network error. Please try again.');
+    }
+    setBusy(false);
+  }
+
+  async function handleConfirmPayment() {
+    setBusy(true);
+    setMessage('');
+    try {
+      const res = await fetch('/api/payments/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId,
+          plan: selectedPlan === 'Monthly' ? 'Basic' : selectedPlan === 'Quarterly' ? 'Standard' : 'Premium',
+          paymentMethod,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStep('success');
+        router.refresh();
+      } else {
+        setMessage(data.error || 'Confirmation failed');
+      }
+    } catch {
+      setMessage('Network error. Please try again.');
+    }
+    setBusy(false);
+  }
+
+  if (step === 'success') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#ffffff]">
+        <div className="text-center max-w-sm mx-auto p-8">
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <Check className="h-8 w-8 text-green-600" />
+          </div>
+          <h1 className="text-xl font-bold text-[#000000] mb-2">Subscription Active!</h1>
+          <p className="text-sm text-gray-600 mb-6">{selectedPlan} plan activated. You now have full access.</p>
+          <Link
+            href="/dashboard"
+            className="inline-block bg-brand hover:bg-brand-hover text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors"
+          >
+            Go to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#ffffff] px-4 py-8">
+      <div className="w-full max-w-lg">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center">
+              <span className="text-white font-bold text-lg">BL</span>
+            </div>
+            <h1 className="text-lg font-bold text-brand">BiasharaLedger</h1>
+          </div>
+          <button onClick={signOut} className="text-xs text-[#000000] hover:text-brand transition-colors">Sign Out</button>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
+          <p className="text-sm font-medium text-amber-800">Your subscription has expired</p>
+          <p className="text-xs text-amber-700 mt-0.5">Choose a plan below to renew access to all features.</p>
+        </div>
+
+        {step === 'plans' && (
+          <>
+            <div className="grid gap-3 mb-6">
+              {plans.map((plan) => (
+                <button
+                  key={plan.name}
+                  onClick={() => { setSelectedPlan(plan.name); setStep('payment'); }}
+                  className={`relative border-2 rounded-xl p-4 text-left transition-all ${
+                    selectedPlan === plan.name
+                      ? 'border-[#df1c1c] bg-brand/5'
+                      : 'border-border hover:border-[#df1c1c]/50'
+                  }`}
+                >
+                  {plan.popular && (
+                    <span className="absolute -top-2.5 right-4 bg-brand text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full">
+                      {plan.saved}
+                    </span>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-[#000000]">{plan.name}</p>
+                      <p className="text-xs text-gray-500">KES {plan.price}/{plan.period}</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      selectedPlan === plan.name ? 'border-[#df1c1c]' : 'border-gray-300'
+                    }`}>
+                      {selectedPlan === plan.name && <div className="w-2.5 h-2.5 rounded-full bg-brand" />}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <p className="text-center text-xs text-gray-500 mt-4">
+              Need help? <a href="mailto:support@biasharaledger.com" className="text-brand">Contact Support</a>
+            </p>
+          </>
+        )}
+
+        {step === 'payment' && (
+          <>
+            <button onClick={() => setStep('plans')} className="flex items-center gap-1 text-xs text-brand hover:text-[#000000] mb-4 transition-colors">
+              <ArrowLeft className="h-3.5 w-3.5" /> Change Plan
+            </button>
+
+            <div className="border border-border rounded-xl p-4 mb-4">
+              <p className="text-xs text-gray-500 mb-0.5">{selectedPlan} Plan</p>
+              <p className="text-lg font-bold text-[#000000]">KES {plans.find(p => p.name === selectedPlan)?.price}</p>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <p className="text-xs font-medium text-[#000000]">Payment Method</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPaymentMethod('mpesa')}
+                  className={`flex-1 flex items-center justify-center gap-2 border-2 rounded-lg px-4 py-3 text-xs transition-colors ${
+                    paymentMethod === 'mpesa'
+                      ? 'border-[#df1c1c] bg-brand/5 text-brand'
+                      : 'border-border text-[#000000] hover:border-[#df1c1c]/50'
+                  }`}
+                >
+                  <Smartphone className="h-4 w-4" /> M-Pesa
+                </button>
+                <button
+                  onClick={() => setPaymentMethod('card')}
+                  className={`flex-1 flex items-center justify-center gap-2 border-2 rounded-lg px-4 py-3 text-xs transition-colors ${
+                    paymentMethod === 'card'
+                      ? 'border-[#df1c1c] bg-brand/5 text-brand'
+                      : 'border-border text-[#000000] hover:border-[#df1c1c]/50'
+                  }`}
+                >
+                  <CreditCard className="h-4 w-4" /> Card
+                </button>
+              </div>
+            </div>
+
+            {paymentMethod === 'mpesa' && (
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-[#000000] mb-1">M-Pesa Phone Number</label>
+                <input
+                  type="tel"
+                  value={mpesaPhone || user!.phone || ''}
+                  onChange={e => setMpesaPhone(e.target.value)}
+                  className="w-full border border-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  placeholder="0712 345 678"
+                />
+              </div>
+            )}
+
+            <button
+              onClick={handleInitiatePayment}
+              disabled={busy}
+              className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {busy ? <Loader className="h-4 w-4 animate-spin" /> : null}
+              {busy ? 'Processing...' : `Pay KES ${plans.find(p => p.name === selectedPlan)?.price}`}
+            </button>
+
+            {message && (
+              <p className="text-xs text-center mt-3 text-gray-600">{message}</p>
+            )}
+          </>
+        )}
+
+        {step === 'confirm' && (
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <Smartphone className="h-8 w-8 text-blue-600" />
+            </div>
+            <p className="text-sm font-medium text-[#000000] mb-2">Check your phone</p>
+            <p className="text-xs text-gray-500 mb-6">Enter your M-Pesa PIN to complete payment of KES {plans.find(p => p.name === selectedPlan)?.price}</p>
+
+            {message && <p className="text-xs text-gray-600 mb-4">{message}</p>}
+
+            <button
+              onClick={handleConfirmPayment}
+              disabled={busy}
+              className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {busy ? <Loader className="h-4 w-4 animate-spin" /> : null}
+              {busy ? 'Confirming...' : 'I Have Confirmed Payment'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
