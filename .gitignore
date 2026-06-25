@@ -6,3 +6,4 @@ dist-electron/
 .env.local
 *.sqlite
 .DS_Store
+public/downloads/*.dmg
