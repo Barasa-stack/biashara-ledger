@@ -13,7 +13,6 @@
     "generate:license": "node scripts/generate-license.js"
   },
   "dependencies": {
-    "@next/swc-darwin-x64": "^16.2.9",
     "@types/pg": "^8.20.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.0.0",
