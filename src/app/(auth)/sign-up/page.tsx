@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Send, Check, Loader, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, Send, Check, Loader, RefreshCw, Bug } from 'lucide-react';
+
+const SHOW_OTP = true;
 
 export default function SignUpPage() {
   const { signUp } = useAuth();
@@ -21,6 +23,7 @@ export default function SignUpPage() {
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [otp, setOtp] = useState('');
   const [message, setMessage] = useState('');
+  const [devOtp, setDevOtp] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
   async function sendOtp() {
@@ -34,6 +37,8 @@ export default function SignUpPage() {
       });
       const data = await res.json();
       if (res.ok) {
+        const otpCode = data.demoCode || '';
+        setDevOtp(otpCode);
         setMessage(data.emailSent
           ? `A 6-digit code has been sent to ${email.trim().toLowerCase()}`
           : `Demo code: ${data.demoCode}`
@@ -80,6 +85,7 @@ export default function SignUpPage() {
     if (resendCooldown > 0) return;
     setOtp('');
     setError('');
+    setDevOtp('');
     await sendOtp();
   }
 
@@ -211,6 +217,13 @@ export default function SignUpPage() {
 
             {message && (
               <p className="text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg mb-4">{message}</p>
+            )}
+
+            {SHOW_OTP && devOtp && (
+              <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg mb-4">
+                <Bug className="h-3.5 w-3.5 shrink-0" />
+                <span>Dev OTP: <strong className="tracking-wider text-sm">{devOtp}</strong></span>
+              </div>
             )}
 
             <form onSubmit={handleVerifyOtp} className="space-y-4">

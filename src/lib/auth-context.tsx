@@ -13,6 +13,10 @@ type User = {
   subscriptionStatus: string;
   subscriptionExpiry?: string;
   verified?: boolean;
+  licenseStatus?: string;
+  licenseKey?: string | null;
+  trialEndDate?: string | null;
+  trialDaysRemaining?: number;
 };
 
 type AuthContextType = {
@@ -36,13 +40,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then(r => r.json())
-      .then(data => {
-        if (data.user) setUser(data.user);
-        setLoading(false);
+    let cancelled = false;
+    let retries = 0;
+    const maxRetries = 2;
+
+    function check() {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      fetch('/api/auth/me', {
+        signal: controller.signal,
+        credentials: 'include',
       })
-      .catch(() => setLoading(false));
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled) return;
+          if (data.user) {
+            setUser(data.user);
+            setLoading(false);
+          } else if (retries < maxRetries) {
+            retries++;
+            setTimeout(check, 1000);
+          } else {
+            setLoading(false);
+          }
+        })
+        .catch(() => {
+          if (cancelled) return;
+          if (retries < maxRetries) {
+            retries++;
+            setTimeout(check, 1000);
+          } else {
+            setLoading(false);
+          }
+        })
+        .finally(() => clearTimeout(timeout));
+    }
+
+    check();
+    return () => { cancelled = true; };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -73,13 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.requiresPackageSelection) {
-          return { success: true, requiresPackageSelection: true };
-        } else {
-          setUser(data.user);
-          router.refresh();
-          return { success: true };
-        }
+        setUser(data.user);
+        router.refresh();
+        return { success: true };
       }
       return { success: false, error: data.error || 'Sign up failed' };
     } catch {
@@ -98,7 +129,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await fetch('/api/auth/signout', { method: 'POST' });
     setUser(null);
-    window.location.href = '/';
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      window.location.href = '/sign-in';
+    } else {
+      window.location.href = '/';
+    }
   }, []);
 
   const updateProfile = useCallback(async (data: { firstName?: string; lastName?: string; email?: string; phone?: string }) => {

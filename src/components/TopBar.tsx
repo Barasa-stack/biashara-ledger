@@ -288,8 +288,8 @@ export default function TopBar() {
                       });
                       const otpData = await otpRes.json();
                       setPwMsg(otpRes.ok
-                        ? (otpData.emailSent ? `A code has been sent to ${user!.email}` : `Demo code: ${otpData.demoCode}`)
-                        : 'Failed to send code');
+                        ? `A code has been sent to ${user!.email}`
+                        : (otpData.error || 'Failed to send code'));
                     } catch {
                       setPwMsg('Failed to send code');
                     }

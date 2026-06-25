@@ -24,7 +24,7 @@ async function validateLicense(licenseKey) {
   }
 
   try {
-    const response = await fetch('https://api.biasharaledger.com/api/license/validate', {
+    const response = await fetch('http://localhost:3000/api/license/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ licenseKey }),

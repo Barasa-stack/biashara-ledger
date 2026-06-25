@@ -11,6 +11,12 @@ export async function initSchema() {
   await exec(`ALTER TABLE IF EXISTS users ALTER COLUMN last_reminder_sent TYPE TIMESTAMPTZ USING last_reminder_sent AT TIME ZONE 'UTC'`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS users ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC'`).catch(() => {});
 
+  await exec(`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS trial_start_date TIMESTAMPTZ`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS trial_end_date TIMESTAMPTZ`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS trial_used INTEGER DEFAULT 0`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS license_status TEXT DEFAULT 'trial'`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS license_key TEXT DEFAULT ''`).catch(() => {});
+
   await exec(`ALTER TABLE IF EXISTS company_settings ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 16`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS company_settings ADD COLUMN IF NOT EXISTS credit_note_prefix TEXT DEFAULT 'CN'`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS company_settings ADD COLUMN IF NOT EXISTS next_credit_note_number INTEGER DEFAULT 1`).catch(() => {});
@@ -21,6 +27,7 @@ export async function initSchema() {
   await exec(`ALTER TABLE IF EXISTS credit_notes ADD COLUMN IF NOT EXISTS discounts REAL DEFAULT 0`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS credit_notes ADD COLUMN IF NOT EXISTS payment_terms TEXT DEFAULT 'Net 30'`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS quotations ADD COLUMN IF NOT EXISTS due_date TEXT DEFAULT ''`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS client_db TEXT DEFAULT ''`).catch(() => {});
 
   await exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -42,6 +49,11 @@ export async function initSchema() {
       card_last4 TEXT,
       card_expiry TEXT,
       paypal_email TEXT,
+      trial_start_date TIMESTAMPTZ,
+      trial_end_date TIMESTAMPTZ,
+      trial_used INTEGER DEFAULT 0,
+      license_status TEXT DEFAULT 'trial',
+      license_key TEXT DEFAULT '',
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -415,6 +427,49 @@ export async function initSchema() {
       synced_at TIMESTAMP,
       attempts INTEGER DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS admin_clients (
+      id SERIAL PRIMARY KEY,
+      company_name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      database_name VARCHAR(255) UNIQUE NOT NULL,
+      license_key VARCHAR(255) UNIQUE,
+      max_users INTEGER DEFAULT 5,
+      is_active BOOLEAN DEFAULT TRUE,
+      is_trial BOOLEAN DEFAULT TRUE,
+      trial_start_date TIMESTAMP,
+      trial_end_date TIMESTAMP,
+      expires_at TIMESTAMP,
+      last_active TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_license_keys (
+      id SERIAL PRIMARY KEY,
+      license_key VARCHAR(255) UNIQUE NOT NULL,
+      client_id INTEGER REFERENCES admin_clients(id) ON DELETE CASCADE,
+      plan VARCHAR(50) DEFAULT 'standard',
+      is_used BOOLEAN DEFAULT FALSE,
+      activated_at TIMESTAMP,
+      expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      role VARCHAR(50) DEFAULT 'admin',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Seed default admin user
+  await exec(`
+    INSERT INTO admin_users (username, password_hash, email, role)
+    VALUES ('admin', '$2b$10$dummy', 'admin@biasharaledger.com', 'super_admin')
+    ON CONFLICT (username) DO NOTHING;
   `);
 
   // Seed default company settings

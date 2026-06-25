@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { get } from '@/lib/db';
+import { get, adminGet } from '@/lib/db';
 import { checkUserSubscription, checkFeatureAccess } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ active: false, reason: 'Not authenticated' }, { status: 401 });
     }
 
-    const session = await get(
+    const session = await adminGet(
       "SELECT * FROM sessions WHERE token = $1 AND expires_at > NOW()",
       [sessionToken]
     ) as any;

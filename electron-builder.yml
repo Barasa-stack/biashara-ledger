@@ -8,12 +8,11 @@ nodeGypRebuild: false
 
 files:
   - electron/**/*
-  - .next/**/*
-  - public/**/*
   - package.json
-  - next.config.ts
 
-asar: false
+asar: true
+
+icon: electron/assets/icon.png
 
 mac:
   target:

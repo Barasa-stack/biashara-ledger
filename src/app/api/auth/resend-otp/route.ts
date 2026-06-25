@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { get, adminGet, run } from '@/lib/db';
+import { get, run } from '@/lib/db';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { sendOTPEmail } from '@/lib/email';
 
@@ -7,31 +7,17 @@ export async function POST(request: Request) {
   try {
     let { email, purpose } = await request.json();
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
     }
     email = email.trim().toLowerCase();
 
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
     const rl = checkRateLimit(`otp:${ip}`, 3, 60 * 1000);
     if (!rl.allowed) {
-      return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 });
+      return NextResponse.json({ success: false, error: 'Too many requests. Try again later.' }, { status: 429 });
     }
 
     const otpPurpose = purpose || 'signup';
-
-    if (otpPurpose === 'signup') {
-      const existing = await get('SELECT id FROM users WHERE email = $1', [email]);
-      const registeredClient = await adminGet('SELECT id FROM admin_clients WHERE email = $1', [email]);
-      if (existing || registeredClient) {
-        return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
-      }
-    } else if (otpPurpose === 'password_reset') {
-      const existing = await get('SELECT id FROM users WHERE email = $1', [email]);
-      const registeredClient = await adminGet('SELECT id FROM admin_clients WHERE email = $1', [email]);
-      if (!existing && !registeredClient) {
-        return NextResponse.json({ error: 'No account found with that email' }, { status: 404 });
-      }
-    }
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -60,6 +46,6 @@ export async function POST(request: Request) {
       message: `A 6-digit code has been sent to ${email}`,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Failed to send code' }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message || 'Failed to send code' }, { status: 500 });
   }
 }

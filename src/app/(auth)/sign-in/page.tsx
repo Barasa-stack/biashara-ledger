@@ -61,10 +61,7 @@ export default function SignInPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setResetMsg(data.emailSent
-          ? `A code has been sent to ${resetEmail}`
-          : `Demo code: ${data.demoCode}`
-        );
+        setResetMsg(`A code has been sent to ${resetEmail}`);
         setResetStep('otp');
       } else {
         setError(data.error || 'Failed to send code');

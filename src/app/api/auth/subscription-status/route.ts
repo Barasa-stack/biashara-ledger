@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { get, query } from '@/lib/db';
+import { get, query, adminGet } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const session = await get(
+    const session = await adminGet(
       "SELECT * FROM sessions WHERE token = $1 AND expires_at > NOW()",
       [sessionToken]
     ) as any;

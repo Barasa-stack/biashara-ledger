@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 });
   }
 
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   if (!transporter) {
     return NextResponse.json({ error: 'SMTP not configured. Set SMTP_HOST/SMTP_USER/SMTP_PASS env vars or configure in Settings.' }, { status: 400 });
   }

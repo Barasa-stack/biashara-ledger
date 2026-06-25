@@ -166,6 +166,7 @@ function Sidebar() {
           return <NavLink key={item.href || ''} href={item.href || '/'} icon={item.icon} label={item.label} />;
         })}
       </nav>
+
     </aside>
   );
 }

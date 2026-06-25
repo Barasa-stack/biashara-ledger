@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Settings, Building2, Landmark, Mail, FileText, ShieldCheck, Upload } from 'lucide-react';
+import { Settings, Building2, Landmark, Mail, FileText, ShieldCheck, Upload, Key } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 type Company = {
   company_name: string;
@@ -74,6 +75,7 @@ function Field({ label, value, onChange, type, placeholder }: {
 }
 
 export default function SettingsPage() {
+  const { user, refreshUser } = useAuth();
   const [form, setForm] = useState<Company>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -82,6 +84,9 @@ export default function SettingsPage() {
   const [fetched, setFetched] = useState(false);
   const [showSmtpPass, setShowSmtpPass] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [licenseKey, setLicenseKey] = useState('');
+  const [licenseMsg, setLicenseMsg] = useState('');
+  const [activating, setActivating] = useState(false);
 
   const set = (field: keyof Company) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(prev => ({ ...prev, [field]: e.target.value }));
@@ -229,6 +234,66 @@ export default function SettingsPage() {
             </div>
           </Section>
 
+          <Section icon={Key} title="License & Subscription" desc="Manage your license key and view trial status">
+            {user && (
+              <div className="space-y-3">
+                <div className={`p-3 rounded-lg border ${user.licenseStatus === 'active' ? 'bg-green-50 border-green-200' : user.trialDaysRemaining !== undefined && user.trialDaysRemaining > 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
+                  {user.licenseStatus === 'active' ? (
+                    <p className="text-sm text-green-700 font-medium">License Active</p>
+                  ) : user.trialDaysRemaining !== undefined && user.trialDaysRemaining > 0 ? (
+                    <div>
+                      <p className="text-sm text-blue-700 font-medium">Trial Active ({user.trialDaysRemaining} day{user.trialDaysRemaining !== 1 ? 's' : ''} remaining)</p>
+                      {user.trialEndDate && <p className="text-xs text-blue-500 mt-0.5">Expires {new Date(user.trialEndDate).toLocaleDateString()}</p>}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-red-700 font-medium">Trial Expired — Activate your license</p>
+                  )}
+                </div>
+
+                {user.licenseStatus !== 'active' && (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!licenseKey.trim()) { setLicenseMsg('Please enter a license key'); return; }
+                    setActivating(true);
+                    setLicenseMsg('');
+                    try {
+                      const res = await fetch('/api/license/activate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ licenseKey: licenseKey.trim(), userEmail: user.email }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setLicenseMsg('License activated successfully!');
+                        setTimeout(() => { refreshUser(); }, 1000);
+                      } else {
+                        setLicenseMsg(data.error || 'Activation failed');
+                      }
+                    } catch { setLicenseMsg('Connection failed'); }
+                    setActivating(false);
+                  }} className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Email</label>
+                      <input type="email" value={user.email} disabled className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-500 bg-gray-50 cursor-not-allowed" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">License Key</label>
+                      <input type="text" value={licenseKey} onChange={e => setLicenseKey(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX" className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand font-mono" />
+                    </div>
+                    {licenseMsg && (
+                      <div className={`text-xs px-3 py-2 rounded-lg ${licenseMsg.includes('success') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                        {licenseMsg}
+                      </div>
+                    )}
+                    <button type="submit" disabled={activating} className="inline-flex items-center gap-1.5 bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+                      {activating ? 'Activating...' : 'Activate License'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+          </Section>
+
           <Section icon={Mail} title="SMTP / Email Settings" desc="Used to send invoices, quotations, and OTP emails">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="SMTP Host" value={form.smtp_host} onChange={set('smtp_host')} placeholder="smtp.gmail.com" />
@@ -280,6 +345,12 @@ export default function SettingsPage() {
           </button>
         </div>
       )}
+
+      <div className="mt-8 pt-6 border-t text-center">
+        <a href="/admin" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+          Admin Panel
+        </a>
+      </div>
     </div>
   );
 }

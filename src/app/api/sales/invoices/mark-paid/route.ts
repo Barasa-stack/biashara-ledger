@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         remaining,
       }, company);
 
-      const transporter = createTransporter();
+      const transporter = await createTransporter();
       if (transporter) {
         let pdfBuffer: Uint8Array | null = null;
         try {

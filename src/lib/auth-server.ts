@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
-import { query, get, run } from './db';
+import { query, get, run, adminQuery, adminGet, adminRun } from './db';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -17,19 +17,19 @@ export function generateToken(): string {
   return randomUUID();
 }
 
-export async function createSession(userId: number): Promise<{ token: string; expiresAt: string }> {
+export async function createSession(userId: number, clientDb?: string): Promise<{ token: string; expiresAt: string }> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
-  await run(
-    'INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)',
-    [userId, token, expiresAt]
+  await adminRun(
+    'INSERT INTO sessions (user_id, token, expires_at, client_db) VALUES ($1, $2, $3, $4)',
+    [userId, token, expiresAt, clientDb || '']
   );
   return { token, expiresAt };
 }
 
 export async function getSession(token: string) {
-  const session = await get(
-    `SELECT s.id as session_id, s.token, s.expires_at,
+  const session = await adminGet(
+    `SELECT s.id as session_id, s.token, s.expires_at, s.client_db,
             u.id as user_id, u.email, u.first_name, u.last_name, u.phone,
             u.subscription_plan, u.subscription_status,
             u.verified, u.subscription_expiry,
@@ -42,11 +42,11 @@ export async function getSession(token: string) {
 }
 
 export async function deleteSession(token: string) {
-  await run('DELETE FROM sessions WHERE token = $1', [token]);
+  await adminRun('DELETE FROM sessions WHERE token = $1', [token]);
 }
 
 export async function deleteExpiredSessions() {
-  await run("DELETE FROM sessions WHERE expires_at <= NOW()");
+  await adminRun("DELETE FROM sessions WHERE expires_at <= NOW()");
 }
 
 export async function getSessionFromCookies() {
