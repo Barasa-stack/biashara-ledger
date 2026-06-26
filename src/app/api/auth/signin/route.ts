@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const { token, expiresAt } = await createSession(user.id);
 
     // Set cookie
-    cookies().set('bl_session', token, {
+    (await cookies()).set('bl_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

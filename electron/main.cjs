@@ -17,7 +17,8 @@ let backupInterval;
 autoUpdater.setFeedURL({
   provider: 'github',
   repo: 'biashara-ledger',
-  owner: process.env.GITHUB_REPO_OWNER || 'your-username',
+  owner: process.env.GITHUB_REPO_OWNER || 'digitalbaroz',
+  releaseType: 'release',
 });
 
 function getLicensePath() {

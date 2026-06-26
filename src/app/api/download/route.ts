@@ -1,72 +1,61 @@
 import { NextResponse } from 'next/server';
-import { createReadStream, existsSync } from 'fs';
-import { stat } from 'fs/promises';
-import { join } from 'path';
+import fs from 'fs';
+import path from 'path';
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const type = url.searchParams.get('type') || 'mac';
-  const root = process.cwd();
+const MIME_TYPES: Record<string, string> = {
+  '.exe': 'application/vnd.microsoft.portable-executable',
+  '.dmg': 'application/x-apple-diskimage',
+  '.AppImage': 'application/x-executable',
+  '.zip': 'application/zip',
+  '.deb': 'application/vnd.debian.binary-package',
+  '.rpm': 'application/x-rpm',
+};
 
-  try {
-    if (type === 'mac') {
-      const dmgPath = join(root, 'public', 'downloads', 'biashara-ledger-mac.dmg');
-      
-      if (!existsSync(dmgPath)) {
-        return NextResponse.json({ error: 'Mac installer not found' }, { status: 404 });
-      }
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type');
+  const fileName = searchParams.get('file');
 
-      const s = await stat(dmgPath);
-      const stream = createReadStream(dmgPath);
+  let filePath: string;
+  let downloadName: string;
 
-      const body = new ReadableStream({
-        async start(controller) {
-          for await (const chunk of stream) {
-            controller.enqueue(chunk);
-          }
-          controller.close();
-        },
-      });
-
-      return new NextResponse(body, {
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': 'attachment; filename="BiasharaLedger-macOS.dmg"',
-          'Content-Length': String(s.size),
-        },
-      });
-    }
-
-    if (type === 'windows') {
-      const exePath = join(root, 'public', 'downloads', 'biashara-ledger-setup.exe');
-      
-      if (!existsSync(exePath)) {
-        return NextResponse.json({ error: 'Windows installer not available yet' }, { status: 404 });
-      }
-
-      const s = await stat(exePath);
-      const stream = createReadStream(exePath);
-
-      const body = new ReadableStream({
-        async start(controller) {
-          for await (const chunk of stream) {
-            controller.enqueue(chunk);
-          }
-          controller.close();
-        },
-      });
-
-      return new NextResponse(body, {
-        headers: {
-          'Content-Type': 'application/x-msdownload',
-          'Content-Disposition': 'attachment; filename="BiasharaLedger-Setup.exe"',
-          'Content-Length': String(s.size),
-        },
-      });
-    }
-
-    return NextResponse.json({ error: 'Use ?type=mac or ?type=windows' }, { status: 400 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  if (fileName) {
+    const safeName = path.basename(fileName);
+    filePath = path.join(process.cwd(), 'public', 'downloads', safeName);
+    downloadName = safeName;
+  } else if (type === 'windows') {
+    filePath = path.join(process.cwd(), 'public', 'downloads', 'biashara-ledger-setup.exe');
+    downloadName = 'BiasharaLedger-Setup.exe';
+  } else if (type === 'mac' || type === 'macos') {
+    filePath = path.join(process.cwd(), 'public', 'downloads', 'biashara-ledger-mac.dmg');
+    downloadName = 'BiasharaLedger-macOS.dmg';
+  } else if (type === 'mac-arm64') {
+    filePath = path.join(process.cwd(), 'public', 'downloads', 'biashara-ledger-mac-arm64.dmg');
+    downloadName = 'BiasharaLedger-macOS-arm64.dmg';
+  } else if (type === 'linux') {
+    filePath = path.join(process.cwd(), 'public', 'downloads', 'biashara-ledger-linux.AppImage');
+    downloadName = 'BiasharaLedger-linux.AppImage';
+  } else {
+    return NextResponse.json({ error: 'Invalid download type. Use: windows, mac, mac-arm64, or linux' }, { status: 400 });
   }
+
+  if (!fs.existsSync(filePath)) {
+    return NextResponse.json({ error: 'Installer file not found. Build the Electron app first with: npm run dist:win / dist:mac / dist:linux' }, { status: 404 });
+  }
+
+  const stat = fs.statSync(filePath);
+  const ext = path.extname(filePath);
+  const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
+
+  const fileBuffer = fs.readFileSync(filePath);
+
+  return new NextResponse(fileBuffer, {
+    status: 200,
+    headers: {
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${downloadName}"`,
+      'Content-Length': String(stat.size),
+      'Cache-Control': 'public, max-age=86400',
+    },
+  });
 }

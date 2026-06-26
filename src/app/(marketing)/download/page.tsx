@@ -19,38 +19,55 @@ const features = [
   'Faster performance with native desktop experience',
 ];
 
+const macFeatures = [
+  'Full offline capability',
+  'Works on Intel & Apple Silicon',
+  'Optimized for macOS Sequoia',
+  'One-time license',
+  'Cloud sync ready',
+];
+
 export default function DownloadPage() {
-  const [showDialog, setShowDialog] = useState<'windows' | 'mac' | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [showDialog, setShowDialog] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [downloadLinks, setDownloadLinks] = useState<{
-    version: string;
-    windows: string | null;
-    mac: string | null;
-  } | null>(null);
+  const [downloadInfo, setDownloadInfo] = useState<any>(null);
 
   useEffect(() => {
     fetch('/api/downloads/latest')
       .then(r => r.json())
-      .then(setDownloadLinks)
+      .then(setDownloadInfo)
       .catch(() => {});
   }, []);
 
-  const handleWindowsDownload = async () => {
-    setShowDialog('windows');
-    setDownloading(true);
+  const startDownload = async (platform: string) => {
+    setShowDialog(platform);
+    setDownloading(platform);
     setError(null);
+
+    const info = downloadInfo?.[platform];
+    const localType = platform === 'windows' ? 'windows' : platform === 'mac' ? 'mac' : platform === 'mac-arm64' ? 'mac-arm64' : 'linux';
+
+    if (info?.url && info.url.startsWith('http')) {
+      // GitHub release URL — redirect directly
+      window.open(info.url, '_blank');
+      setDownloading(null);
+      setTimeout(() => { setShowDialog(null); setError(null); }, 2000);
+      return;
+    }
+
+    // Local fallback — fetch through our API
     try {
-      const url = downloadLinks?.windows || '/api/download?type=windows';
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(await resp.text().then(t => {
-        try { return JSON.parse(t).error; } catch { return t; }
-      }));
+      const resp = await fetch(`/api/download?type=${localType}`);
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errData.error || 'Download failed');
+      }
       const blob = await resp.blob();
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objUrl;
-      a.download = 'BiasharaLedger-Setup.exe';
+      a.download = info?.name || `BiasharaLedger-${platform === 'windows' ? 'Setup.exe' : 'macOS.dmg'}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -58,33 +75,10 @@ export default function DownloadPage() {
     } catch (e: any) {
       setError(e.message || 'Download failed');
     }
-    setTimeout(() => { setShowDialog(null); setDownloading(false); setError(null); }, 4000);
+    setTimeout(() => { setShowDialog(null); setDownloading(null); setError(null); }, 4000);
   };
 
-  const handleMacDownload = async () => {
-    setShowDialog('mac');
-    setDownloading(true);
-    setError(null);
-    try {
-      const url = downloadLinks?.mac || '/api/download?type=mac';
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(await resp.text().then(t => {
-        try { return JSON.parse(t).error; } catch { return t; }
-      }));
-      const blob = await resp.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objUrl;
-      a.download = 'BiasharaLedger-macOS.dmg';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objUrl);
-    } catch (e: any) {
-      setError(e.message || 'Download failed');
-    }
-    setTimeout(() => { setShowDialog(null); setDownloading(false); setError(null); }, 4000);
-  };
+  const version = downloadInfo?.version || '1.0.0';
 
   return (
     <div className="min-h-screen bg-white">
@@ -129,16 +123,14 @@ export default function DownloadPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Windows Desktop</h3>
             <p className="text-sm text-gray-600 mb-4">Native offline application with full accounting features.</p>
-            {downloadLinks && (
-              <p className="text-xs text-brand/70 mb-2">Latest version: v{downloadLinks.version}</p>
-            )}
+            <p className="text-xs text-brand/70 mb-2">Latest version: v{version}</p>
             <ul className="space-y-2 mb-6">
               {features.map((f, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> {f}</li>
               ))}
             </ul>
             <button
-              onClick={handleWindowsDownload}
+              onClick={() => startDownload('windows')}
               className="inline-flex items-center justify-center gap-2 w-full bg-brand hover:bg-brand-hover text-white font-medium px-5 py-2.5 rounded-lg transition-colors text-sm"
             >
               <Download className="h-4 w-4" /> Download for Windows
@@ -151,23 +143,20 @@ export default function DownloadPage() {
               <Apple className="h-6 w-6 text-gray-700" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">macOS Desktop</h3>
-            <p className="text-sm text-gray-600 mb-4">Native Mac application. Built for Apple Silicon &amp; Intel.</p>
-            {downloadLinks && (
-              <p className="text-xs text-brand/70 mb-2">Latest version: v{downloadLinks.version}</p>
-            )}
+            <p className="text-sm text-gray-600 mb-4">Native Mac application. Built for Apple Silicon & Intel.</p>
+            <p className="text-xs text-brand/70 mb-2">Latest version: v{version}</p>
             <ul className="space-y-2 mb-6">
-              <li className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> Full offline capability</li>
-              <li className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> Works on Intel &amp; Apple Silicon</li>
-              <li className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> One-time license</li>
-              <li className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> Cloud sync ready</li>
+              {macFeatures.map((f, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> {f}</li>
+              ))}
             </ul>
             <button
-              onClick={handleMacDownload}
+              onClick={() => startDownload('mac')}
               className="inline-flex items-center justify-center gap-2 w-full bg-gray-800 hover:bg-gray-900 text-white font-medium px-5 py-2.5 rounded-lg transition-colors text-sm"
             >
               <Download className="h-4 w-4" /> Download for macOS
             </button>
-            <p className="text-xs text-gray-400 text-center mt-2">Intel &amp; Apple Silicon</p>
+            <p className="text-xs text-gray-400 text-center mt-2">Intel & Apple Silicon</p>
           </div>
         </div>
 
@@ -184,9 +173,9 @@ export default function DownloadPage() {
             ))}
           </div>
           <div className="mt-6 pt-6 border-t border-gray-200 grid sm:grid-cols-2 gap-4 text-sm text-gray-600">
-            <div><span className="font-medium text-gray-900">Version:</span> {downloadLinks?.version || '1.0.0'}</div>
-            <div><span className="font-medium text-gray-900">File Size:</span> ~500MB (with dependencies)</div>
-            <div><span className="font-medium text-gray-900">Release Date:</span> June 2026</div>
+            <div><span className="font-medium text-gray-900">Version:</span> v{version}</div>
+            <div><span className="font-medium text-gray-900">File Size:</span> ~150MB (compressed)</div>
+            <div><span className="font-medium text-gray-900">Release Date:</span> {downloadInfo?.publishedAt ? new Date(downloadInfo.publishedAt).toLocaleDateString() : 'June 2026'}</div>
             <div><span className="font-medium text-gray-900">License:</span> 14-day free trial included</div>
           </div>
         </div>
@@ -197,7 +186,7 @@ export default function DownloadPage() {
             Visit our <Link href="/contact" className="text-brand font-medium hover:underline">Contact page</Link> or check the installation guide.
           </p>
           <p className="text-xs text-gray-400">
-            Latest version: <span className="text-gray-500">v{downloadLinks?.version || '1.0.0'}</span>
+            Latest version: <span className="text-gray-500">v{version}</span>
           </p>
         </div>
       </div>
@@ -206,16 +195,25 @@ export default function DownloadPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {showDialog === 'windows' ? 'Downloading Windows Desktop' : 'Downloading macOS Desktop'}
+              {showDialog === 'windows' ? 'Downloading Windows Desktop' :
+               showDialog === 'mac' ? 'Downloading macOS Desktop' :
+               showDialog === 'mac-arm64' ? 'Downloading macOS (Apple Silicon)' :
+               'Downloading Linux Desktop'}
             </h3>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 {downloading ? <Loader2 className="h-5 w-5 text-brand animate-spin" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
-                <span className="text-sm text-gray-700">Packaging desktop application...</span>
+                <span className="text-sm text-gray-700">
+                  {downloadInfo?.[showDialog]?.url?.startsWith('http')
+                    ? 'Redirecting to download server...'
+                    : 'Preparing download...'}
+                </span>
               </div>
               <div className="flex items-center gap-3">
                 {downloading ? <Loader2 className="h-5 w-5 text-brand animate-spin" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
-                <span className="text-sm text-gray-700">Compressing source files...</span>
+                <span className="text-sm text-gray-700">
+                  {downloadInfo?.source === 'github' ? 'Downloading from GitHub Releases' : 'Downloading from server'}
+                </span>
               </div>
               <div className="flex items-center gap-3">
                 <Download className="h-5 w-5 text-green-500" />
@@ -226,7 +224,7 @@ export default function DownloadPage() {
               </div>
               {error && <p className="text-xs text-red-500 text-center">{error}</p>}
               {!error && <p className="text-xs text-gray-500 text-center">
-                {downloading ? 'Preparing download...' : 'Download complete!'}
+                {downloading ? 'Please wait...' : 'Download started!'}
               </p>}
             </div>
           </div>

@@ -1,5 +1,6 @@
 appId: com.biasharaledger.app
 productName: BiasharaLedger
+copyright: Copyright © 2026 Biashara Ledger
 directories:
   output: dist-electron
   buildResources: electron/assets
@@ -21,6 +22,12 @@ compression: maximum
 
 icon: electron/assets/icon.png
 
+publish:
+  provider: github
+  owner: digitalbaroz
+  repo: biashara-ledger
+  releaseType: release
+
 mac:
   target:
     - target: dmg
@@ -31,6 +38,7 @@ mac:
   compression: maximum
   hardenedRuntime: true
   gatekeeperAssess: false
+  artifactName: ${productName}-${version}-${arch}.${ext}
 
 win:
   target:
@@ -57,5 +65,9 @@ linux:
     - target: AppImage
       arch:
         - x64
+    - target: deb
+      arch:
+        - x64
   compression: maximum
   category: Finance
+  artifactName: ${productName}-${version}.${ext}
