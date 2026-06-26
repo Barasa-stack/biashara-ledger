@@ -7,3 +7,6 @@ dist-electron/
 *.sqlite
 .DS_Store
 public/downloads/*.dmg
+public/downloads/*.exe
+public/downloads/*.dmg
+public/downloads/*.AppImage
