@@ -1,31 +1,62 @@
 import { NextResponse } from 'next/server';
-import { adminQuery, adminRun } from '@/lib/db';
-import { getSessionFromCookies } from '@/lib/auth-server';
-import { dropClientDatabase } from '@/lib/admin';
+import { adminRun, adminGet } from '@/lib/db';
+import { adminGuard, dropClientDatabase } from '@/lib/admin';
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSessionFromCookies();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if ((session as any).email !== process.env.ADMIN_EMAIL && (session as any).role !== 'super_admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error } = await adminGuard();
+  if (error) return error;
 
   const { id } = await params;
-  const client = await adminQuery('SELECT database_name FROM admin_clients WHERE id = $1', [id]);
 
-  if (client.length === 0) {
-    return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+  try {
+    const client = await adminGet('SELECT id, database_name FROM admin_clients WHERE id = $1', [id]);
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    const dbName = (client as any).database_name;
+
+    await adminRun('DELETE FROM admin_license_keys WHERE client_id = $1', [id]);
+    await adminRun('DELETE FROM admin_clients WHERE id = $1', [id]);
+
+    try {
+      await dropClientDatabase(dbName);
+    } catch (dbErr) {
+      console.warn('Could not drop database (may not exist):', (dbErr as Error).message);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
 
-  const { database_name } = client[0];
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error } = await adminGuard();
+  if (error) return error;
 
-  await dropClientDatabase(database_name).catch((e) => console.error('Drop DB error:', e.message));
+  const { id } = await params;
 
-  await adminRun('DELETE FROM admin_license_keys WHERE client_id = $1', [id]);
-  await adminRun('DELETE FROM admin_clients WHERE id = $1', [id]);
+  try {
+    const client = await adminGet(
+      `SELECT id, company_name, email, database_name, license_key, max_users,
+              is_active, is_trial, trial_start_date, trial_end_date, expires_at, last_active, created_at
+       FROM admin_clients WHERE id = $1`,
+      [id]
+    );
 
-  return NextResponse.json({
-    success: true,
-    message: `Client deleted. Database "${database_name}" dropped.`
-  });
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(client);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

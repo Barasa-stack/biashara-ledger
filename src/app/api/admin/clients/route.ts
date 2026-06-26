@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server';
-import { adminQuery, adminGet, adminRun, getPoolForDatabase } from '@/lib/db';
-import { getSessionFromCookies } from '@/lib/auth-server';
-import { createClientDatabase } from '@/lib/admin';
-
-async function guard() {
-  const session = await getSessionFromCookies();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if ((session as any).email !== process.env.ADMIN_EMAIL && (session as any).role !== 'super_admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-}
+import { adminQuery, adminGet } from '@/lib/db';
+import { adminGuard, createClientDatabase } from '@/lib/admin';
 
 export async function GET() {
-  const g = await guard();
-  if (g) return g;
+  const { error } = await adminGuard();
+  if (error) return error;
+
   const clients = await adminQuery(
     `SELECT id, company_name, email, database_name, license_key, max_users,
             is_active, is_trial, trial_start_date, trial_end_date, expires_at, last_active, created_at
@@ -23,8 +15,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const g = await guard();
-  if (g) return g;
+  const { error } = await adminGuard();
+  if (error) return error;
+
   try {
     const { company_name, email, max_users } = await request.json();
     if (!company_name || !email) {
@@ -37,7 +30,6 @@ export async function POST(request: Request) {
     }
 
     const client = await createClientDatabase(email, company_name, max_users || 5);
-
     return NextResponse.json({ success: true, client });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

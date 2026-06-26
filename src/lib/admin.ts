@@ -3,10 +3,27 @@ import crypto from 'crypto';
 import { exec as execChild } from 'child_process';
 import util from 'util';
 import { adminQuery, adminGet, adminRun, getPoolForDatabase, adminDb } from './db';
+import { getSessionFromCookies } from './auth-server';
+import { NextResponse } from 'next/server';
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'digitalbaroz@gmail.com';
+
+export async function adminGuard() {
+  try {
+    const session = await getSessionFromCookies();
+    if (!session) {
+      return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), session: null };
+    }
+    if ((session as any).email !== ADMIN_EMAIL && (session as any).role !== 'super_admin') {
+      return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }), session: null };
+    }
+    return { error: null, session: session as any };
+  } catch {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), session: null };
+  }
+}
 
 const execPromise = util.promisify(execChild);
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'evanromanoff@gmail.com';
 
 export async function createClientDatabase(email: string, companyName: string, maxUsers = 5) {
   const sanitized = companyName.toLowerCase().replace(/[^a-z0-9]/g, '_');

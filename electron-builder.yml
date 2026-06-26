@@ -2,6 +2,7 @@ appId: com.biasharaledger.app
 productName: BiasharaLedger
 directories:
   output: dist-electron
+  buildResources: electron/assets
 
 npmRebuild: false
 nodeGypRebuild: false
@@ -9,8 +10,14 @@ nodeGypRebuild: false
 files:
   - electron/**/*
   - package.json
+  - '.next/**/*'
+  - public/**/*
 
 asar: true
+asarUnpack:
+  - 'node_modules/better-sqlite3/**'
+
+compression: maximum
 
 icon: electron/assets/icon.png
 
@@ -19,18 +26,36 @@ mac:
     - target: dmg
       arch:
         - x64
+        - arm64
   category: public.app-category.finance
+  compression: maximum
+  hardenedRuntime: true
+  gatekeeperAssess: false
 
 win:
   target:
     - target: nsis
       arch:
         - x64
+  compression: maximum
+  artifactName: ${productName}-Setup-${version}.${ext}
+  signDlls: false
+  signAndEditExecutable: false
 
 nsis:
-  oneClick: false
-  perMachine: true
-  allowToChangeInstallationDirectory: true
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
   createDesktopShortcut: true
   shortcutName: BiasharaLedger
   runAfterFinish: true
+  installerIcon: electron/assets/icon.png
+  installerHeaderIcon: electron/assets/icon.png
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  compression: maximum
+  category: Finance

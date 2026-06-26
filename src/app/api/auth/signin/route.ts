@@ -1,61 +1,75 @@
 import { NextResponse } from 'next/server';
-import { get } from '@/lib/db';
+import { cookies } from 'next/headers';
 import { verifyPassword, createSession } from '@/lib/auth-server';
-import { checkRateLimit } from '@/lib/rate-limit';
-export async function POST(request: Request) {
-  try {
-    let { email, password } = await request.json();
-    if (email) email = email.trim().toLowerCase();
+import { query } from '@/lib/db';
 
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rl = checkRateLimit(`signin:${ip}`, 5, 60 * 1000);
-    if (!rl.allowed) {
-      return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 });
-    }
+export async function POST(req: Request) {
+  try {
+    const { email, password } = await req.json();
 
     if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
+      );
     }
 
-    const user = await get('SELECT * FROM users WHERE email = $1', [email]) as any;
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    // Find user
+    const users = await query('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (!users || users.length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
     }
 
-    if (!verifyPassword(password, user.password_hash)) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    const user = users[0];
+
+    // Verify password
+    const isValid = verifyPassword(password, user.password);
+    if (!isValid) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
     }
 
-    if (!user.verified) {
-      return NextResponse.json({ error: 'Please verify your email before signing in.' }, { status: 403 });
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Access denied. Admin only.' },
+        { status: 403 }
+      );
     }
 
-    const { token } = await createSession(user.id);
+    // Create session
+    const { token, expiresAt } = await createSession(user.id);
 
-    const response = NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        phone: user.phone,
-        subscriptionPlan: user.subscription_plan,
-        subscriptionStatus: user.subscription_status,
-        subscriptionExpiry: user.subscription_expiry,
-        verified: !!user.verified,
-      },
-    });
-
-    response.cookies.set('bl_session', token, {
+    // Set cookie
+    cookies().set('bl_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      expires: new Date(expiresAt),
       path: '/',
-      maxAge: 7 * 24 * 60 * 60,
     });
 
-    return response;
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Sign in failed' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.first_name,
+        lastName: user.last_name,
+      },
+    });
+  } catch (error) {
+    console.error('Signin error:', error);
+    return NextResponse.json(
+      { error: 'Login failed' },
+      { status: 500 }
+    );
   }
 }

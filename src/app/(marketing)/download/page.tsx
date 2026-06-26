@@ -2,7 +2,7 @@
 
 import { Download, Monitor, Globe, CheckCircle, ChevronRight, Loader2, Apple } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const requirements = [
   'Windows 10 or Windows 11 (64-bit)',
@@ -22,27 +22,39 @@ const features = [
 export default function DownloadPage() {
   const [showDialog, setShowDialog] = useState<'windows' | 'mac' | null>(null);
   const [downloading, setDownloading] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
+  const [downloadLinks, setDownloadLinks] = useState<{
+    version: string;
+    windows: string | null;
+    mac: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/downloads/latest')
+      .then(r => r.json())
+      .then(setDownloadLinks)
+      .catch(() => {});
+  }, []);
 
   const handleWindowsDownload = async () => {
     setShowDialog('windows');
     setDownloading(true);
     setError(null);
     try {
-      const resp = await fetch('/api/download?type=windows');
+      const url = downloadLinks?.windows || '/api/download?type=windows';
+      const resp = await fetch(url);
       if (!resp.ok) throw new Error(await resp.text().then(t => {
         try { return JSON.parse(t).error; } catch { return t; }
       }));
       const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
+      const objUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = objUrl;
       a.download = 'BiasharaLedger-Setup.exe';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objUrl);
     } catch (e: any) {
       setError(e.message || 'Download failed');
     }
@@ -54,19 +66,20 @@ export default function DownloadPage() {
     setDownloading(true);
     setError(null);
     try {
-      const resp = await fetch('/api/download?type=mac');
+      const url = downloadLinks?.mac || '/api/download?type=mac';
+      const resp = await fetch(url);
       if (!resp.ok) throw new Error(await resp.text().then(t => {
         try { return JSON.parse(t).error; } catch { return t; }
       }));
       const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
+      const objUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = objUrl;
       a.download = 'BiasharaLedger-macOS.dmg';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objUrl);
     } catch (e: any) {
       setError(e.message || 'Download failed');
     }
@@ -116,6 +129,9 @@ export default function DownloadPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Windows Desktop</h3>
             <p className="text-sm text-gray-600 mb-4">Native offline application with full accounting features.</p>
+            {downloadLinks && (
+              <p className="text-xs text-brand/70 mb-2">Latest version: v{downloadLinks.version}</p>
+            )}
             <ul className="space-y-2 mb-6">
               {features.map((f, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> {f}</li>
@@ -127,7 +143,7 @@ export default function DownloadPage() {
             >
               <Download className="h-4 w-4" /> Download for Windows
             </button>
-            <p className="text-xs text-gray-400 text-center mt-2">Source code &bull; Run with Node.js</p>
+            <p className="text-xs text-gray-400 text-center mt-2">Windows 10/11 (64-bit)</p>
           </div>
 
           <div className="border border-gray-200 rounded-2xl p-8 hover:shadow-lg transition-shadow bg-white">
@@ -136,6 +152,9 @@ export default function DownloadPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">macOS Desktop</h3>
             <p className="text-sm text-gray-600 mb-4">Native Mac application. Built for Apple Silicon &amp; Intel.</p>
+            {downloadLinks && (
+              <p className="text-xs text-brand/70 mb-2">Latest version: v{downloadLinks.version}</p>
+            )}
             <ul className="space-y-2 mb-6">
               <li className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> Full offline capability</li>
               <li className="flex items-start gap-2 text-sm text-gray-600"><CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" /> Works on Intel &amp; Apple Silicon</li>
@@ -148,7 +167,7 @@ export default function DownloadPage() {
             >
               <Download className="h-4 w-4" /> Download for macOS
             </button>
-            <p className="text-xs text-gray-400 text-center mt-2">Source code &bull; Run with Node.js</p>
+            <p className="text-xs text-gray-400 text-center mt-2">Intel &amp; Apple Silicon</p>
           </div>
         </div>
 
@@ -165,7 +184,7 @@ export default function DownloadPage() {
             ))}
           </div>
           <div className="mt-6 pt-6 border-t border-gray-200 grid sm:grid-cols-2 gap-4 text-sm text-gray-600">
-            <div><span className="font-medium text-gray-900">Version:</span> 1.0.0</div>
+            <div><span className="font-medium text-gray-900">Version:</span> {downloadLinks?.version || '1.0.0'}</div>
             <div><span className="font-medium text-gray-900">File Size:</span> ~500MB (with dependencies)</div>
             <div><span className="font-medium text-gray-900">Release Date:</span> June 2026</div>
             <div><span className="font-medium text-gray-900">License:</span> 14-day free trial included</div>
@@ -178,8 +197,7 @@ export default function DownloadPage() {
             Visit our <Link href="/contact" className="text-brand font-medium hover:underline">Contact page</Link> or check the installation guide.
           </p>
           <p className="text-xs text-gray-400">
-              Want to build the Windows .exe yourself?{' '}
-            <span className="text-gray-500">Run the GitHub Actions workflow on your repo.</span>
+            Latest version: <span className="text-gray-500">v{downloadLinks?.version || '1.0.0'}</span>
           </p>
         </div>
       </div>
@@ -206,7 +224,7 @@ export default function DownloadPage() {
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div className="bg-brand rounded-full h-2 transition-all duration-1000" style={{width: downloading ? '60%' : '100%'}} />
               </div>
-                  {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+              {error && <p className="text-xs text-red-500 text-center">{error}</p>}
               {!error && <p className="text-xs text-gray-500 text-center">
                 {downloading ? 'Preparing download...' : 'Download complete!'}
               </p>}

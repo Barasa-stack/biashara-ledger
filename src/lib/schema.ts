@@ -28,6 +28,16 @@ export async function initSchema() {
   await exec(`ALTER TABLE IF EXISTS credit_notes ADD COLUMN IF NOT EXISTS payment_terms TEXT DEFAULT 'Net 30'`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS quotations ADD COLUMN IF NOT EXISTS due_date TEXT DEFAULT ''`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS client_db TEXT DEFAULT ''`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS license_keys ADD COLUMN IF NOT EXISTS offline_session_token TEXT DEFAULT ''`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS license_keys ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMPTZ`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS license_keys ADD COLUMN IF NOT EXISTS last_ip VARCHAR(45) DEFAULT ''`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS license_keys ADD COLUMN IF NOT EXISTS activation_count INTEGER DEFAULT 0`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS admin_license_keys ADD COLUMN IF NOT EXISTS hardware_fingerprint TEXT DEFAULT ''`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS admin_license_keys ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMPTZ`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS admin_license_keys ADD COLUMN IF NOT EXISTS last_ip VARCHAR(45) DEFAULT ''`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS admin_license_keys ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS electron_activity ADD COLUMN IF NOT EXISTS session_token TEXT DEFAULT ''`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS electron_activity ADD COLUMN IF NOT EXISTS hardware_fingerprint TEXT DEFAULT ''`).catch(() => {});
 
   await exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -463,7 +473,86 @@ export async function initSchema() {
       role VARCHAR(50) DEFAULT 'admin',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS license_keys (
+      id SERIAL PRIMARY KEY,
+      license_key VARCHAR(255) UNIQUE NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      license_type VARCHAR(50) DEFAULT 'standard',
+      status VARCHAR(20) DEFAULT 'unused',
+      user_id INTEGER,
+      expires_at TIMESTAMPTZ,
+      activated_at TIMESTAMP,
+      hardware_fingerprint TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS electron_activity (
+      id SERIAL PRIMARY KEY,
+      license_key VARCHAR(255) NOT NULL,
+      action VARCHAR(100) NOT NULL,
+      data JSONB DEFAULT '{}',
+      ip_address VARCHAR(45) DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS license_activations (
+      id SERIAL PRIMARY KEY,
+      license_key VARCHAR(255) NOT NULL,
+      user_email VARCHAR(255) NOT NULL,
+      hardware_fingerprint TEXT DEFAULT '',
+      ip_address VARCHAR(45) DEFAULT '',
+      device_info TEXT DEFAULT '',
+      status VARCHAR(20) DEFAULT 'success',
+      error_reason TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS backups (
+      id SERIAL PRIMARY KEY,
+      license_key VARCHAR(255) NOT NULL,
+      data JSONB NOT NULL,
+      file_size INTEGER DEFAULT 0,
+      version INTEGER DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS app_updates (
+      id SERIAL PRIMARY KEY,
+      version VARCHAR(50) NOT NULL,
+      changes JSONB DEFAULT '[]',
+      release_date TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS email_logs (
+      id SERIAL PRIMARY KEY,
+      recipient VARCHAR(255) NOT NULL,
+      email_type VARCHAR(50) NOT NULL,
+      success INTEGER DEFAULT 0,
+      detail TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
+
+  // Create offline_sessions separately to avoid PG type collision during build
+  await exec(`
+    CREATE TABLE IF NOT EXISTS offline_sessions (
+      id SERIAL PRIMARY KEY,
+      client_id INTEGER REFERENCES admin_clients(id) ON DELETE CASCADE,
+      license_key VARCHAR(255) NOT NULL,
+      session_token VARCHAR(255) UNIQUE NOT NULL,
+      hardware_fingerprint TEXT NOT NULL DEFAULT '',
+      user_email VARCHAR(255) NOT NULL,
+      status VARCHAR(20) DEFAULT 'active',
+      activated_at TIMESTAMPTZ DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      last_heartbeat TIMESTAMPTZ,
+      last_ip VARCHAR(45) DEFAULT '',
+      last_sync TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(() => {});
 
   // Seed default admin user
   await exec(`

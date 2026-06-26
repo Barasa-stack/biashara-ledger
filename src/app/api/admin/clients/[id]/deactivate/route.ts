@@ -1,18 +1,27 @@
 import { NextResponse } from 'next/server';
-import { adminRun } from '@/lib/db';
-import { getSessionFromCookies } from '@/lib/auth-server';
+import { adminRun, adminGet } from '@/lib/db';
+import { adminGuard } from '@/lib/admin';
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSessionFromCookies();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if ((session as any).email !== process.env.ADMIN_EMAIL && (session as any).role !== 'super_admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error } = await adminGuard();
+  if (error) return error;
 
   const { id } = await params;
-  const result = await adminRun(
-    `UPDATE admin_clients SET is_active = NOT is_active WHERE id = $1`,
-    [id]
-  );
-  return NextResponse.json({ success: true, affected: result.rowCount });
+
+  try {
+    const client = await adminGet('SELECT id, is_active FROM admin_clients WHERE id = $1', [id]);
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    const newStatus = !(client as any).is_active;
+    await adminRun('UPDATE admin_clients SET is_active = $1 WHERE id = $2', [newStatus, id]);
+
+    return NextResponse.json({ success: true, is_active: newStatus });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

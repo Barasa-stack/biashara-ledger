@@ -4,6 +4,10 @@ let initialized = false;
 
 export async function ensureDbInitialized() {
   if (initialized) return;
-  await initSchema();
+  try {
+    await initSchema();
+  } catch (e) {
+    console.error('Schema init failed (non-fatal):', e);
+  }
   initialized = true;
 }
