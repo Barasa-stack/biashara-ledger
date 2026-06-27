@@ -15,3 +15,5 @@ public/downloads/*.dmg
 public/downloads/*.AppImage
 dist/
 releases/
+.vercel
+.env*

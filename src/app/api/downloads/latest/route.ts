@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const repoOwner = process.env.GITHUB_REPO_OWNER || 'digitalbaroz';
   const repoName = process.env.GITHUB_REPO_NAME || 'biashara-ledger';
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://biashara-ledger.vercel.app';
   const version = process.env.npm_package_version || '1.0.0';
 
   try {

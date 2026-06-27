@@ -1,0 +1,18 @@
+node_modules
+.next
+.git
+dist
+build
+out
+release
+electron
+*.log
+
+# HUGE PROBLEM IN YOUR CASE
+public/downloads
+
+# backups
+*.bak
+*.zip
+*.tar
+*.gz

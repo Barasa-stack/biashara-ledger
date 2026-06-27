@@ -1,0 +1,235 @@
+[3J[H[2J==========================================================
+        BIASHARA LEDGER COMPLETE SYSTEM AUDIT
+==========================================================
+
+PROJECT
+[0;32m✓[0m .env.local exists
+[0;32m✓[0m package.json exists
+[0;32m✓[0m src exists
+
+ENVIRONMENT
+[0;31m✗[0m DATABASE_URL exists in .env.local
+[0;32m✓[0m ENCRYPTION_KEY exists in .env.local
+
+DATABASE
+9:    pools.set(database, new Pool(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 } : { host: process.env.PGHOST || 'localhost', port: parseInt(process.env.PGPORT || '5432'), database, user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || '', max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 }));
+9:    pools.set(database, new Pool(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 } : { host: process.env.PGHOST || 'localhost', port: parseInt(process.env.PGPORT || '5432'), database, user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || '', max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 }));
+9:    pools.set(database, new Pool(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 } : { host: process.env.PGHOST || 'localhost', port: parseInt(process.env.PGPORT || '5432'), database, user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || '', max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 }));
+
+AUTH ROUTES
+src/app/api/auth/verify-password/route.ts
+src/app/api/auth/update-profile/route.ts
+src/app/api/auth/renew/route.ts
+src/app/api/auth/verify-otp/route.ts
+src/app/api/auth/signup/route.ts
+src/app/api/auth/send-signup-otp/route.ts
+src/app/api/auth/roles/route.ts
+src/app/api/auth/check-subscription/route.ts
+src/app/api/auth/signout/route.ts
+src/app/api/auth/signin/route.ts
+src/app/api/auth/me/route.ts
+src/app/api/auth/reset-password/route.ts
+src/app/api/auth/subscription-status/route.ts
+src/app/api/auth/select-package/route.ts
+src/app/api/auth/resend-otp/route.ts
+src/app/api/auth/change-password/route.ts
+src/app/api/auth/login/route.ts
+
+LOCALHOST REFERENCES
+src/app/dashboard/layout.tsx:156:              <Link href="http://localhost:3000/pricing" className="text-sm text-brand font-medium hover:underline">
+src/app/api/updates/latest/route.ts:14:        downloadUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/downloads`,
+src/app/api/updates/latest/route.ts:24:      downloadUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/downloads`,
+src/app/api/downloads/latest/route.ts:6:  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+src/lib/db.ts.bak:10:      host: process.env.PGHOST || 'localhost',
+src/lib/db.ts:9:    pools.set(database, new Pool(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 } : { host: process.env.PGHOST || 'localhost', port: parseInt(process.env.PGPORT || '5432'), database, user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || '', max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 }));
+electron/license.cjs:27:    const response = await fetch('http://localhost:3000/api/license/validate', {
+electron/offline-login.html:409:    window.location.href = 'http://127.0.0.1:3000/dashboard';
+electron/offline-login.html:591:      msg.textContent = 'Cannot connect to BiasharaLedger server. Make sure npm run dev is running on http://localhost:3000.';
+electron/desktop.cjs:4:const SERVER_URL = 'http://localhost:3000';
+electron/desktop.cjs:25:    if (!url.startsWith('http://localhost')) e.preventDefault();
+electron/main.cjs:9:const API = isDev ? 'http://localhost:3000/api' : 'https://biasharaledger.com/api';
+electron/main.cjs:10:const APP = isDev ? 'http://localhost:3000' : 'https://biasharaledger.com';
+scripts/test-api.js:3:const BASE_URL = process.env.TEST_URL || 'http://localhost:3000';
+scripts/setup-local-db.js:104:    console.log('🔗 Login at: http://localhost:3000/admin/login');
+scripts/setup-local-db.ts:106:    console.log('🔗 Login at: http://localhost:3000/admin/login');
+scripts/verify-deployment.js:3:const BASE_URL = process.env.DEPLOY_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+
+DATABASE_URL REFERENCES
+src/lib/db.ts:9:    pools.set(database, new Pool(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 } : { host: process.env.PGHOST || 'localhost', port: parseInt(process.env.PGPORT || '5432'), database, user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || '', max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 }));
+
+ENCRYPTION
+src/app/api/license/activate/route.ts:22:    const secret = process.env.ENCRYPTION_KEY || 'biashara-ledger-secret';
+src/lib/license.ts:4:const SECRET = process.env.LICENSE_SECRET_KEY || process.env.ENCRYPTION_KEY || 'biashara-ledger-license-secret';
+src/lib/offline-session.ts:6:const SESSION_SECRET = process.env.ENCRYPTION_KEY || 'biashara-ledger-session-secret';
+src/lib/encryption.ts:4:if (!process.env.ENCRYPTION_KEY) {
+src/lib/encryption.ts:5:  throw new Error('ENCRYPTION_KEY environment variable is required. Set it in .env.local');
+src/lib/encryption.ts:7:const KEY = crypto.scryptSync(process.env.ENCRYPTION_KEY, 'salt', 32);
+src/lib/backup.ts:5:const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'biashara-ledger-backup-key';
+src/lib/backup.ts:8:  const key = crypto.scryptSync(ENCRYPTION_KEY, 'backup-salt', 32);
+src/lib/backup.ts:20:    const key = crypto.scryptSync(ENCRYPTION_KEY, 'backup-salt', 32);
+
+LARGE FILES (>50MB)
+./node_modules/@next/swc-darwin-x64/next-swc.darwin-x64.node
+./.next/cache/webpack/client-production/0.pack
+./.next/cache/webpack/server-production/0.pack
+./public/downloads/biashara-ledger-mac.dmg
+./.git/objects/pack/pack-4cf08c22643bd3a5f4a565fa5224f5093d77bb94.pack
+
+DIRECTORY SIZES
+3.6G	.git
+386M	.next
+617M	node_modules
+212M	public
+
+VERCEL
+barasa-stack
+
+
+ name               value               environments        created    
+ DATABASE_URL       Encrypted           Preview             2h ago     
+ DATABASE_URL       Encrypted           Production          2h ago     
+
+
+BUILD
+
+> biashara-ledger@1.0.0 build
+> next build --webpack
+
+▲ Next.js 16.2.9 (webpack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 11.8s
+  Running TypeScript ...
+  Finished TypeScript in 20.8s ...
+  Collecting page data using 3 workers ...
+  Generating static pages using 3 workers (0/101) ...
+  Generating static pages using 3 workers (25/101) 
+  Generating static pages using 3 workers (50/101) 
+  Generating static pages using 3 workers (75/101) 
+✓ Generating static pages using 3 workers (101/101) in 4.5s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ƒ /_not-found
+├ ƒ /about
+├ ○ /admin
+├ ƒ /admin/clients/[id]
+├ ○ /admin/electron-users
+├ ○ /admin/licenses
+├ ○ /admin/login
+├ ○ /admin/offline-clients
+├ ○ /admin/updates
+├ ƒ /api/admin/clients
+├ ƒ /api/admin/clients/[id]
+├ ƒ /api/admin/clients/[id]/deactivate
+├ ƒ /api/admin/electron-users
+├ ƒ /api/admin/licenses
+├ ƒ /api/admin/licenses/generate
+├ ƒ /api/admin/offline-clients
+├ ƒ /api/admin/revoke-license
+├ ƒ /api/admin/update
+├ ƒ /api/analytics
+├ ƒ /api/auth/change-password
+├ ƒ /api/auth/check-subscription
+├ ƒ /api/auth/login
+├ ƒ /api/auth/me
+├ ƒ /api/auth/renew
+├ ƒ /api/auth/resend-otp
+├ ƒ /api/auth/reset-password
+├ ƒ /api/auth/roles
+├ ƒ /api/auth/select-package
+├ ƒ /api/auth/send-signup-otp
+├ ƒ /api/auth/signin
+├ ƒ /api/auth/signout
+├ ƒ /api/auth/signup
+├ ƒ /api/auth/subscription-status
+├ ƒ /api/auth/update-profile
+├ ƒ /api/auth/verify-otp
+├ ƒ /api/auth/verify-password
+├ ƒ /api/backup
+├ ƒ /api/clients
+├ ƒ /api/company
+├ ƒ /api/company/next-number
+├ ƒ /api/csrf
+├ ƒ /api/customers
+├ ƒ /api/download
+├ ƒ /api/downloads/latest
+├ ƒ /api/electron/track
+├ ƒ /api/expenses
+├ ƒ /api/export
+├ ƒ /api/health
+├ ƒ /api/license/activate
+├ ƒ /api/license/generate
+├ ƒ /api/license/status
+├ ƒ /api/license/validate
+├ ƒ /api/offline/activate
+├ ƒ /api/offline/validate
+├ ƒ /api/payments/confirm
+├ ƒ /api/payments/mpesa
+├ ƒ /api/payments/paypal
+├ ƒ /api/payments/stripe
+├ ƒ /api/payroll
+├ ƒ /api/payroll/salaries
+├ ƒ /api/purchases
+├ ƒ /api/purchases/debit-notes
+├ ƒ /api/purchases/invoices
+├ ƒ /api/purchases/pos
+├ ƒ /api/reports
+├ ƒ /api/sales
+├ ƒ /api/sales/credit-notes
+├ ƒ /api/sales/invoices
+├ ƒ /api/sales/invoices/mark-paid
+├ ƒ /api/sales/payments
+├ ƒ /api/sales/quotations
+├ ƒ /api/send-email
+├ ƒ /api/sync
+├ ƒ /api/sync/backup
+├ ƒ /api/sync/heartbeat
+├ ƒ /api/updates/latest
+├ ƒ /blog
+├ ƒ /contact
+├ ○ /dashboard
+├ ƒ /dashboard/clients
+├ ƒ /dashboard/customers
+├ ○ /dashboard/expenses
+├ ○ /dashboard/payroll
+├ ○ /dashboard/payroll/salaries
+├ ○ /dashboard/purchases/debit-notes
+├ ○ /dashboard/purchases/invoices
+├ ○ /dashboard/purchases/pos
+├ ○ /dashboard/reports
+├ ○ /dashboard/sales/credit-notes
+├ ○ /dashboard/sales/invoices
+├ ○ /dashboard/sales/payments
+├ ○ /dashboard/sales/quotations
+├ ○ /dashboard/settings
+├ ○ /dashboard/subscription
+├ ƒ /download
+├ ○ /features
+├ ○ /payment
+├ ○ /pricing
+├ ○ /renew
+├ ○ /select-package
+├ ƒ /sign-in
+└ ƒ /sign-up
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+==========================================================
+SUMMARY
+==========================================================
+
+[1;33mProblems detected:[0m
+ • DATABASE_URL exists in .env.local
+
+Audit finished.

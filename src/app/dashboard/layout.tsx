@@ -153,7 +153,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </form>
 
             <div className="mt-4 text-center">
-              <Link href="http://localhost:3000/pricing" className="text-sm text-brand font-medium hover:underline">
+              <Link href="https://biashara-ledger.vercel.app/pricing" className="text-sm text-brand font-medium hover:underline">
                 Don&apos;t have a license? Purchase Now
               </Link>
             </div>
