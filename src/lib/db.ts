@@ -6,7 +6,16 @@ const pools = new Map<string, Pool>();
 
 function getOrCreatePool(database: string, max = 20): Pool {
   if (!pools.has(database)) {
-    pools.set(database, new Pool(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 } : { host: process.env.PGHOST || 'localhost', port: parseInt(process.env.PGPORT || '5432'), database, user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || '', max, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 }));
+    const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_t19odLQmrEGH@ep-sparkling-sunset-ah4aepcv.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require";
+    
+    pools.set(database, new Pool({
+      connectionString: connectionString,
+      ssl: { rejectUnauthorized: false },
+      max,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000
+    }));
+    
     pools.get(database)!.on('error', (err) => {
       console.error(`PostgreSQL pool error [${database}]:`, err.message);
     });
