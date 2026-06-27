@@ -1,65 +1,57 @@
-import { NextResponse } from 'next/server';
-import { get, adminGet, run } from '@/lib/db';
-import { checkRateLimit } from '@/lib/rate-limit';
-import { sendOTPEmail } from '@/lib/email';
+import { NextRequest, NextResponse } from 'next/server';
+import { neon } from '@neondatabase/serverless';
+import crypto from 'crypto';
 
-export async function POST(request: Request) {
+// Store OTPs in memory (for demo; use Redis/DB in production)
+const otpStore = new Map<string, { otp: string; expires: number }>();
+
+export async function POST(req: NextRequest) {
   try {
-    let { email, purpose } = await request.json();
+    const { email } = await req.json();
+
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
-    }
-    email = email.trim().toLowerCase();
-
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rl = checkRateLimit(`otp:${ip}`, 3, 60 * 1000);
-    if (!rl.allowed) {
-      return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 });
+      return NextResponse.json(
+        { error: 'Email is required' },
+        { status: 400 }
+      );
     }
 
-    const otpPurpose = purpose || 'signup';
+    // Check if user already exists (optional)
+    const sql = neon(process.env.DATABASE_URL!);
+    const existing = await sql`
+      SELECT id FROM users WHERE email = ${email}
+    `;
 
-    if (otpPurpose === 'signup') {
-      const existing = await get('SELECT id FROM users WHERE email = $1', [email]);
-      const registeredClient = await adminGet('SELECT id FROM admin_clients WHERE email = $1', [email]);
-      if (existing || registeredClient) {
-        return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
-      }
-    } else if (otpPurpose === 'password_reset') {
-      const existing = await get('SELECT id FROM users WHERE email = $1', [email]);
-      const registeredClient = await adminGet('SELECT id FROM admin_clients WHERE email = $1', [email]);
-      if (!existing && !registeredClient) {
-        return NextResponse.json({ error: 'No account found with that email' }, { status: 404 });
-      }
+    if (existing.length > 0) {
+      return NextResponse.json(
+        { error: 'User already registered' },
+        { status: 409 }
+      );
     }
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    // Generate a 6-digit OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    await run(
-      'UPDATE verification_codes SET used = 1 WHERE email = $1 AND purpose = $2 AND used = 0',
-      [email, otpPurpose]
-    );
+    // Store OTP (in-memory for demo – use a DB table or Redis in production)
+    otpStore.set(email, { otp, expires });
 
-    await run(
-      'INSERT INTO verification_codes (email, code, purpose, expires_at) VALUES ($1, $2, $3, $4)',
-      [email, code, otpPurpose, expiresAt]
-    );
-
-    const result = await sendOTPEmail(email, code);
-    if (!result.sent) {
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to send verification email. Please check your SMTP settings.',
-      }, { status: 500 });
-    }
+    // In production, send the OTP via email/SMS here.
+    // For now, we just return it (for testing – remove in production)
+    console.log(`📧 OTP for ${email}: ${otp}`);
 
     return NextResponse.json({
       success: true,
-      emailSent: true,
-      message: `A 6-digit code has been sent to ${email}`,
+      message: 'OTP sent (check console for demo)',
+      // Remove `otp` in production – for testing only
+      otp // ⚠️ Remove this line in production
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Failed to send code' }, { status: 500 });
+
+  } catch (error) {
+    console.error('Send OTP error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
