@@ -1,3 +1,4 @@
+if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not set");
 import { NextResponse } from 'next/server';
 import { get, adminGet, adminQuery, getPoolForDatabase } from '@/lib/db';
 import { verifyPassword, createSession } from '@/lib/auth-server';
