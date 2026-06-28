@@ -26,6 +26,7 @@ export async function initSchema() {
   await exec(`ALTER TABLE IF EXISTS credit_notes ADD COLUMN IF NOT EXISTS tax_vat REAL DEFAULT 0`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS credit_notes ADD COLUMN IF NOT EXISTS discounts REAL DEFAULT 0`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS credit_notes ADD COLUMN IF NOT EXISTS payment_terms TEXT DEFAULT 'Net 30'`).catch(() => {});
+  await exec(`ALTER TABLE IF EXISTS admin_clients ADD COLUMN IF NOT EXISTS schema_version INTEGER DEFAULT 1`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS quotations ADD COLUMN IF NOT EXISTS due_date TEXT DEFAULT ''`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS sessions ADD COLUMN IF NOT EXISTS client_db TEXT DEFAULT ''`).catch(() => {});
   await exec(`ALTER TABLE IF EXISTS license_keys ADD COLUMN IF NOT EXISTS offline_session_token TEXT DEFAULT ''`).catch(() => {});
@@ -451,6 +452,7 @@ export async function initSchema() {
       trial_end_date TIMESTAMP,
       expires_at TIMESTAMP,
       last_active TIMESTAMP,
+      schema_version INTEGER DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 

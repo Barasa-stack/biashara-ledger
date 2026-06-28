@@ -4,28 +4,33 @@ import { getSession } from './auth-server';
 
 const pools = new Map<string, Pool>();
 
-function getOrCreatePool(database: string, max = 20): Pool {
-  if (!pools.has(database)) {
-    const connectionString = process.env.DATABASE_URL;
-    
-    pools.set(database, new Pool({
-      connectionString: connectionString,
+function getOrCreatePool(max = 20, schema?: string): Pool {
+  const key = schema || '__admin__';
+  if (!pools.has(key)) {
+    let connectionString = process.env.DATABASE_URL!;
+    if (schema) {
+      const sep = connectionString.includes('?') ? '&' : '?';
+      const escaped = `"${schema.replace(/"/g, '""')}"`;
+      connectionString += `${sep}options=--search_path%3D${encodeURIComponent(escaped)}`;
+    }
+    const pool = new Pool({
+      connectionString,
       ssl: { rejectUnauthorized: false },
       max,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000
-    }));
-    
-    pools.get(database)!.on('error', (err) => {
-      console.error(`PostgreSQL pool error [${database}]:`, err.message);
     });
+
+    pool.on('error', (err) => {
+      console.error(`PostgreSQL pool error [${key}]:`, err.message);
+    });
+
+    pools.set(key, pool);
   }
-  return pools.get(database)!;
+  return pools.get(key)!;
 }
 
-export const adminDb = process.env.PGDATABASE || 'biashara_ledger';
-
-const adminPool = getOrCreatePool(adminDb, 20);
+const adminPool = getOrCreatePool(20);
 
 export async function getCurrentPool(): Promise<Pool> {
   try {
@@ -34,7 +39,7 @@ export async function getCurrentPool(): Promise<Pool> {
     if (token) {
       const session = await getSession(token);
       if (session && (session as any).client_db) {
-        return getOrCreatePool((session as any).client_db, 5);
+        return getOrCreatePool(5, (session as any).client_db);
       }
     }
   } catch {}
@@ -68,8 +73,8 @@ export async function insertReturning<T extends QueryResultRow = any>(sql: strin
   return rows[0];
 }
 
-export function getPoolForDatabase(dbName: string): Pool {
-  return getOrCreatePool(dbName, 5);
+export function getPoolForDatabase(schemaName: string): Pool {
+  return getOrCreatePool(5, schemaName);
 }
 
 export const adminQuery = async <T extends QueryResultRow = any>(sql: string, params?: any[]) => {

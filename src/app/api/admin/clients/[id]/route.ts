@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminRun, adminGet } from '@/lib/db';
-import { adminGuard, dropClientDatabase } from '@/lib/admin';
+import { adminGuard, dropClientSchema } from '@/lib/admin';
 
 export async function DELETE(
   request: Request,
@@ -23,7 +23,7 @@ export async function DELETE(
     await adminRun('DELETE FROM admin_clients WHERE id = $1', [id]);
 
     try {
-      await dropClientDatabase(dbName);
+      await dropClientSchema(dbName);
     } catch (dbErr) {
       console.warn('Could not drop database (may not exist):', (dbErr as Error).message);
     }

@@ -1,8 +1,6 @@
 import { Pool } from 'pg';
 import crypto from 'crypto';
-import { exec as execChild } from 'child_process';
-import util from 'util';
-import { adminQuery, adminGet, adminRun, getPoolForDatabase, adminDb } from './db';
+import { adminQuery, adminGet, adminRun, getPoolForDatabase } from './db';
 import { getSessionFromCookies } from './auth-server';
 import { NextResponse } from 'next/server';
 
@@ -23,29 +21,28 @@ export async function adminGuard() {
   }
 }
 
-const execPromise = util.promisify(execChild);
-
 export async function createClientDatabase(email: string, companyName: string, maxUsers = 5) {
   const sanitized = companyName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  const dbName = `client_${sanitized}_${Date.now().toString(36)}`;
+  const schemaName = `cli_${sanitized}_${Date.now().toString(36)}`;
   const licenseKey = generateLicenseKey(email);
 
-  console.log(`Creating database: ${dbName}...`);
+  console.log(`Creating schema: ${schemaName}...`);
 
+  await adminRun(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+
+  const conn = await getPoolForDatabase(schemaName).connect();
   try {
-    await execPromise(`createdb -U ${process.env.PGUSER || 'postgres'} -T biashara_ledger_template ${dbName}`);
-  } catch (e) {
-    console.log('Template clone failed, creating empty database and applying schema...');
-    await execPromise(`createdb -U ${process.env.PGUSER || 'postgres'} ${dbName}`);
-    const clientPool = getPoolForDatabase(dbName);
-    await applySchemaToClient(clientPool);
+    await conn.query(`SET search_path TO "${schemaName}"`);
+    await applySchemaToClient(conn, companyName);
+  } finally {
+    conn.release();
   }
 
   const result = await adminQuery(
     `INSERT INTO admin_clients (company_name, email, database_name, license_key, max_users, trial_start_date, trial_end_date)
      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '14 days')
      RETURNING id, company_name, email, database_name, license_key, trial_end_date`,
-    [companyName, email, dbName, licenseKey, maxUsers]
+    [companyName, email, schemaName, licenseKey, maxUsers]
   );
 
   const client = result[0];
@@ -59,7 +56,7 @@ export async function createClientDatabase(email: string, companyName: string, m
   return client;
 }
 
-export async function applySchemaToClient(pool: Pool) {
+async function applySchemaToClient(conn: import('pg').PoolClient, companyName?: string) {
   const tables = [
     `CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -347,7 +344,6 @@ export async function applySchemaToClient(pool: Pool) {
       description TEXT DEFAULT '',
       permissions TEXT DEFAULT '[]'
     )`,
-    `INSERT INTO company_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`,
     `INSERT INTO roles (name, description, permissions) VALUES
       ('admin', 'Full access to all features', '["all"]'),
       ('hr_manager', 'HR and payroll management', '["hr.read","hr.write","payroll.read","payroll.write","dashboard.read"]'),
@@ -357,12 +353,21 @@ export async function applySchemaToClient(pool: Pool) {
   ];
 
   for (const sql of tables) {
-    await pool.query(sql);
+    await conn.query(sql);
+  }
+
+  if (companyName) {
+    await conn.query(
+      'INSERT INTO company_settings (id, company_name) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET company_name = EXCLUDED.company_name',
+      [companyName]
+    );
+  } else {
+    await conn.query('INSERT INTO company_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING');
   }
 }
 
-export async function dropClientDatabase(databaseName: string) {
-  await execPromise(`dropdb -U ${process.env.PGUSER || 'postgres'} ${databaseName}`);
+export async function dropClientSchema(schemaName: string) {
+  await adminRun(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
 }
 
 export function generateLicenseKey(email: string): string {
