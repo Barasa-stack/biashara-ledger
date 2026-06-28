@@ -1,77 +1,35 @@
-if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not set");
-if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not set");
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyPassword, createSession } from '@/lib/auth-server';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { neon } from '@neondatabase/serverless';
+import bcrypt from 'bcryptjs';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
 
     if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    // Find user
-    const users = await query('SELECT * FROM users WHERE email = $1', [email]);
-    
-    if (!users || users.length === 0) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
+    const sql = neon(process.env.DATABASE_URL!);
+    const users = await sql`SELECT * FROM users WHERE email = ${email}`;
     const user = users[0];
 
-    // Verify password
-    const isValid = verifyPassword(password, user.password);
-    if (!isValid) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
+    if (!user || !user.password_hash) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    // Check if user is admin
-    if (user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Access denied. Admin only.' },
-        { status: 403 }
-      );
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
-
-    // Create session
-    const { token, expiresAt } = await createSession(user.id);
-
-    // Set cookie
-    (await cookies()).set('bl_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      expires: new Date(expiresAt),
-      path: '/',
-    });
 
     return NextResponse.json({
       success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        firstName: user.first_name,
-        lastName: user.last_name,
-      },
+      user: { id: user.id, email: user.email, name: user.name || '' }
     });
+
   } catch (error) {
     console.error('Signin error:', error);
-    return NextResponse.json(
-      { error: 'Login failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

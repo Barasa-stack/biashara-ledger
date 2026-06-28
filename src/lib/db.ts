@@ -6,7 +6,7 @@ const pools = new Map<string, Pool>();
 
 function getOrCreatePool(database: string, max = 20): Pool {
   if (!pools.has(database)) {
-    const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_t19odLQmrEGH@ep-sparkling-sunset-ah4aepcv.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require";
+    const connectionString = process.env.DATABASE_URL;
     
     pools.set(database, new Pool({
       connectionString: connectionString,

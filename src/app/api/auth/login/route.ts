@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Compare password
-    const isValid = await bcrypt.compare(password, user.password);
+    const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
