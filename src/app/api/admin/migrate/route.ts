@@ -3,7 +3,8 @@ import { neon } from '@neondatabase/serverless';
 
 export async function POST(req: Request) {
   try {
-    const secret = req.headers.get('x-migrate-secret');
+    const searchParams = new URL(req.url).searchParams;
+    const secret = searchParams.get('secret');
     if (secret !== 'migrate-admin-2024') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
