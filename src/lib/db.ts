@@ -92,4 +92,6 @@ export const adminRun = async (sql: string, params?: any[]) => {
   return { rowCount: result.rowCount ?? 0 };
 };
 
+export { getOrCreatePool };
+
 export default { query, get, run, exec, insertReturning, adminQuery, adminGet, adminRun, getPoolForDatabase, getCurrentPool };

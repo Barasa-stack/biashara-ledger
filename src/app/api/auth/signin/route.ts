@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { adminGet, getOrCreatePool } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,8 +20,43 @@ export async function POST(req: NextRequest) {
     }
 
     const sql = neon(process.env.DATABASE_URL!);
-    const users = await sql`SELECT * FROM users WHERE email = ${email}`;
-    const user = users[0];
+    let user = (await sql`SELECT * FROM users WHERE email = ${email}`)[0];
+    let clientDb = '';
+
+    // Check if user is in a client schema
+    if (!user) {
+      const clientRecord = await adminGet(
+        'SELECT database_name FROM admin_clients WHERE email = $1 AND is_active = true',
+        [email]
+      );
+      if (clientRecord) {
+        const schemaName = (clientRecord as any).database_name;
+        const pool = getOrCreatePool(5, schemaName);
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        user = result.rows[0];
+        clientDb = schemaName;
+      }
+
+      // If not in admin_clients, check auto-created user schemas
+      if (!user) {
+        const schemas = await sql`
+          SELECT schema_name FROM information_schema.schemata
+          WHERE schema_name LIKE 'usr\_%' OR schema_name LIKE 'cli\_%'
+        `;
+        for (const row of schemas) {
+          const schemaName = row.schema_name as string;
+          try {
+            const pool = getOrCreatePool(5, schemaName);
+            const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+            if (result.rows.length > 0) {
+              user = result.rows[0];
+              clientDb = schemaName;
+              break;
+            }
+          } catch {}
+        }
+      }
+    }
 
     if (!user || !user.password_hash) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
@@ -34,8 +70,8 @@ export async function POST(req: NextRequest) {
     const sessionToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     await sql`
-      INSERT INTO sessions (user_id, token, expires_at)
-      VALUES (${user.id}, ${sessionToken}, ${expiresAt})
+      INSERT INTO sessions (user_id, token, expires_at, client_db)
+      VALUES (${user.id}, ${sessionToken}, ${expiresAt}, ${clientDb})
     `;
 
     const response = NextResponse.json({
