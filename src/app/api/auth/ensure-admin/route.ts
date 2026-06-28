@@ -17,11 +17,11 @@ export async function POST(req: Request) {
 
     await sql`
       INSERT INTO users (email, password_hash, role, verified, subscription_plan, subscription_status, subscription_expiry)
-      VALUES (${ADMIN_EMAIL}, ${hash}, 'admin', true, 'premium', 'active', NOW() + INTERVAL '1 year')
+      VALUES (${ADMIN_EMAIL}, ${hash}, 'admin', 1, 'premium', 'active', NOW() + INTERVAL '1 year')
       ON CONFLICT (email) DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
         role = 'admin',
-        verified = true,
+        verified = 1,
         subscription_status = 'active',
         subscription_expiry = NOW() + INTERVAL '1 year'
     `;
