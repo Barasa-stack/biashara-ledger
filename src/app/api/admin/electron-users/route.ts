@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const users = await adminQuery(`
       SELECT
-        l.license_key, l.email, c.company_name,
+        l.license_key, c.email, c.company_name,
         l.is_active, l.is_used, l.created_at, l.expires_at, l.activated_at,
         COALESCE(a.activity_count, 0) as activity_count,
         (SELECT created_at FROM electron_activity WHERE license_key = l.license_key ORDER BY created_at DESC LIMIT 1) as last_active
