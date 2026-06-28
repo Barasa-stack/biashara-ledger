@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,18 +41,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Create session
+    const sessionToken = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await sql`
+      INSERT INTO sessions (user_id, token, expires_at)
+      VALUES (${user.id}, ${sessionToken}, ${expiresAt})
+    `;
+
     // Generate JWT
-    const token = jwt.sign(
+    const jwtToken = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: { id: user.id, email: user.email },
-      token
+      token: jwtToken,
     });
+
+    response.cookies.set('bl_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Login error:', error);
