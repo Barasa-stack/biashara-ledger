@@ -9,13 +9,16 @@ const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const sessionCookie = request.cookies.get('bl_session');
 
   if (pathname === ADMIN_LOGIN_PATH) {
+    if (sessionCookie) {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
     return NextResponse.next();
   }
 
   if (pathname.startsWith(ADMIN_PATH) || pathname.startsWith(ADMIN_API_PREFIX)) {
-    const sessionCookie = request.cookies.get('bl_session');
     if (!sessionCookie) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -51,9 +54,11 @@ export function proxy(request: NextRequest) {
 
   response.headers.set('X-DNS-Prefetch-Control', 'on');
   response.headers.set('X-XSS-Protection', '1; mode=block');
-  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'origin-when-cross-origin');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
 
   if (process.env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');

@@ -2,13 +2,14 @@ import nodemailer from 'nodemailer';
 import { get, run } from './db';
 
 export async function getSmtpConfig() {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
     return {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_PORT === '465',
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      pass: smtpPass,
       fromName: process.env.EMAIL_FROM_NAME || 'BiasharaLedger',
       fromAddr: process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER,
     };

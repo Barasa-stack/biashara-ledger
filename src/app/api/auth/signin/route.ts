@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const rl = checkRateLimit(`signin:${ip}`, 5, 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many login attempts. Try again later.' }, { status: 429 });
+    }
+
     const { email, password } = await req.json();
 
     if (!email || !password) {
@@ -23,10 +31,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    return NextResponse.json({
+    const sessionToken = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await sql`
+      INSERT INTO sessions (user_id, token, expires_at)
+      VALUES (${user.id}, ${sessionToken}, ${expiresAt})
+    `;
+
+    const response = NextResponse.json({
       success: true,
       user: { id: user.id, email: user.email, name: user.name || '' }
     });
+
+    response.cookies.set('bl_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Signin error:', error);

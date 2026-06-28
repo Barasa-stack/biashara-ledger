@@ -1,63 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { run } from '@/lib/db';
+import { sendOTPEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
-
+    let { email } = await req.json();
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
+    email = email.trim().toLowerCase();
 
-    // Check if user already exists
-    const sql = neon(process.env.DATABASE_URL!);
-    const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
-
-    if (existing.length > 0) {
-      return NextResponse.json({ error: 'User already registered' }, { status: 409 });
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const rl = checkRateLimit(`send-otp:${email}:${ip}`, 3, 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 });
     }
 
-    // Generate a 6-digit OTP
-    const otp = crypto.randomInt(100000, 999999).toString();
-    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    // 1. SAVE OTP TO DATABASE (Avoids serverless in-memory wipe bug)
-    await sql`
-      INSERT INTO verification_tokens (identifier, token, expires)
-      VALUES (${email}, ${otp}, ${expires})
-      ON CONFLICT (identifier) 
-      DO UPDATE SET token = ${otp}, expires = ${expires}
-    `;
+    await run(
+      'UPDATE verification_codes SET used = 1 WHERE email = $1 AND purpose = $2 AND used = 0',
+      [email, 'signup']
+    );
 
-    // 2. CONFIGURE NODEMAILER TRANSPORTER (Strict SSL for Port 465)
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: true, 
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
+    await run(
+      'INSERT INTO verification_codes (email, code, purpose, expires_at) VALUES ($1, $2, $3, $4)',
+      [email, code, 'signup', expiresAt]
+    );
 
-    // 3. DISPATCH EMAIL VIA GMAIL SMTP
-    console.log(`📧 Dispatching live email OTP to ${email}`);
-    await transporter.sendMail({
-      from: `"Biashara Ledger" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: `Your Verification Code: ${otp}`,
-      text: `Your signup verification OTP is ${otp}. It expires in 10 minutes.`,
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; color: #333;">
-          <h2>Verify Your Email</h2>
-          <p>Thank you for registering. Use the following One-Time Password (OTP) to complete your signup process:</p>
-          <h1 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 2px;">${otp}</h1>
-          <p>This code expires in 10 minutes.</p>
-        </div>
-      `,
-    });
+    const result = await sendOTPEmail(email, code);
+    if (!result.sent) {
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to send verification email. Please check your SMTP settings.',
+      }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,

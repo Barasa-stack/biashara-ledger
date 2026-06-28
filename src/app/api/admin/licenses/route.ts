@@ -60,10 +60,10 @@ export async function POST(request: Request) {
 
     if (action === 'extend') {
       const { days } = await request.json();
-      const daysNum = parseInt(days) || 365;
+      const daysNum = Math.min(Math.max(parseInt(days) || 365, 1), 3650);
       await adminRun(
-        `UPDATE admin_license_keys SET expires_at = COALESCE(expires_at, CURRENT_TIMESTAMP) + INTERVAL '${daysNum} days' WHERE license_key = $1`,
-        [licenseKey]
+        'UPDATE admin_license_keys SET expires_at = COALESCE(expires_at, CURRENT_TIMESTAMP) + $1::interval WHERE license_key = $2',
+        [`${daysNum} days`, licenseKey]
       );
       return NextResponse.json({ success: true, message: `License extended by ${daysNum} days` });
     }
