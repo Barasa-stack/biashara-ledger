@@ -13,19 +13,21 @@ export async function POST(req: Request) {
     const ADMIN_EMAIL = 'digitalbaroz@gmail.com';
     const ADMIN_PASSWORD = 'Admin123!';
 
-    const existing = await sql`SELECT id FROM users WHERE email = ${ADMIN_EMAIL}`;
-    if (existing.length > 0) {
-      return NextResponse.json({ message: 'Admin user already exists', email: ADMIN_EMAIL });
-    }
-
     const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+
     await sql`
       INSERT INTO users (email, password_hash, role, verified, subscription_plan, subscription_status, subscription_expiry)
       VALUES (${ADMIN_EMAIL}, ${hash}, 'admin', true, 'premium', 'active', NOW() + INTERVAL '1 year')
+      ON CONFLICT (email) DO UPDATE SET
+        password_hash = EXCLUDED.password_hash,
+        role = 'admin',
+        verified = true,
+        subscription_status = 'active',
+        subscription_expiry = NOW() + INTERVAL '1 year'
     `;
 
     return NextResponse.json({
-      message: 'Admin user created',
+      message: 'Admin user created/updated',
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
     });
