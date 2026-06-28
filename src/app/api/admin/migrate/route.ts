@@ -1,19 +1,30 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
+export async function GET(req: Request) {
+  const url = req.url;
+  const parsed = new URL(url);
+  const secret = parsed.searchParams.get('secret');
+
+  return NextResponse.json({
+    message: 'Use POST with secret=migrate-admin-2024',
+    url,
+    secret,
+    parsedSecret: secret,
+    match: secret === 'migrate-admin-2024',
+  });
+}
+
 export async function POST(req: Request) {
   const url = req.url;
-  console.log('Migrate endpoint called, url:', url);
+  const parsed = new URL(url);
+  const secret = parsed.searchParams.get('secret');
+
+  if (secret !== 'migrate-admin-2024') {
+    return NextResponse.json({ error: 'Unauthorized', url, secret, match: secret === 'migrate-admin-2024' }, { status: 401 });
+  }
 
   try {
-    const parsed = new URL(url);
-    const secret = parsed.searchParams.get('secret');
-    console.log('Secret from query:', secret);
-
-    if (secret !== 'migrate-admin-2024') {
-      return NextResponse.json({ error: 'Unauthorized', url, secret }, { status: 401 });
-    }
-
     const sql = neon(process.env.DATABASE_URL!);
 
     const clients = [
