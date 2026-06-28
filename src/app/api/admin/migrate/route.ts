@@ -3,15 +3,14 @@ import { neon } from '@neondatabase/serverless';
 
 export async function POST(req: Request) {
   try {
-    const auth = req.headers.get('authorization');
-    if (auth !== 'migrate') {
+    const secret = req.headers.get('x-migrate-secret');
+    if (secret !== 'migrate-admin-2024') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const sql = neon(process.env.DATABASE_URL!);
     const results: string[] = [];
 
-    // Migrate admin_clients
     const adminClients = [
       {
         company_name: 'BiasharaLedger Admin',
@@ -48,7 +47,6 @@ export async function POST(req: Request) {
       results.push(`Admin client '${c.company_name}' (${c.email}) created/updated`);
     }
 
-    // Migrate admin_license_keys
     const licenseKeys = [
       {
         license_key: 'BL-2024-ADMIN-evanromanoff@gmail.com',
@@ -80,7 +78,6 @@ export async function POST(req: Request) {
         `;
         results.push(`License '${lk.license_key}' created/updated`);
       } else {
-        // Insert without client_id
         await sql`
           INSERT INTO admin_license_keys (license_key, plan, is_used, expires_at)
           VALUES (${lk.license_key}, ${lk.plan}, ${lk.is_used}, ${lk.expires_at})
