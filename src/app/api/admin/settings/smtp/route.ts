@@ -16,10 +16,11 @@ export async function GET() {
     }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings LIMIT 1');
 
     if (!settings) {
+      // Return Google SMTP defaults as a template for admin to configure
       settings = {
         smtp_host: 'smtp.gmail.com',
         smtp_port: '587',
-        smtp_user: 'evanromanoff@gmail.com',
+        smtp_user: '', // Admin needs to fill in their own Gmail address
         smtp_pass: '',
         company_name: 'BiasharaLedger',
       };
@@ -39,11 +40,6 @@ export async function PUT(req: NextRequest) {
   try {
     const { smtp_host, smtp_port, smtp_user, smtp_pass } = await req.json();
 
-    const existing = await adminGet('SELECT tenant_id FROM company_settings LIMIT 1') as any;
-    if (!existing?.tenant_id) {
-      return NextResponse.json({ error: 'No company settings record found' }, { status: 400 });
-    }
-
     if (smtp_port) {
       const portNum = parseInt(smtp_port);
       if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
@@ -51,21 +47,31 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    await adminRun(
-      `UPDATE company_settings SET
-        smtp_host = COALESCE(NULLIF($1, ''), smtp_host),
-        smtp_port = COALESCE(NULLIF($2, ''), smtp_port),
-        smtp_user = COALESCE(NULLIF($3, ''), smtp_user),
-        smtp_pass = COALESCE(NULLIF($4, ''), smtp_pass)
-      WHERE tenant_id = $5`,
-      [
-        smtp_host || '',
-        smtp_port || '587',
-        smtp_user || '',
-        smtp_pass || '',
-        existing.tenant_id,
-      ]
-    );
+    const existing = await adminGet('SELECT tenant_id FROM company_settings LIMIT 1') as any;
+
+    if (!existing?.tenant_id) {
+      await adminRun(
+        `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
+         VALUES (gen_random_uuid(), 'BiasharaLedger', $1, $2, $3, $4)`,
+        [smtp_host || 'smtp.gmail.com', smtp_port || '587', smtp_user || '', smtp_pass || '']
+      );
+    } else {
+      await adminRun(
+        `UPDATE company_settings SET
+          smtp_host = COALESCE(NULLIF($1, ''), smtp_host),
+          smtp_port = COALESCE(NULLIF($2, ''), smtp_port),
+          smtp_user = COALESCE(NULLIF($3, ''), smtp_user),
+          smtp_pass = COALESCE(NULLIF($4, ''), smtp_pass)
+        WHERE tenant_id = $5`,
+        [
+          smtp_host || '',
+          smtp_port || '587',
+          smtp_user || '',
+          smtp_pass || '',
+          existing.tenant_id,
+        ]
+      );
+    }
 
     return NextResponse.json({ success: true, message: 'SMTP settings updated' });
   } catch (error) {

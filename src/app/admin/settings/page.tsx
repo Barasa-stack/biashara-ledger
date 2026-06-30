@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Settings, Shield, Mail, Key, Palette, Server, Database,
   Bell, Users, FileText, LogOut, Save, Loader2, Eye, EyeOff,
-  CheckCircle2, AlertTriangle
+  CheckCircle2, AlertTriangle, RefreshCw
 } from 'lucide-react';
 
 type Tab = 'general' | 'branding' | 'smtp' | 'security' | 'plans' | 'payment' | 'audit';
@@ -20,45 +20,82 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'audit', label: 'Audit Log', icon: <FileText size={16} /> },
 ];
 
+type SmtpSettings = {
+  smtp_host: string;
+  smtp_port: string;
+  smtp_user: string;
+  smtp_pass: string;
+  company_name: string;
+};
+
 export default function SettingsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>({
+    smtp_host: 'smtp.gmail.com',
+    smtp_port: '587',
+    smtp_user: 'evanromanoff@gmail.com',
+    smtp_pass: '',
+    company_name: 'BiasharaLedger',
+  });
+  const [smtpLoading, setSmtpLoading] = useState(false);
+  const [smtpError, setSmtpError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const loadSmtpSettings = useCallback(async () => {
+    setSmtpLoading(true);
+    setSmtpError('');
+    try {
+      const res = await fetch('/api/admin/settings/smtp');
+      if (!res.ok) throw new Error('Failed to load SMTP settings');
+      const data = await res.json();
+      if (data.settings) {
+        setSmtpSettings({
+          smtp_host: data.settings.smtp_host || 'smtp.gmail.com',
+          smtp_port: data.settings.smtp_port || '587',
+          smtp_user: data.settings.smtp_user || 'evanromanoff@gmail.com',
+          smtp_pass: data.settings.smtp_pass || '',
+          company_name: data.settings.company_name || 'BiasharaLedger',
+        });
+      }
+    } catch (err: any) {
+      setSmtpError(err.message);
+    } finally {
+      setSmtpLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'smtp') {
+      loadSmtpSettings();
+    }
+  }, [activeTab, loadSmtpSettings]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Handle tab-specific save operations
       if (activeTab === 'smtp') {
-        const hostInput = document.querySelector('input[placeholder="smtp.gmail.com"]') as HTMLInputElement;
-        const portInput = document.querySelector('input[placeholder="587"]') as HTMLInputElement;
-        const userInput = document.querySelector('input[placeholder="noreply@biasharaledger.com"]') as HTMLInputElement;
-        const passInput = document.querySelector('input[type="password"][placeholder="••••••••"]') as HTMLInputElement;
-        
-        if (hostInput && portInput && userInput && passInput) {
-          const response = await fetch('/api/admin/settings/smtp', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              smtp_host: hostInput.value,
-              smtp_port: portInput.value,
-              smtp_user: userInput.value,
-              smtp_pass: passInput.value
-            })
-          });
-          
-          if (!response.ok) {
-            console.error('Failed to save SMTP settings');
-            return;
-          }
+        const response = await fetch('/api/admin/settings/smtp', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            smtp_host: smtpSettings.smtp_host,
+            smtp_port: smtpSettings.smtp_port,
+            smtp_user: smtpSettings.smtp_user,
+            smtp_pass: smtpSettings.smtp_pass,
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to save SMTP settings');
         }
       }
-      await new Promise(r => setTimeout(r, 800));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (error) {
-      console.error('Save error:', error);
+    } catch (error: any) {
+      setSmtpError(error.message);
     } finally {
       setSaving(false);
     }
@@ -176,31 +213,84 @@ export default function SettingsPage() {
 
           {activeTab === 'smtp' && (
             <div className="space-y-5 max-w-lg">
+              {smtpError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  <AlertTriangle size={16} />
+                  {smtpError}
+                </div>
+              )}
+              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700">All notifications, OTP emails, and automated emails use this SMTP configuration.</p>
+                <button onClick={loadSmtpSettings} disabled={smtpLoading} className="text-blue-600 hover:text-blue-800">
+                  <RefreshCw size={14} className={smtpLoading ? 'animate-spin' : ''} />
+                </button>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Host</label>
-                <input type="text" defaultValue="smtp.gmail.com" className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+                <input
+                  type="text"
+                  value={smtpSettings.smtp_host}
+                  onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_host: e.target.value }))}
+                  placeholder="smtp.gmail.com"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Port</label>
-                  <input type="text" defaultValue="587" className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+                  <input
+                    type="text"
+                    value={smtpSettings.smtp_port}
+                    onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_port: e.target.value }))}
+                    placeholder="587"
+                    className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Encryption</label>
-                  <select className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand">
-                    <option>TLS</option>
-                    <option>SSL</option>
-                    <option>None</option>
+                  <select
+                    value={smtpSettings.smtp_port === '465' ? 'SSL' : smtpSettings.smtp_port === '587' ? 'TLS' : 'None'}
+                    onChange={(e) => {
+                      const port = e.target.value === 'SSL' ? '465' : e.target.value === 'TLS' ? '587' : '25';
+                      setSmtpSettings(s => ({ ...s, smtp_port: port }));
+                    }}
+                    className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="TLS">TLS (587)</option>
+                    <option value="SSL">SSL (465)</option>
+                    <option value="None">None (25)</option>
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Username</label>
-                <input type="text" defaultValue="noreply@biasharaledger.com" className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Username / Email</label>
+                <input
+                  type="text"
+                  value={smtpSettings.smtp_user}
+                  onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_user: e.target.value }))}
+                  placeholder="evanromanoff@gmail.com"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Password</label>
-                <input type="password" defaultValue="••••••••" className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Password / App Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={smtpSettings.smtp_pass}
+                    onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_pass: e.target.value }))}
+                    placeholder="Enter app password"
+                    className="w-full px-3 py-2.5 pr-10 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">For Gmail, use an App Password (not your account password).</p>
               </div>
             </div>
           )}

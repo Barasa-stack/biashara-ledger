@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
 import puppeteer from 'puppeteer';
-import { get, withTenantContext } from '@/lib/db';
+import { adminGet, withTenantContext } from '@/lib/db';
 import { buildHtml } from '@/lib/print';
-import { createTransporter } from '@/lib/email';
+import { createTransporter, getSmtpConfig } from '@/lib/email';
 import { getSessionFromCookies } from '@/lib/auth-server';
 
 export async function POST(request: Request) {
@@ -19,11 +18,11 @@ export async function POST(request: Request) {
 
     const transporter = await createTransporter();
     if (!transporter) {
-      return NextResponse.json({ error: 'SMTP not configured. Set SMTP_HOST/SMTP_USER/SMTP_PASS env vars or configure in Settings.' }, { status: 400 });
+      return NextResponse.json({ error: 'SMTP not configured. Please configure SMTP settings in Admin > Settings > SMTP / Email.' }, { status: 400 });
     }
 
     const company = await withTenantContext(session.tenant_id!, async () => {
-      return await get('SELECT * FROM company_settings') as any;
+      return await adminGet('SELECT * FROM company_settings LIMIT 1') as any;
     });
 
     const docNumber = item?.invoice_number || item?.quotation_number || item?.credit_note_number || `#${item?.id || ''}`;
@@ -88,7 +87,8 @@ export async function POST(request: Request) {
         </div>
       </div>`;
 
-    const smtpUser = process.env.SMTP_USER || company?.smtp_user || '';
+    const smtpConfig = await getSmtpConfig();
+    const smtpUser = smtpConfig?.fromAddr || company?.smtp_user || '';
     const mailOptions: any = {
       from: `"${companyName}" <${smtpUser}>`,
       to,

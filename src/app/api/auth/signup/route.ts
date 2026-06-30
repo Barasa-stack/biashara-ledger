@@ -92,15 +92,11 @@ export async function POST(request: Request) {
 
       // Ensure company_settings is created for email functionality
       await run(
-        `INSERT INTO company_settings (tenant_id, company_name, email, smtp_host, smtp_port, smtp_user, smtp_pass)
-         VALUES ($1, $2, $3, 'smtp.gmail.com', '587', 'evanromanoff@gmail.com', '')
+        `INSERT INTO company_settings (tenant_id, company_name, email)
+         VALUES ($1, $2, $3)
          ON CONFLICT (tenant_id) DO UPDATE SET
            company_name = EXCLUDED.company_name,
-           email = EXCLUDED.email,
-           smtp_host = COALESCE(NULLIF(company_settings.smtp_host, ''), EXCLUDED.smtp_host),
-           smtp_port = COALESCE(NULLIF(company_settings.smtp_port, ''), EXCLUDED.smtp_port),
-           smtp_user = COALESCE(NULLIF(company_settings.smtp_user, ''), EXCLUDED.smtp_user),
-           smtp_pass = COALESCE(NULLIF(company_settings.smtp_pass, ''), EXCLUDED.smtp_pass)`,
+           email = EXCLUDED.email`,
         [tenantId, tenantName, email]
       );
     });

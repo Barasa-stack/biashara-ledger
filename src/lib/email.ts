@@ -1,28 +1,15 @@
 import nodemailer from 'nodemailer';
-import { get, run } from './db';
+import { adminGet, adminRun } from './db';
 
 export async function getSmtpConfig() {
-  const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
-    return {
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
-      user: process.env.SMTP_USER,
-      pass: smtpPass,
-      fromName: process.env.EMAIL_FROM_NAME || 'BiasharaLedger',
-      fromAddr: process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER,
-    };
-  }
-
   try {
-    const company = await get<{
+    const company = await adminGet<{
       smtp_host: string;
       smtp_port: string;
       smtp_user: string;
       smtp_pass: string;
       company_name: string;
-    }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings');
+    }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings LIMIT 1');
 
     if (company?.smtp_host && company?.smtp_user && company?.smtp_pass) {
       return {
@@ -36,7 +23,19 @@ export async function getSmtpConfig() {
       };
     }
   } catch {
-    // DB not available — continue to return null
+  }
+
+  const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
+    return {
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_PORT === '465',
+      user: process.env.SMTP_USER,
+      pass: smtpPass,
+      fromName: process.env.EMAIL_FROM_NAME || 'BiasharaLedger',
+      fromAddr: process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER,
+    };
   }
 
   return null;
@@ -81,7 +80,7 @@ export async function createTransporter() {
 }
 
 export async function getCompanyName(): Promise<string> {
-  const company = await get<{ company_name: string }>('SELECT company_name FROM company_settings');
+  const company = await adminGet<{ company_name: string }>('SELECT company_name FROM company_settings LIMIT 1');
   return company?.company_name || 'BiasharaLedger';
 }
 
@@ -98,7 +97,7 @@ export async function sendOTPEmail(to: string, code: string, name = '') {
 
   const config = await getSmtpConfig();
   const fromName = config?.fromName || 'BiasharaLedger';
-  const fromAddr = config?.fromAddr || process.env.SMTP_USER || '';
+  const fromAddr = config?.fromAddr || '';
 
   try {
     await transporter.sendMail({
@@ -239,7 +238,7 @@ export async function sendLicenseEmail(email: string, licenseKey: string, plan: 
 
 async function logEmail(to: string, type: string, success: boolean, detail?: string) {
   try {
-    await run(
+    await adminRun(
       'INSERT INTO email_logs (recipient, email_type, success, detail) VALUES ($1, $2, $3, $4)',
       [to, type, success ? 1 : 0, detail || '']
     );

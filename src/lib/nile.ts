@@ -1,3 +1,5 @@
+import { Pool } from 'pg';
+
 type NileInstance = {
   db: {
     query: (sql: string, params?: any[]) => Promise<{ rows: any[] }>;
@@ -8,15 +10,58 @@ type NileInstance = {
 };
 
 let _nile: NileInstance | null = null;
+let _fallbackPool: Pool | null = null;
+
+function getFallbackPool(): Pool {
+  if (_fallbackPool) return _fallbackPool;
+  _fallbackPool = new Pool({
+    connectionString: process.env.DATABASE_URL || '',
+    max: 5,
+    idleTimeoutMillis: 30000,
+  });
+  _fallbackPool.on('error', (err) => {
+    console.error('[nile] Fallback pool error:', err.message);
+  });
+  return _fallbackPool;
+}
+
+function createFallbackNile(): NileInstance {
+  const pool = getFallbackPool();
+  return {
+    db: {
+      query: async (sql: string, params?: any[]) => {
+        const result = await pool.query(sql, params);
+        return { rows: result.rows };
+      },
+    },
+    tenants: {
+      get: async (id: string) => {
+        const result = await pool.query('SELECT * FROM public.tenants WHERE id = $1', [id]);
+        return result.rows[0] || null;
+      },
+    },
+  };
+}
 
 async function getNile(): Promise<NileInstance> {
   if (_nile) return _nile;
-  const { Nile } = await import('@niledatabase/server');
-  const config: Record<string, string> = {};
-  if (process.env.NILEDB_API_URL) {
-    config.apiUrl = process.env.NILEDB_API_URL;
+
+  if (!process.env.NILEDB_API_URL) {
+    console.warn('[nile] NILEDB_API_URL not set — using DATABASE_URL fallback');
+    _nile = createFallbackNile();
+    return _nile;
   }
-  _nile = Nile(config) as unknown as NileInstance;
+
+  try {
+    const { Nile } = await import('@niledatabase/server');
+    const config: Record<string, string> = {
+      apiUrl: process.env.NILEDB_API_URL,
+    };
+    _nile = Nile(config) as unknown as NileInstance;
+  } catch (err: any) {
+    console.error('[nile] Nile SDK init failed, using DATABASE_URL fallback:', err.message);
+    _nile = createFallbackNile();
+  }
   return _nile!;
 }
 

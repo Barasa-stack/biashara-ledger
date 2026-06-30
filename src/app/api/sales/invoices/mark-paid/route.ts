@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { get, run, withTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
 import { buildReceiptHtml } from '@/lib/print';
-import { createTransporter } from '@/lib/email';
+import { createTransporter, getSmtpConfig } from '@/lib/email';
 import puppeteer from 'puppeteer';
 
 export async function POST(request: Request) {
@@ -82,7 +82,8 @@ export async function POST(request: Request) {
           }
 
           const companyName = company?.company_name || 'BiasharaLedger';
-          const smtpUser = process.env.SMTP_USER || company?.smtp_user || '';
+          const smtpConfig = await getSmtpConfig();
+          const smtpUser = smtpConfig?.fromAddr || company?.smtp_user || '';
 
           const emailHtml = `
             <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:520px;margin:0 auto;">
