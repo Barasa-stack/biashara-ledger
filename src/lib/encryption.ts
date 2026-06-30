@@ -1,12 +1,17 @@
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-if (!process.env.ENCRYPTION_KEY) {
-  throw new Error('ENCRYPTION_KEY environment variable is required. Set it in .env.local');
+
+function getKey(): Buffer {
+  const encryptionKey = process.env.ENCRYPTION_KEY;
+  if (!encryptionKey) {
+    throw new Error('ENCRYPTION_KEY environment variable is required');
+  }
+  return crypto.scryptSync(encryptionKey, 'salt', 32);
 }
-const KEY = crypto.scryptSync(process.env.ENCRYPTION_KEY, 'salt', 32);
 
 export function encryptField(userId: string, value: string): string {
+  const KEY = getKey();
   const userKey = crypto.createHash('sha256').update(String(userId)).update(KEY).digest();
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv(ALGORITHM, userKey, iv);
@@ -17,6 +22,7 @@ export function encryptField(userId: string, value: string): string {
 }
 
 export function decryptField(userId: string, encrypted: string): string {
+  const KEY = getKey();
   const [ivHex, authTagHex, data] = encrypted.split(':');
   const userKey = crypto.createHash('sha256').update(String(userId)).update(KEY).digest();
   const iv = Buffer.from(ivHex, 'hex');
