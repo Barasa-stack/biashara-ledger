@@ -22,8 +22,8 @@ const heroImages = [
   { src: 'https://images.unsplash.com/photo-1573422565615-e3d0b3c0d7c3?w=1920&q=80', alt: 'Sandton financial district skyline, Johannesburg' },
   { src: 'https://images.unsplash.com/photo-1680198276344-3e820e68c825?w=1920&q=80', alt: 'Beach resort aerial view, Cancún' },
   { src: 'https://images.unsplash.com/photo-1771868453049-b7b4a4680b5c?w=1920&q=80', alt: 'Construction workers on building site' },
-  { src: 'https://images.unsplash.com/photo-X0zbDrDtXAw?w=1920&q=80', alt: 'Cavo Tagoo luxury resort, Mykonos' },
-  { src: 'https://images.unsplash.com/photo-SkTAXVu4UfU?w=1920&q=80', alt: 'Rodeo Drive luxury shopping, Beverly Hills' },
+  { src: 'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=1920&q=80', alt: 'Cavo Tagoo luxury resort, Mykonos' },
+  { src: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=1920&q=80', alt: 'Rodeo Drive luxury shopping, Beverly Hills' },
   { src: 'https://images.unsplash.com/photo-1765246312031-87e7a216a543?w=1920&q=80', alt: 'Chicago skyline across Lake Michigan' },
   { src: 'https://images.unsplash.com/photo-1746208440749-b25fcc19e025?w=1920&q=80', alt: 'Aerial view of tropical beach, Antigua' },
   { src: 'https://images.unsplash.com/photo-1706921255467-4236b197b530?w=1920&q=80', alt: 'Starlux Airlines business class cabin' },
@@ -82,18 +82,17 @@ const industries = [
   { name: 'Supermarkets', icon: Store, desc: 'Multi-department inventory, barcode scanning, supplier management.' },
   { name: 'Hardware Stores', icon: Warehouse, desc: 'Stock tracking, supplier orders, job costing, quotations.' },
   { name: 'Pharmacies', icon: Stethoscope, desc: 'Expiry tracking, prescription management, supplier orders.' },
-  { name: 'Restaurants', icon: ChefHat, desc: 'Menu management, table orders, inventory, staff scheduling.' },
+  { name: 'Restaurants', icon: ShoppingBag, desc: 'Menu management, table orders, inventory, staff scheduling.' },
   { name: 'Wholesalers', icon: PackageOpen, desc: 'Bulk pricing, volume discounts, delivery management.' },
   { name: 'Manufacturers', icon: Factory, desc: 'BOM, production costing, raw material tracking.' },
   { name: 'Bookshops', icon: GraduationCap, desc: 'Stock management, supplier orders, student accounts.' },
   { name: 'Electronics Stores', icon: Monitor, desc: 'Serial number tracking, warranty management, repairs.' },
   { name: 'Fashion Stores', icon: Palette, desc: 'Size/color variants, seasonal inventory, supplier management.' },
-  { name: 'Agribusiness', icon: Leaf, desc: 'Crop tracking, supplier payments, harvest recording.' },
+  { name: 'Agribusiness', icon: Layers, desc: 'Crop tracking, supplier payments, harvest recording.' },
   { name: 'Distributors', icon: Truck, desc: 'Route management, delivery tracking, customer accounts.' },
 ];
 
-function ChefHat(props: any) { return <ShoppingBag {...props} />; }
-function Leaf(props: any) { return <Box {...props} />; }
+
 
 const benefits = [
   { icon: Zap, title: 'Fast', desc: 'Lightning-quick performance even with large datasets.' },

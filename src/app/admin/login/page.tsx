@@ -34,12 +34,6 @@ export default function AdminLoginPage() {
       }
 
       if (data.success) {
-        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'digitalbaroz@gmail.com';
-        if (data.user?.email !== adminEmail) {
-          setError('Access denied. This panel is for administrators only.');
-          setLoading(false);
-          return;
-        }
         router.push('/admin');
       } else {
         setError(data.error || 'Login failed');

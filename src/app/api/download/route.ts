@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+const DOWNLOADS_DIR = path.join(process.cwd(), 'public', 'downloads');
+
 const MIME_TYPES: Record<string, string> = {
   '.exe': 'application/vnd.microsoft.portable-executable',
   '.dmg': 'application/x-apple-diskimage',
@@ -9,6 +11,14 @@ const MIME_TYPES: Record<string, string> = {
   '.zip': 'application/zip',
   '.deb': 'application/vnd.debian.binary-package',
   '.rpm': 'application/x-rpm',
+};
+
+const FILES: Record<string, { file: string; name: string }> = {
+  windows: { file: 'biashara-ledger-setup.exe', name: 'BiasharaLedger-Setup.exe' },
+  mac: { file: 'biashara-ledger-mac.dmg', name: 'BiasharaLedger-macOS.dmg' },
+  macos: { file: 'biashara-ledger-mac.dmg', name: 'BiasharaLedger-macOS.dmg' },
+  'mac-arm64': { file: 'biashara-ledger-mac-arm64.dmg', name: 'BiasharaLedger-macOS-arm64.dmg' },
+  linux: { file: 'biashara-ledger-linux.AppImage', name: 'BiasharaLedger-linux.AppImage' },
 };
 
 export async function GET(request: Request) {
@@ -21,20 +31,11 @@ export async function GET(request: Request) {
 
   if (fileName) {
     const safeName = path.basename(fileName);
-    filePath = path.join(process.cwd(), 'public', 'downloads', safeName);
+    filePath = path.join(DOWNLOADS_DIR, safeName);
     downloadName = safeName;
-  } else if (type === 'windows') {
-    filePath = path.join(process.cwd(), 'public', 'downloads', 'biashara-ledger-setup.exe');
-    downloadName = 'BiasharaLedger-Setup.exe';
-  } else if (type === 'mac' || type === 'macos') {
-    filePath = path.join(process.cwd(), 'public', 'downloads', 'biashara-ledger-mac.dmg');
-    downloadName = 'BiasharaLedger-macOS.dmg';
-  } else if (type === 'mac-arm64') {
-    filePath = path.join(process.cwd(), 'public', 'downloads', 'biashara-ledger-mac-arm64.dmg');
-    downloadName = 'BiasharaLedger-macOS-arm64.dmg';
-  } else if (type === 'linux') {
-    filePath = path.join(process.cwd(), 'public', 'downloads', 'biashara-ledger-linux.AppImage');
-    downloadName = 'BiasharaLedger-linux.AppImage';
+  } else if (type && FILES[type]) {
+    filePath = path.join(DOWNLOADS_DIR, FILES[type].file);
+    downloadName = FILES[type].name;
   } else {
     return NextResponse.json({ error: 'Invalid download type. Use: windows, mac, mac-arm64, or linux' }, { status: 400 });
   }

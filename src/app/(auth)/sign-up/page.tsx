@@ -74,8 +74,8 @@ export default function SignUpPage() {
       setError('Please enter a valid Kenyan phone number (e.g. 0712345678).');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError('Password must be at least 8 characters with an uppercase letter and a number');
       return;
     }
     await sendOtp();
@@ -192,6 +192,7 @@ export default function SignUpPage() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     className="w-full bg-white border border-border rounded-lg px-3 py-2.5 pr-10 text-sm text-[#000000] focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                    placeholder="Min. 8 characters, uppercase & number"
                     required
                   />
                   <button type="button" onClick={() => setShowPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#000000] hover:text-brand">

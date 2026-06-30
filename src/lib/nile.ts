@@ -1,66 +1,35 @@
 import { Pool } from 'pg';
 
-type NileInstance = {
-  db: {
-    query: (sql: string, params?: any[]) => Promise<{ rows: any[] }>;
-  };
-  tenants: {
-    get: (id: string) => Promise<any>;
-  };
-};
+let _pool: Pool | null = null;
 
-let _nile: NileInstance | null = null;
-let _fallbackPool: Pool | null = null;
+function getNilePool(): Pool {
+  if (_pool) return _pool;
 
-function getFallbackPool(): Pool {
-  if (_fallbackPool) return _fallbackPool;
-  _fallbackPool = new Pool({
-    connectionString: process.env.DATABASE_URL || '',
-    max: 5,
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      'DATABASE_URL is not set. Configure it in .env.local using your Nile ' +
+      'PostgreSQL connection string:\n' +
+      'postgres://NILEDB_USER:NILEDB_PASSWORD@us-west-2.db.thenile.dev:5432/Biasharaledger_App?sslmode=require'
+    );
+  }
+
+  _pool = new Pool({
+    connectionString,
+    max: 10,
     idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
   });
-  _fallbackPool.on('error', (err) => {
-    console.error('[nile] Fallback pool error:', err.message);
+
+  _pool.on('error', (err) => {
+    console.error('[nile] Pool error:', err.message);
   });
-  return _fallbackPool;
+
+  return _pool;
 }
 
-function createFallbackNile(): NileInstance {
-  const pool = getFallbackPool();
-  return {
-    db: {
-      query: async (sql: string, params?: any[]) => {
-        const result = await pool.query(sql, params);
-        return { rows: result.rows };
-      },
-    },
-    tenants: {
-      get: async (id: string) => {
-        const result = await pool.query('SELECT * FROM public.tenants WHERE id = $1', [id]);
-        return result.rows[0] || null;
-      },
-    },
-  };
-}
-
-async function getNile(): Promise<NileInstance> {
-  if (_nile) return _nile;
-
-  // Always use direct DATABASE_URL connection — Nile SDK cloud
-  // API endpoint is not enabled for this database instance.
-  console.info('[nile] Using DATABASE_URL directly (Nile cloud API not available)');
-  _nile = createFallbackNile();
-  return _nile;
-}
-
-export async function getNileDb() {
-  const nile = await getNile();
-  return nile.db;
-}
-
-export async function getNileTenants() {
-  const nile = await getNile();
-  return nile.tenants;
+export async function getNileDb(): Promise<Pool> {
+  return getNilePool();
 }
 
 type TenantRecord = {
@@ -70,15 +39,15 @@ type TenantRecord = {
 };
 
 export async function createTenant(name: string, metadata: Record<string, unknown> = {}): Promise<TenantRecord> {
-  const nile = await getNile();
+  const pool = getNilePool();
   let result;
   try {
-    result = await nile.db.query(
+    result = await pool.query(
       'INSERT INTO public.tenants (name) VALUES ($1) RETURNING id, name',
       [name]
     );
   } catch (err: any) {
-    console.error('createTenant SQL error:', err.message);
+    console.error('[nile] createTenant error:', err.message);
     throw new Error(`Tenant creation failed: ${err.message}`);
   }
   const tenant = result?.rows?.[0];
@@ -89,6 +58,7 @@ export async function createTenant(name: string, metadata: Record<string, unknow
 }
 
 export async function getTenant(tenantId: string) {
-  const nile = await getNile();
-  return nile.tenants.get(tenantId);
+  const pool = getNilePool();
+  const result = await pool.query('SELECT * FROM public.tenants WHERE id = $1', [tenantId]);
+  return result.rows[0] || null;
 }

@@ -38,8 +38,7 @@ let _basePool: Pool | null = null;
 async function getBasePool(): Promise<Pool> {
   if (_basePool) return _basePool;
   const { getNileDb } = await import('./nile');
-  const db = await getNileDb();
-  _basePool = db as unknown as Pool;
+  _basePool = await getNileDb();
   return _basePool;
 }
 

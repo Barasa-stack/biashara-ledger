@@ -202,7 +202,7 @@ export default function AdminDashboard() {
 
   const planData = [
     { label: 'Basic', value: 12, total: clients.length || 1, color: 'bg-blue-500' },
-    { label: 'Standard', value: 8, total: clients.length || 1, color: 'bg-brand-light0' },
+    { label: 'Standard', value: 8, total: clients.length || 1, color: 'bg-brand' },
     { label: 'Premium', value: 4, total: clients.length || 1, color: 'bg-violet-500' },
   ];
 
@@ -227,7 +227,7 @@ export default function AdminDashboard() {
           </div>
           <div className="space-y-4">
             {[
-              { label: 'Today', value: revenueToday, color: 'bg-brand-light0' },
+              { label: 'Today', value: revenueToday, color: 'bg-brand' },
               { label: 'This Month', value: revenueMonth, color: 'bg-blue-500' },
               { label: 'This Year', value: revenueYear, color: 'bg-violet-500' },
             ].map((item) => (

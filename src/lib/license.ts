@@ -29,26 +29,30 @@ export function validateLicenseKeyStructure(key: string): { valid: boolean; reas
 }
 
 export function getHardwareFingerprint(): string {
-  const os = require('os');
-  const { execSync } = require('child_process');
-  const comps = [os.cpus()[0]?.model || 'unknown', os.hostname(), os.platform(), os.arch()];
   try {
-    const r = execSync('wmic bios get serialnumber 2>nul').toString().trim().split('\n').pop()?.trim();
-    if (r && r !== 'SerialNumber') comps.push(r);
-  } catch {}
-  try {
-    const r = execSync('wmic baseboard get serialnumber 2>nul').toString().trim().split('\n').pop()?.trim();
-    if (r && r !== 'SerialNumber') comps.push(r);
-  } catch {}
-  try {
-    const r = execSync('system_profiler SPHardwareDataType 2>/dev/null | grep "Serial Number" | awk \'{print $4}\'').toString().trim();
-    if (r) comps.push(r);
-  } catch {}
-  try {
-    const r = execSync('cat /sys/class/dmi/id/product_serial 2>/dev/null').toString().trim();
-    if (r && r !== '0') comps.push(r);
-  } catch {}
-  return crypto.createHash('sha256').update(comps.join('|')).digest('hex');
+    const os = require('os');
+    const { execSync } = require('child_process');
+    const comps = [os.cpus()[0]?.model || 'unknown', os.hostname(), os.platform(), os.arch()];
+    try {
+      const r = execSync('wmic bios get serialnumber 2>nul').toString().trim().split('\n').pop()?.trim();
+      if (r && r !== 'SerialNumber') comps.push(r);
+    } catch {}
+    try {
+      const r = execSync('wmic baseboard get serialnumber 2>nul').toString().trim().split('\n').pop()?.trim();
+      if (r && r !== 'SerialNumber') comps.push(r);
+    } catch {}
+    try {
+      const r = execSync('system_profiler SPHardwareDataType 2>/dev/null | grep "Serial Number" | awk \'{print $4}\'').toString().trim();
+      if (r) comps.push(r);
+    } catch {}
+    try {
+      const r = execSync('cat /sys/class/dmi/id/product_serial 2>/dev/null').toString().trim();
+      if (r && r !== '0') comps.push(r);
+    } catch {}
+    return crypto.createHash('sha256').update(comps.join('|')).digest('hex');
+  } catch {
+    return crypto.randomBytes(32).toString('hex');
+  }
 }
 
 export function getTrialDates() {

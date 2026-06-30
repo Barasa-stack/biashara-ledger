@@ -5,26 +5,31 @@ import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft, Building2, Mail, Phone, Key, Calendar, CheckCircle2, XCircle, Clock,
   Copy, Check, Loader2, Globe, User, CreditCard, Activity, FileText, Shield,
-  Monitor, Clock as ClockIcon, ExternalLink, AlertTriangle, Database
+  Monitor, Clock as ClockIcon, ExternalLink, AlertTriangle, Database,
+  Smartphone, Wifi, WifiOff, RefreshCw
 } from 'lucide-react';
 
 export default function ClientDetailPage() {
   const router = useRouter();
   const params = useParams();
   const [client, setClient] = useState<any>(null);
+  const [licenses, setLicenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'licenses'>('overview');
 
   useEffect(() => {
     if (!params.id) return;
-    fetch(`/api/admin/clients/${params.id}`)
-      .then(r => {
-        if (r.status === 401 || r.status === 403) { router.push('/admin/login'); return null; }
-        return r.json();
-      })
-      .then(data => {
-        if (data) setClient(data);
+    Promise.all([
+      fetch(`/api/admin/clients/${params.id}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/admin/licenses`).then(r => r.ok ? r.json() : []),
+    ])
+      .then(([clientData, licensesData]) => {
+        if (!clientData) { router.push('/admin/login'); return; }
+        setClient(clientData);
+        if (Array.isArray(licensesData)) {
+          setLicenses(licensesData.filter((l: any) => l.client_id === params.id));
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -213,13 +218,72 @@ export default function ClientDetailPage() {
 
       {activeTab === 'activity' && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <p className="text-sm text-gray-400 text-center py-8">Activity log coming soon</p>
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Recent Activity</h3>
+            {[
+              { action: 'Client created', date: client.created_at, icon: User, color: 'text-brand' },
+              { action: client.is_active ? 'Account active' : 'Account inactive', date: client.last_active, icon: Activity, color: client.is_active ? 'text-brand' : 'text-gray-400' },
+              { action: client.is_trial ? 'Trial period' : 'Active subscription', date: client.trial_start_date, icon: CreditCard, color: 'text-blue-600' },
+            ].map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <div key={i} className="flex items-start gap-3 py-2">
+                  <div className={`p-1.5 rounded-full bg-gray-100 ${item.color}`}>
+                    <Icon size={14} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-700">{item.action}</p>
+                    <p className="text-xs text-gray-400">{item.date ? new Date(item.date).toLocaleString() : 'Unknown'}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {activeTab === 'licenses' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <p className="text-sm text-gray-400 text-center py-8">Licenses assigned to this client will appear here</p>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900">Assigned Licenses ({licenses.length})</h3>
+          </div>
+          {licenses.length === 0 ? (
+            <div className="p-8 text-center text-sm text-gray-400">No licenses assigned to this client</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">License Key</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expires</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {licenses.map((lic: any) => (
+                    <tr key={lic.id || lic.license_key} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-mono text-gray-700">{lic.license_key}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+                          lic.is_active ? 'text-brand bg-brand-light' : 'text-gray-400 bg-gray-100'
+                        }`}>
+                          {lic.is_active ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                          {lic.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">
+                        {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{lic.plan || 'Standard'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

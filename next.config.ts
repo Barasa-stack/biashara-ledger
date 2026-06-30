@@ -1,8 +1,9 @@
 import type { NextConfig } from 'next';
-import path from 'path';
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: path.resolve(process.cwd()),
+  turbopack: {
+    root: process.cwd(),
+  },
   serverExternalPackages: ['bcryptjs', 'puppeteer'],
   experimental: {
     serverActions: { bodySizeLimit: '2mb' },
