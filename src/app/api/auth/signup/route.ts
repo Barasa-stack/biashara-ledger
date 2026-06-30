@@ -81,8 +81,8 @@ export async function POST(request: Request) {
       const user = await get(
         `INSERT INTO users (tenant_id, email, password_hash, first_name, last_name, phone,
           subscription_plan, subscription_status, verified, subscription_expiry,
-          trial_start_date, trial_end_date, trial_used, license_status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          trial_start_date, trial_end_date, trial_used, license_status, role)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'user')
          RETURNING id`,
        [tenantId, email, passwordHash, firstName || '', lastName || '', phone || '',
          'trial', 'active', 1, trialEndDate,

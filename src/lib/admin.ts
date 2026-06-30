@@ -3,15 +3,13 @@ import { adminQuery, adminGet, adminRun } from './db';
 import { getSessionFromCookies } from './auth-server';
 import { NextResponse } from 'next/server';
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'digitalbaroz@gmail.com';
-
 export async function adminGuard() {
   try {
     const session = await getSessionFromCookies();
     if (!session) {
       return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), session: null };
     }
-    if ((session as any).email !== ADMIN_EMAIL && (session as any).role !== 'super_admin') {
+    if ((session as any).role !== 'super_admin') {
       return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }), session: null };
     }
     return { error: null, session: session as any };

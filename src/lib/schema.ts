@@ -17,7 +17,7 @@ export async function initSchema() {
       subscription_status TEXT DEFAULT 'active',
       verified INTEGER DEFAULT 0,
       subscription_expiry TIMESTAMPTZ,
-      role TEXT DEFAULT 'admin',
+      role TEXT DEFAULT 'user',
       encryption_key TEXT,
       grace_period_end TIMESTAMPTZ,
       last_reminder_sent TIMESTAMPTZ,
