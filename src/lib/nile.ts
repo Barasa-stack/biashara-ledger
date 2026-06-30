@@ -46,23 +46,11 @@ function createFallbackNile(): NileInstance {
 async function getNile(): Promise<NileInstance> {
   if (_nile) return _nile;
 
-  if (!process.env.NILEDB_API_URL) {
-    console.warn('[nile] NILEDB_API_URL not set — using DATABASE_URL fallback');
-    _nile = createFallbackNile();
-    return _nile;
-  }
-
-  try {
-    const { Nile } = await import('@niledatabase/server');
-    const config: Record<string, string> = {
-      apiUrl: process.env.NILEDB_API_URL,
-    };
-    _nile = Nile(config) as unknown as NileInstance;
-  } catch (err: any) {
-    console.error('[nile] Nile SDK init failed, using DATABASE_URL fallback:', err.message);
-    _nile = createFallbackNile();
-  }
-  return _nile!;
+  // Always use direct DATABASE_URL connection — Nile SDK cloud
+  // API endpoint is not enabled for this database instance.
+  console.info('[nile] Using DATABASE_URL directly (Nile cloud API not available)');
+  _nile = createFallbackNile();
+  return _nile;
 }
 
 export async function getNileDb() {
