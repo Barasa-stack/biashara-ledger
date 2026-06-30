@@ -30,7 +30,7 @@ function ClientsPageContent() {
   useEffect(() => {
     fetch('/api/admin/clients')
       .then(r => {
-        if (r.status === 401) { router.push('/admin/login'); return null; }
+        if (r.status === 401 || r.status === 403) { router.push('/admin/login'); return null; }
         return r.json();
       })
       .then(data => {

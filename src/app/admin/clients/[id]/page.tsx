@@ -20,7 +20,7 @@ export default function ClientDetailPage() {
     if (!params.id) return;
     fetch(`/api/admin/clients/${params.id}`)
       .then(r => {
-        if (r.status === 401) { router.push('/admin/login'); return null; }
+        if (r.status === 401 || r.status === 403) { router.push('/admin/login'); return null; }
         return r.json();
       })
       .then(data => {
