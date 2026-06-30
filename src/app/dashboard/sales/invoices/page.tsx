@@ -6,9 +6,9 @@ import { Plus, Pencil, Trash2, X, FileText, Download, Search, Filter, CheckCircl
 import { exportCSV, exportExcel, exportPDF, exportWord, getDefaultDateRange } from '@/lib/export-utils';
 
 type Invoice = {
-  id: number;
+  id: string;
   invoice_number: string;
-  customer_id: number;
+  customer_id: string;
   customer_name: string;
   description: string;
   quantity: number;
@@ -24,13 +24,13 @@ type Invoice = {
 };
 
 type Customer = {
-  id: number;
+  id: string;
   customer_name: string;
   email_address: string;
 };
 
 const emptyForm = {
-  invoice_number: '', customer_id: 0, customer_name: '', description: '',
+  invoice_number: '', customer_id: '', customer_name: '', description: '',
   quantity: 1, unit_price: 0, subtotal: 0, tax_vat: 0, discounts: 0,
   amount: 0, payment_terms: 'Net 30', status: 'draft', issue_date: '', due_date: '',
 };
@@ -191,7 +191,7 @@ export default function InvoicesPage() {
   };
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const val = field === 'customer_id' ? Number(e.target.value) : e.target.value;
+    const val = field === 'customer_id' ? e.target.value : (field === 'quantity' || field === 'unit_price' || field === 'subtotal' || field === 'tax_vat' || field === 'discounts' || field === 'amount' ? Number(e.target.value) : e.target.value);
     setForm(prev => recalc({ ...prev, [field]: val }));
   };
 
@@ -649,13 +649,13 @@ export default function InvoicesPage() {
                   <select
                     value={form.customer_id}
                     onChange={e => {
-                      const id = Number(e.target.value);
+                      const id = e.target.value;
                       const c = customers.find(c => c.id === id);
                       setForm(prev => recalc({ ...prev, customer_id: id, customer_name: c?.customer_name || '' }));
                     }}
                     className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
                   >
-                    <option value={0}>Select customer</option>
+                    <option value="">Select customer</option>
                     {customers.map(c => (
                       <option key={c.id} value={c.id}>{c.customer_name}</option>
                     ))}

@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
-import { query, get } from '@/lib/db';
+import { query, get, withTenantContext } from '@/lib/db';
 import { requireSubscription } from '@/lib/auth-guard';
 
 export async function GET(request: Request) {
-  await requireSubscription();
+  const { session } = await requireSubscription();
   const { searchParams } = new URL(request.url);
   const year = new Date().getFullYear();
   const from = searchParams.get('from') || `${year}-01-01`;
   const to = searchParams.get('to') || new Date().toISOString().split('T')[0];
+
+  const reportData = await withTenantContext(session.tenant_id!, async () => {
 
   // ═══════════════════════════════════════════════
   // PROFIT & LOSS STATEMENT (period-based)
@@ -506,4 +508,5 @@ export async function GET(request: Request) {
     },
     auditTrail,
   });
+});
 }

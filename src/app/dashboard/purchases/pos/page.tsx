@@ -6,9 +6,9 @@ import { Plus, Pencil, Trash2, X, ClipboardList, Search, Download } from 'lucide
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
 
 type PO = {
-  id: number;
+  id: string;
   po_id: string;
-  client_id: number;
+  client_id: string;
   client_name: string;
   description: string;
   quantity: number;
@@ -21,13 +21,13 @@ type PO = {
 };
 
 type Client = {
-  id: number;
+  id: string;
   supplier_name: string;
 };
 
 const emptyForm = {
   po_id: '',
-  client_id: 0,
+  client_id: '',
   client_name: '',
   description: '',
   quantity: 1,
@@ -319,13 +319,13 @@ export default function PurchaseOrdersPage() {
                   <select
                     value={form.client_id}
                     onChange={e => {
-                      const id = Number(e.target.value);
+                      const id = e.target.value;
                       const c = clients.find(cl => cl.id === id);
                       setForm(p => ({ ...p, client_id: id, client_name: c?.supplier_name || '' }));
                     }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white"
                   >
-                    <option value={0}>Select supplier</option>
+                    <option value="">Select supplier</option>
                     {clients.map(c => (
                       <option key={c.id} value={c.id}>{c.supplier_name}</option>
                     ))}

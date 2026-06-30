@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2, X, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
 
 type Customer = {
-  id: number;
+  id: string;
   customer_name: string;
   company_name: string;
   contact_person: string;

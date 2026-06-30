@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { get, run, insertReturning } from '@/lib/db';
+import { get, run, insertReturning, withTenantContext } from '@/lib/db';
 import { generateNextNumber } from '@/lib/numbers';
 import { requireSubscription } from '@/lib/auth-guard';
 
@@ -12,8 +12,9 @@ async function recalcInvoiceStatus(invoiceId: number) {
 }
 
 export async function POST(request: Request) {
-  await requireSubscription();
+  const { session } = await requireSubscription();
   const body = await request.json();
+  return await withTenantContext(session.tenant_id!, async () => {
   const { type } = body;
 
   if (type === 'quotation') {
@@ -87,4 +88,5 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+  });
 }

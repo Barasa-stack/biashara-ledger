@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, BarChart3, FileText, Users, Smartphone, TrendingUp, Shield, Calculator, Download, Globe, Lock, Clock, Building, Receipt, Package, PieChart } from 'lucide-react';
+import PageHero, { defaultCityImages } from '@/components/PageHero';
 
 const categories = [
   {
@@ -52,22 +53,19 @@ const categories = [
 export default function FeaturesPage() {
   return (
     <div>
-      <section className="py-20 md:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-full px-4 py-1.5 mb-6">
-            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
-            <span className="text-xs font-medium text-brand">All Features</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-[#000000] leading-tight mb-6">
+      <PageHero
+        images={defaultCityImages}
+        title={
+          <>
             Everything You Need to
             <br />
-            <span className="text-brand">Run Your Business</span>
-          </h1>
-          <p className="text-lg text-[#000000]/60 max-w-2xl mx-auto mb-10">
-            From bookkeeping to payroll, BiasharaLedger provides all the tools Kenyan SMEs need in one platform.
-          </p>
-        </div>
-      </section>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand via-red-300 to-orange-200">Run Your Business</span>
+          </>
+        }
+        subtitle="From bookkeeping to payroll, BiasharaLedger provides all the tools Kenyan SMEs need in one platform."
+        badge="All Features"
+        badgeWithoutTrust
+      />
 
       {categories.map((cat, i) => (
         <section key={cat.title} className={`py-16 ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>

@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2, X, Building2, Search, Download } from 'lucide-rea
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
 
 type Client = {
-  id: number;
+  id: string;
   supplier_name: string;
   company_name: string;
   contact_person: string;

@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2, X, Receipt, Search, Download } from 'lucide-react
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
 
 type Expense = {
-  id: number;
+  id: string;
   expense_code: string;
   category: string;
   description: string;

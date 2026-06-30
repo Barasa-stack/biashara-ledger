@@ -58,7 +58,7 @@ export function getTrialDates() {
   return { trialStartDate: start.toISOString(), trialEndDate: end.toISOString() };
 }
 
-export async function checkUserTrialStatus(userId: number): Promise<{
+export async function checkUserTrialStatus(userId: string): Promise<{
   status: 'trial' | 'active' | 'expired';
   daysRemaining?: number;
   message: string;
@@ -93,7 +93,7 @@ export async function checkUserTrialStatus(userId: number): Promise<{
   return { status: 'expired', message: 'Trial expired. Please activate a license key.' };
 }
 
-export async function storeLicenseKey(licenseKey: string, email: string, plan: string, userId: number) {
+export async function storeLicenseKey(licenseKey: string, email: string, plan: string, userId: string) {
   const expiry = new Date();
   expiry.setFullYear(expiry.getFullYear() + 1);
   await run(
@@ -104,7 +104,7 @@ export async function storeLicenseKey(licenseKey: string, email: string, plan: s
 }
 
 export async function activateLicenseForUser(licenseKey: string, email: string, hardwareFingerprint: string) {
-  const lic = await get<{ id: number; user_id: number; status: string; expires_at: string }>(
+  const lic = await get<{ id: string; user_id: string; status: string; expires_at: string }>(
     'SELECT * FROM license_keys WHERE license_key = $1 AND email = $2',
     [licenseKey, email]
   );

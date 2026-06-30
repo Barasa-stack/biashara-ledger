@@ -1,53 +1,94 @@
 import { Pool, QueryResultRow } from 'pg';
-import { cookies } from 'next/headers';
-import { getSession } from './auth-server';
+import { AsyncLocalStorage } from 'async_hooks';
 
-const pools = new Map<string, Pool>();
+const tenantPools = new Map<string, Pool>();
+const tenantContext = new AsyncLocalStorage<string | null>();
 
-function getOrCreatePool(max = 20, schema?: string): Pool {
-  const key = schema || '__admin__';
-  if (!pools.has(key)) {
-    let connectionString = process.env.DATABASE_URL!;
-    if (schema) {
-      const sep = connectionString.includes('?') ? '&' : '?';
-      const escaped = `"${schema.replace(/"/g, '""')}"`;
-      connectionString += `${sep}options=--search_path%3D${encodeURIComponent(escaped)}`;
-    }
-    const pool = new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-      max,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000
-    });
-
-    pool.on('error', (err) => {
-      console.error(`PostgreSQL pool error [${key}]:`, err.message);
-    });
-
-    pools.set(key, pool);
-  }
-  return pools.get(key)!;
+function getConnectionString() {
+  return process.env.DATABASE_URL || '';
 }
 
-const adminPool = getOrCreatePool(20);
+async function getTenantPool(tenantId: string): Promise<Pool> {
+  const cached = tenantPools.get(tenantId);
+  if (cached) return cached;
 
-export async function getCurrentPool(): Promise<Pool> {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('bl_session')?.value;
-    if (token) {
-      const session = await getSession(token);
-      if (session && (session as any).client_db) {
-        return getOrCreatePool(5, (session as any).client_db);
+  const pool = new Pool({
+    connectionString: getConnectionString(),
+    max: 5,
+    idleTimeoutMillis: 30000,
+    onConnect: async (client: any) => {
+      try {
+        await client.query(`SET nile.tenant_id = '${tenantId.replace(/'/g, "''")}'`);
+      } catch (e: any) {
+        console.error(`[db] onConnect error for tenant ${tenantId.substring(0,8)}: ${e.message}`);
       }
-    }
-  } catch {}
-  return adminPool;
+    },
+  } as any);
+
+  pool.on('error', (err) => {
+    console.error(`PostgreSQL pool error [tenant:${tenantId}]:`, err.message);
+  });
+
+  tenantPools.set(tenantId, pool);
+  return pool;
+}
+
+let _basePool: Pool | null = null;
+
+async function getBasePool(): Promise<Pool> {
+  if (_basePool) return _basePool;
+  const { getNileDb } = await import('./nile');
+  const db = await getNileDb();
+  _basePool = db as unknown as Pool;
+  return _basePool;
+}
+
+/**
+ * Use withTenantContext() instead. This function uses enterWith() which
+ * does NOT properly scope tenant IDs across concurrent requests.
+ * @deprecated
+ */
+export function setTenantContext(tenantId: string) {
+  tenantContext.enterWith(tenantId);
+}
+
+/**
+ * @deprecated Use withTenantContext() instead.
+ */
+export function clearTenantContext() {
+  tenantContext.enterWith(null);
+}
+
+/**
+ * Wraps an async function in a scoped tenant context using AsyncLocalStorage.run().
+ * This properly isolates tenant IDs across concurrent requests.
+ */
+export async function withTenantContext<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+  return tenantContext.run(tenantId, fn);
+}
+
+export async function withoutTenantContext<T>(fn: () => Promise<T>): Promise<T> {
+  return tenantContext.run(null, fn);
+}
+
+export function getTenantContext(): string | null {
+  return tenantContext.getStore() ?? null;
 }
 
 export async function query<T extends QueryResultRow = any>(sql: string, params?: any[]): Promise<T[]> {
-  const pool = await getCurrentPool();
+  const currentTenantId = getTenantContext();
+  if (currentTenantId) {
+    const pool = await getTenantPool(currentTenantId);
+    const result = await pool.query<T>(sql, params);
+    return result.rows;
+  }
+  const pool = await getBasePool();
+  const result = await pool.query<T>(sql, params);
+  return result.rows;
+}
+
+export async function adminQuery<T extends QueryResultRow = any>(sql: string, params?: any[]): Promise<T[]> {
+  const pool = await getBasePool();
   const result = await pool.query<T>(sql, params);
   return result.rows;
 }
@@ -57,15 +98,38 @@ export async function get<T extends QueryResultRow = any>(sql: string, params?: 
   return rows[0];
 }
 
+export async function adminGet<T extends QueryResultRow = any>(sql: string, params?: any[]): Promise<T | undefined> {
+  const rows = await adminQuery<T>(sql, params);
+  return rows[0];
+}
+
 export async function run(sql: string, params?: any[]): Promise<{ rowCount: number }> {
-  const pool = await getCurrentPool();
+  const currentTenantId = getTenantContext();
+  if (currentTenantId) {
+    const pool = await getTenantPool(currentTenantId);
+    const result = await pool.query(sql, params);
+    return { rowCount: result.rowCount ?? 0 };
+  }
+  const pool = await getBasePool();
+  const result = await pool.query(sql, params);
+  return { rowCount: result.rowCount ?? 0 };
+}
+
+export async function adminRun(sql: string, params?: any[]): Promise<{ rowCount: number }> {
+  const pool = await getBasePool();
   const result = await pool.query(sql, params);
   return { rowCount: result.rowCount ?? 0 };
 }
 
 export async function exec(sql: string): Promise<void> {
-  const pool = await getCurrentPool();
-  await pool.query(sql);
+  const currentTenantId = getTenantContext();
+  if (currentTenantId) {
+    const pool = await getTenantPool(currentTenantId);
+    await pool.query(sql);
+  } else {
+    const pool = await getBasePool();
+    await pool.query(sql);
+  }
 }
 
 export async function insertReturning<T extends QueryResultRow = any>(sql: string, params?: any[]): Promise<T> {
@@ -73,25 +137,30 @@ export async function insertReturning<T extends QueryResultRow = any>(sql: strin
   return rows[0];
 }
 
-export function getPoolForDatabase(schemaName: string): Pool {
-  return getOrCreatePool(5, schemaName);
+export function getOrCreatePool(_max?: number, _schema?: string) {
+  return getBasePool();
 }
 
-export const adminQuery = async <T extends QueryResultRow = any>(sql: string, params?: any[]) => {
-  const result = await adminPool.query<T>(sql, params);
-  return result.rows;
+export function getPoolForDatabase(_dbName?: string) {
+  return getBasePool();
+}
+
+export async function getCurrentPool() {
+  return getBasePool();
+}
+
+export default {
+  query,
+  get,
+  run,
+  exec,
+  insertReturning,
+  adminQuery,
+  adminGet,
+  adminRun,
+  setTenantContext,
+  clearTenantContext,
+  withTenantContext,
+  withoutTenantContext,
+  getTenantContext,
 };
-
-export const adminGet = async <T extends QueryResultRow = any>(sql: string, params?: any[]) => {
-  const rows = await adminQuery<T>(sql, params);
-  return rows[0];
-};
-
-export const adminRun = async (sql: string, params?: any[]) => {
-  const result = await adminPool.query(sql, params);
-  return { rowCount: result.rowCount ?? 0 };
-};
-
-export { getOrCreatePool };
-
-export default { query, get, run, exec, insertReturning, adminQuery, adminGet, adminRun, getPoolForDatabase, getCurrentPool };

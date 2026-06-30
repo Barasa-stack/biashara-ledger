@@ -6,8 +6,8 @@ import { Banknote, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
 
 type Payment = {
-  id: number;
-  invoice_id: number;
+  id: string;
+  invoice_id: string;
   invoice_number?: string;
   customer_name: string;
   amount: number;

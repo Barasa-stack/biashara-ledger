@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle } from 'lucide-react';
+import PageHero, { defaultCityImages } from '@/components/PageHero';
 
 const monthly = [
   {
@@ -75,34 +76,32 @@ export default function PricingPage() {
 
   return (
     <div>
-      <section className="py-20 md:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-full px-4 py-1.5 mb-6">
-            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
-            <span className="text-xs font-medium text-brand">Simple Pricing</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-[#000000] leading-tight mb-6">
+      <PageHero
+        images={defaultCityImages}
+        title={
+          <>
             Plans for Every
             <br />
-            <span className="text-brand">Business Size</span>
-          </h1>
-          <p className="text-lg text-[#000000]/60 max-w-2xl mx-auto mb-8">
-            Start free and upgrade as you grow. All prices in Kenyan Shillings.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <span className={`text-sm font-medium ${!annual ? 'text-[#000000]' : 'text-[#000000]/50'}`}>Monthly</span>
-            <button
-              onClick={() => setAnnual(!annual)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${annual ? 'bg-brand' : 'bg-gray-300'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${annual ? 'translate-x-6' : ''}`} />
-            </button>
-            <span className={`text-sm font-medium ${annual ? 'text-[#000000]' : 'text-[#000000]/50'}`}>
-              Annual <span className="text-green-600 font-semibold">Save 17%</span>
-            </span>
-          </div>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand via-red-300 to-orange-200">Business Size</span>
+          </>
+        }
+        subtitle="Start free and upgrade as you grow. All prices in Kenyan Shillings."
+        badge="Simple Pricing"
+        badgeWithoutTrust
+      >
+        <div className="flex items-center justify-center gap-3">
+          <span className={`text-sm font-medium ${!annual ? 'text-white' : 'text-white/50'}`}>Monthly</span>
+          <button
+            onClick={() => setAnnual(!annual)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${annual ? 'bg-brand' : 'bg-white/30'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${annual ? 'translate-x-6' : ''}`} />
+          </button>
+          <span className={`text-sm font-medium ${annual ? 'text-white' : 'text-white/50'}`}>
+            Annual <span className="text-green-400 font-semibold">Save 17%</span>
+          </span>
         </div>
-      </section>
+      </PageHero>
 
       <section className="py-16 bg-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

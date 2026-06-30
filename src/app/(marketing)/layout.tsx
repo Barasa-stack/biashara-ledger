@@ -1,86 +1,84 @@
 import Link from 'next/link';
-import { Download } from 'lucide-react';
-import MobileNav from '@/components/MobileNav';
+import Navbar from '@/components/Navbar';
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
-                <span className="text-white font-bold text-sm">BL</span>
-              </div>
-              <span className="text-lg font-bold text-brand">BiasharaLedger</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/features" className="text-sm text-[#000000] hover:text-brand transition-colors font-medium">Features</Link>
-              <Link href="/pricing" className="text-sm text-[#000000] hover:text-brand transition-colors font-medium">Pricing</Link>
-              <Link href="/download" className="text-sm text-brand hover:text-brand-hover transition-colors font-semibold flex items-center gap-1">
-                <Download className="h-3.5 w-3.5" /> Download
-              </Link>
-              <Link href="/about" className="text-sm text-[#000000] hover:text-brand transition-colors font-medium">About</Link>
-              <Link href="/contact" className="text-sm text-[#000000] hover:text-brand transition-colors font-medium">Contact</Link>
-              <Link href="/blog" className="text-sm text-[#000000] hover:text-brand transition-colors font-medium">Blog</Link>
-            </nav>
-            <div className="flex items-center gap-3">
-              <Link href="/sign-in" className="hidden sm:inline text-sm font-medium text-[#000000] hover:text-brand transition-colors">
-                Sign In
-              </Link>
-              <Link
-                href="/sign-up"
-                className="hidden sm:inline bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Start Free Trial
-              </Link>
-              <MobileNav />
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
       <main className="flex-1">{children}</main>
-      <footer className="bg-dark border-t border-dark-border py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">BL</span>
+      <footer className="bg-dark border-t border-dark-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
+            <div className="col-span-2 md:col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">BL</span>
                 </div>
-                <span className="text-base font-bold text-white">BiasharaLedger</span>
+                <span className="text-lg font-bold text-white">Biashara<span className="text-brand">Ledger</span></span>
               </div>
-              <p className="text-sm text-white/60">Accounting software built for Kenyan small businesses.</p>
+              <p className="text-sm text-white/50 leading-relaxed mb-6">
+                The complete cloud and desktop business management platform for modern businesses.
+              </p>
+              <div className="flex items-center gap-2">
+                <a href="tel:+254715434805" className="text-xs text-brand hover:text-brand-hover transition-colors">Call</a>
+                <span className="text-xs text-white/30">or</span>
+                <a href="https://wa.me/254715434805" className="text-xs text-brand hover:text-brand-hover transition-colors">WhatsApp +254715434805</a>
+              </div>
             </div>
+
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Product</h4>
-              <div className="space-y-2">
-                <Link href="/features" className="block text-sm text-white/60 hover:text-white transition-colors">Features</Link>
-                <Link href="/pricing" className="block text-sm text-white/60 hover:text-white transition-colors">Pricing</Link>
-                <Link href="/download" className="block text-sm text-white/60 hover:text-white transition-colors">Windows App</Link>
-                <Link href="/about" className="block text-sm text-white/60 hover:text-white transition-colors">About</Link>
+              <div className="space-y-2.5">
+                <Link href="/features" className="block text-sm text-white/50 hover:text-white transition-colors">Features</Link>
+                <Link href="/pricing" className="block text-sm text-white/50 hover:text-white transition-colors">Pricing</Link>
+                <Link href="/download" className="block text-sm text-white/50 hover:text-white transition-colors">Desktop App</Link>
+                <span className="block text-sm text-white/50">Cloud Platform</span>
+                <span className="block text-sm text-white/50">Integrations</span>
               </div>
             </div>
+
             <div>
-              <h4 className="text-sm font-semibold text-white mb-4">Resources</h4>
-              <div className="space-y-2">
-                <Link href="/blog" className="block text-sm text-white/60 hover:text-white transition-colors">Blog</Link>
-                <Link href="/contact" className="block text-sm text-white/60 hover:text-white transition-colors">Contact</Link>
-                <span className="block text-sm text-white/60">Help Center</span>
-                <span className="block text-sm text-white/60">API Docs</span>
+              <h4 className="text-sm font-semibold text-white mb-4">Company</h4>
+              <div className="space-y-2.5">
+                <Link href="/about" className="block text-sm text-white/50 hover:text-white transition-colors">About</Link>
+                <Link href="/blog" className="block text-sm text-white/50 hover:text-white transition-colors">Blog</Link>
+                <Link href="/contact" className="block text-sm text-white/50 hover:text-white transition-colors">Contact</Link>
+                <span className="block text-sm text-white/50">Careers</span>
+                <span className="block text-sm text-white/50">Press Kit</span>
               </div>
             </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-4">Support</h4>
+              <div className="space-y-2.5">
+                <span className="block text-sm text-white/50">Help Center</span>
+                <span className="block text-sm text-white/50">Documentation</span>
+                <span className="block text-sm text-white/50">API Reference</span>
+                <span className="block text-sm text-white/50">Community</span>
+                <span className="block text-sm text-white/50">Status</span>
+              </div>
+            </div>
+
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
-              <div className="space-y-2">
-                <span className="block text-sm text-white/60">Privacy Policy</span>
-                <span className="block text-sm text-white/60">Terms of Service</span>
-                <span className="block text-sm text-white/60">Data Processing</span>
+              <div className="space-y-2.5">
+                <span className="block text-sm text-white/50">Privacy Policy</span>
+                <span className="block text-sm text-white/50">Terms of Service</span>
+                <span className="block text-sm text-white/50">Data Processing</span>
+                <span className="block text-sm text-white/50">Cookie Policy</span>
+                <span className="block text-sm text-white/50">GDPR</span>
               </div>
             </div>
           </div>
-          <div className="border-t border-dark-border mt-8 pt-8 text-center">
+
+          <div className="border-t border-dark-border pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-white/40">&copy; {new Date().getFullYear()} BiasharaLedger. All rights reserved.</p>
+            <div className="flex items-center gap-6">
+              <span className="text-xs text-white/30">Follow us:</span>
+              {['Twitter', 'LinkedIn', 'Facebook', 'YouTube'].map((s) => (
+                <span key={s} className="text-xs text-white/40 hover:text-white transition-colors cursor-pointer">{s}</span>
+              ))}
+            </div>
           </div>
         </div>
       </footer>

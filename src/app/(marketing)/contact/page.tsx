@@ -1,25 +1,38 @@
 import { Mail, Phone, MapPin, Clock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import PageHero from '@/components/PageHero';
+import type { CityImage } from '@/components/PageHero';
+
+const contactImages: CityImage[] = [
+  { url: 'https://images.unsplash.com/photo-1725100609222-86a51bee3c3a?w=1920&q=80', label: 'Mombasa Port · Kenya' },
+  { url: 'https://images.unsplash.com/photo-1712578585447-2bab142270b0?w=1920&q=80', label: 'Dar es Salaam · Tanzania' },
+  { url: 'https://images.unsplash.com/photo-1574227492706-f65b24c3688a?w=1920&q=80', label: 'Marina Bay · Singapore' },
+  { url: 'https://images.unsplash.com/photo-1749058388308-744fdc8991ed?w=1920&q=80', label: 'Victoria Island · Lagos' },
+  { url: 'https://images.unsplash.com/photo-1680198276344-3e820e68c825?w=1920&q=80', label: 'Cancún Beach Resort · Mexico' },
+  { url: 'https://images.unsplash.com/photo-X0zbDrDtXAw?w=1920&q=80', label: 'Cavo Tagoo · Mykonos' },
+  { url: 'https://images.unsplash.com/photo-SkTAXVu4UfU?w=1920&q=80', label: 'Rodeo Drive · Beverly Hills' },
+  { url: 'https://images.unsplash.com/photo-1765246312031-87e7a216a543?w=1920&q=80', label: 'Chicago Skyline · Lake Michigan' },
+  { url: 'https://images.unsplash.com/photo-1746208440749-b25fcc19e025?w=1920&q=80', label: 'Antigua · Tropical Beach' },
+  { url: 'https://images.unsplash.com/photo-1706921255467-4236b197b530?w=1920&q=80', label: 'Business Class · Starlux A350' },
+];
 
 export default function ContactPage() {
   return (
     <div>
-      <section className="py-20 md:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-full px-4 py-1.5 mb-6">
-            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
-            <span className="text-xs font-medium text-brand">Get in Touch</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-[#000000] leading-tight mb-6">
+      <PageHero
+        images={contactImages}
+        showTrustBanner={false}
+        title={
+          <>
             We'd Love to
             <br />
-            <span className="text-brand">Hear From You</span>
-          </h1>
-          <p className="text-lg text-[#000000]/60 max-w-2xl mx-auto mb-10">
-            Have a question, feedback, or need help? Our team is here for you.
-          </p>
-        </div>
-      </section>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand via-red-300 to-orange-200">Hear From You</span>
+          </>
+        }
+        subtitle="Have a question, feedback, or need help? Our team is here for you."
+        badge="Get in Touch"
+        badgeWithoutTrust
+      />
 
       <section className="py-16 bg-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -84,7 +97,7 @@ export default function ContactPage() {
               <div className="space-y-6">
                 {[
                   { icon: Mail, label: 'Email', value: 'hello@biasharaledger.com', desc: 'We reply within 24 hours' },
-                  { icon: Phone, label: 'Phone', value: '+254 700 123 456', desc: 'Mon–Fri, 8AM–5PM EAT' },
+                  { icon: Phone, label: 'Phone', value: '+254715434805', desc: 'Call or WhatsApp' },
                   { icon: MapPin, label: 'Office', value: 'Nairobi, Kenya', desc: 'Virtual team serving businesses nationwide' },
                   { icon: Clock, label: 'Support Hours', value: 'Mon–Fri, 8AM–6PM EAT', desc: 'Weekend support available for premium plans' },
                 ].map((item) => (

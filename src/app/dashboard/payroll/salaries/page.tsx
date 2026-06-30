@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, X, DollarSign } from 'lucide-react';
 
 type Salary = {
-  id: number;
-  employee_id: number;
+  id: string;
+  employee_id: string;
   employee_name: string;
   amount: number;
   pay_date: string;
@@ -16,13 +16,13 @@ type Salary = {
 };
 
 type Employee = {
-  id: number;
+  id: string;
   name: string;
   employee_code: string;
 };
 
 const emptyForm = {
-  employee_id: 0,
+  employee_id: '',
   amount: 0,
   pay_date: new Date().toISOString().split('T')[0],
   payment_method: 'Bank Transfer',
@@ -235,10 +235,10 @@ export default function SalariesPage() {
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Employee</label>
                 <select
                   value={form.employee_id}
-                  onChange={e => set('employee_id')(Number(e.target.value))}
+                  onChange={e => set('employee_id')(e.target.value)}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white"
                 >
-                  <option value={0}>Select employee</option>
+                    <option value="">Select employee</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.name}{emp.employee_code ? ` (${emp.employee_code})` : ''}</option>
                   ))}

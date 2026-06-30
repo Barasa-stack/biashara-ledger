@@ -22,7 +22,7 @@ export async function getSmtpConfig() {
       smtp_user: string;
       smtp_pass: string;
       company_name: string;
-    }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings WHERE id = 1');
+    }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings');
 
     if (company?.smtp_host && company?.smtp_user && company?.smtp_pass) {
       return {
@@ -45,6 +45,22 @@ export async function getSmtpConfig() {
 export async function createTransporter() {
   const config = await getSmtpConfig();
   if (!config) {
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const testAccount = await nodemailer.createTestAccount();
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.ethereal.email',
+          port: 587,
+          secure: false,
+          auth: { user: testAccount.user, pass: testAccount.pass },
+        });
+        console.log('[EMAIL] Using Ethereal test account:', testAccount.user);
+        return transporter;
+      } catch {
+        console.warn('[EMAIL] Could not create Ethereal account — emails will not be sent');
+        return null;
+      }
+    }
     console.warn('[EMAIL] SMTP not configured — emails will not be sent');
     return null;
   }
@@ -65,13 +81,17 @@ export async function createTransporter() {
 }
 
 export async function getCompanyName(): Promise<string> {
-  const company = await get<{ company_name: string }>('SELECT company_name FROM company_settings WHERE id = 1');
+  const company = await get<{ company_name: string }>('SELECT company_name FROM company_settings');
   return company?.company_name || 'BiasharaLedger';
 }
 
 export async function sendOTPEmail(to: string, code: string, name = '') {
   const transporter = await createTransporter();
   if (!transporter) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEV OTP] Code for ${to}: ${code}`);
+      return { sent: true, code };
+    }
     console.warn('[EMAIL] SMTP not configured — OTP email not sent');
     return { sent: false, fallback: true, code };
   }

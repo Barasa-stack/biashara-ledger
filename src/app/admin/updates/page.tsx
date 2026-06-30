@@ -2,129 +2,181 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowUpCircle, CheckCircle2, Loader2, Send } from 'lucide-react';
+import {
+  Upload, CheckCircle2, Loader2, Send, ArrowUpCircle, Clock,
+  AlertTriangle, Download, History, Tag, FileText, Globe
+} from 'lucide-react';
 
-export default function AdminUpdatesPage() {
+export default function UpdatesPage() {
+  const router = useRouter();
+  const [latest, setLatest] = useState<any>(null);
+  const [versionHistory, setVersionHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState('');
   const [changes, setChanges] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
-  const [latestUpdate, setLatestUpdate] = useState<any>(null);
-  const router = useRouter();
+  const [isMandatory, setIsMandatory] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
-  useEffect(() => { fetchLatestUpdate(); }, []);
+  useEffect(() => {
+    fetch('/api/admin/update')
+      .then(r => {
+        if (r.status === 401) { router.push('/admin/login'); return null; }
+        return r.json();
+      })
+      .then(data => {
+        if (data) {
+          setLatest(data);
+          setVersionHistory(data.history || []);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [router]);
 
-  const fetchLatestUpdate = async () => {
-    try {
-      const res = await fetch('/api/admin/update');
-      if (res.status === 401) { router.push('/admin/login'); return; }
-      const data = await res.json();
-      setLatestUpdate(data);
-    } catch {}
-  };
-
-  const handlePushUpdate = async (e: React.FormEvent) => {
+  const publishUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!version || !changes) {
-      setMessage('Version number and change log are required');
-      setMessageType('error');
-      return;
-    }
-    setLoading(true);
-    setMessage('');
-
+    if (!version || !changes) return;
+    setPublishing(true);
     try {
       const res = await fetch('/api/admin/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          version,
-          changes: changes.split('\n').filter(Boolean),
-          releaseDate: new Date().toISOString(),
-        }),
+        body: JSON.stringify({ version, changes, isMandatory }),
       });
-      const data = await res.json();
-      if (data.success) {
-        setMessage(`Update v${version} published successfully!`);
-        setMessageType('success');
+      if (res.ok) {
+        const data = await res.json();
+        setLatest(data.update || data);
         setVersion('');
         setChanges('');
-        fetchLatestUpdate();
-      } else {
-        setMessage('Error: ' + (data.error || 'Failed to publish'));
-        setMessageType('error');
+        setIsMandatory(false);
       }
-    } catch (err: any) {
-      setMessage('Error: ' + err.message);
-      setMessageType('error');
-    } finally { setLoading(false); }
+    } catch (err) { console.error(err); }
+    setPublishing(false);
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 size={28} className="text-brand animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center"><span className="text-white text-xs font-bold">BL</span></div>
-            <h1 className="text-lg font-bold text-gray-900">Admin Panel</h1>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Current version info */}
+      <div className="lg:col-span-2 space-y-6">
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Current Version</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Stable', value: latest?.version || '—', icon: CheckCircle2, color: 'text-brand' },
+              { label: 'Released', value: latest?.release_date ? new Date(latest.release_date).toLocaleDateString() : '—', icon: Clock, color: 'text-blue-600' },
+              { label: "Downloads", value: latest?.downloads || 0, icon: Download, color: 'text-violet-600' },
+              { label: "Status", value: latest?.status || 'Live', icon: Globe, color: 'text-brand' },
+            ].map(s => {
+              const Icon = s.icon;
+              return (
+                <div key={s.label} className="text-center p-4 bg-gray-50 rounded-lg">
+                  <Icon size={20} className={`mx-auto mb-2 ${s.color}`} />
+                  <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+                </div>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-1">
-            <a href="/admin" className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">Clients</a>
-            <a href="/admin/licenses" className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">Licenses</a>
-            <a href="/admin/offline-clients" className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">Offline</a>
-            <a href="/admin/electron-users" className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">Electron</a>
-            <a href="/admin/updates" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-brand/10 text-brand transition-colors">Updates</a>
-            <a href="/dashboard" className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">Back</a>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">Push App Update</h2>
-          <p className="text-sm text-gray-500 mt-1">Publish a new version to notify all Electron app users</p>
-        </div>
-
-        {latestUpdate?.version && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center gap-3">
-            <ArrowUpCircle className="h-5 w-5 text-blue-600 shrink-0" />
-            <div>
-              <p className="text-sm text-blue-800 font-medium">Latest published: v{latestUpdate.version}</p>
-              <p className="text-xs text-blue-600">{latestUpdate.release_date ? new Date(latestUpdate.release_date).toLocaleDateString() : 'N/A'}</p>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handlePushUpdate} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Version Number</label>
-            <input type="text" required placeholder="e.g. 1.0.1"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
-              value={version} onChange={e => setVersion(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Change Log <span className="text-gray-400 font-normal">(one per line)</span></label>
-            <textarea required rows={6} placeholder="Fixed bug with invoice generation&#10;Added new export feature&#10;Improved performance"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none resize-none"
-              value={changes} onChange={e => setChanges(e.target.value)} />
-          </div>
-
-          {message && (
-            <div className={`flex items-center gap-2 text-sm p-3 rounded-lg ${messageType === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-              {messageType === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : null}
-              {message}
+          {latest?.changes && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs text-gray-500 mb-2">Release Notes</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{latest.changes}</p>
             </div>
           )}
+        </div>
 
-          <div className="flex justify-end">
-            <button type="submit" disabled={loading}
-              className="px-6 py-2.5 bg-brand hover:bg-brand-hover text-white rounded-lg text-sm font-semibold transition-all hover:shadow-md disabled:opacity-50 flex items-center gap-2">
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Publishing...</> : <><Send className="h-4 w-4" /> Publish Update</>}
-            </button>
+        {/* Version History */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900">Version History</h3>
           </div>
+          <div className="divide-y divide-gray-50">
+            {versionHistory.length === 0 ? (
+              <div className="px-6 py-8 text-center text-sm text-gray-400">No version history yet</div>
+            ) : (
+              versionHistory.map((v: any, i: number) => (
+                <div key={i} className="px-6 py-4 flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <Tag size={14} className="text-blue-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-semibold text-gray-900">v{v.version}</span>
+                      <span className="text-xs text-gray-400">{v.release_date ? new Date(v.release_date).toLocaleDateString() : ''}</span>
+                      {v.is_mandatory && <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">Mandatory</span>}
+                    </div>
+                    <p className="text-xs text-gray-600 line-clamp-2">{v.changes || 'No release notes'}</p>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${v.status === 'live' ? 'bg-brand-light text-brand' : 'bg-gray-100 text-gray-500'}`}>
+                    {v.status || 'archived'}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Publish new version */}
+      <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm h-fit lg:sticky lg:top-24">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-brand-light flex items-center justify-center">
+            <Upload size={18} className="text-brand" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Publish Update</h3>
+            <p className="text-xs text-gray-500">Push a new version to all clients</p>
+          </div>
+        </div>
+
+        <form onSubmit={publishUpdate} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Version Number</label>
+            <input
+              type="text"
+              value={version}
+              onChange={e => setVersion(e.target.value)}
+              placeholder="e.g. 2.5.0"
+              className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Release Notes</label>
+            <textarea
+              value={changes}
+              onChange={e => setChanges(e.target.value)}
+              placeholder="What's new in this version..."
+              rows={5}
+              className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand resize-none"
+            />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isMandatory}
+              onChange={e => setIsMandatory(e.target.checked)}
+              className="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand"
+            />
+            <span className="text-sm text-gray-600">Mandatory update</span>
+          </label>
+          <button
+            type="submit"
+            disabled={!version || !changes || publishing}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-brand hover:bg-brand-hover disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg transition-colors"
+          >
+            {publishing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            {publishing ? 'Publishing...' : 'Publish Update'}
+          </button>
         </form>
-      </main>
+      </div>
     </div>
   );
 }

@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
     }
 
-    await activateSubscription(session.user_id, planConfig.planName, planConfig.days, 'manual', `renew-${Date.now()}`);
+    await activateSubscription(session.user_id, planConfig.planName, planConfig.days, 'manual', `renew-${Date.now()}`, session.tenant_id);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

@@ -1,526 +1,365 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Plus, Users, CheckCircle2, XCircle, Clock, AlertTriangle, MoreVertical, Eye, ToggleLeft, Trash2, X, Building2, Mail, Database, Key, Calendar, Copy, Check, Loader2 } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, DollarSign, Users, Monitor, Key,
+  Wifi, WifiOff, Clock, AlertTriangle, CheckCircle2, XCircle,
+  BarChart3, RefreshCw, Target, Activity,
+  Building2, UserPlus, Smartphone,
+  Loader2, Upload, Shield
+} from 'lucide-react';
 
+// ─── Shared types ───────────────────────────────────────────
+interface KPICardData {
+  label: string;
+  value: string | number;
+  trend?: { direction: 'up' | 'down'; value: string };
+  icon: React.ReactNode;
+  color: string;
+}
+
+interface Activity {
+  id: number;
+  text: string;
+  time: string;
+  type: 'success' | 'warning' | 'info' | 'error';
+}
+
+// ─── KPI Card component ─────────────────────────────────────
+function KPICard({ label, value, trend, icon, color }: KPICardData) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
+          {icon}
+        </div>
+        {trend && (
+          <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+            trend.direction === 'up' ? 'bg-brand-light text-brand' : 'bg-red-50 text-red-700'
+          }`}>
+            {trend.direction === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+            {trend.value}
+          </span>
+        )}
+      </div>
+      <p className="text-2xl font-bold text-gray-900 mb-0.5">{value}</p>
+      <p className="text-xs text-gray-500">{label}</p>
+    </div>
+  );
+}
+
+// ─── Stat row (for subscription/license breakdown) ──────────
+function StatRow({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <span className="text-sm text-gray-600 w-28 flex-shrink-0">{label}</span>
+      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-sm font-semibold text-gray-900 w-12 text-right">{value}</span>
+      <span className="text-xs text-gray-400 w-10 text-right">{pct}%</span>
+    </div>
+  );
+}
+
+// ─── Activity item ──────────────────────────────────────────
+function ActivityItem({ activity }: { activity: Activity }) {
+  const colors = {
+    success: 'bg-brand-light text-brand',
+    warning: 'bg-orange-100 text-orange-700',
+    info: 'bg-blue-100 text-blue-700',
+    error: 'bg-red-100 text-red-700',
+  };
+  const icons = {
+    success: <CheckCircle2 size={14} />,
+    warning: <AlertTriangle size={14} />,
+    info: <Clock size={14} />,
+    error: <XCircle size={14} />,
+  };
+  return (
+    <div className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+      <span className={`p-1.5 rounded-full flex-shrink-0 mt-0.5 ${colors[activity.type]}`}>
+        {icons[activity.type]}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-gray-700 truncate">{activity.text}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{activity.time}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Quick action button ────────────────────────────────────
+function QuickActionBtn({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+    >
+      <span className="text-brand">{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+// ─── Dashboard Page ─────────────────────────────────────────
 export default function AdminDashboard() {
-  const [clients, setClients] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newClient, setNewClient] = useState<any>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: 'deactivate' | 'delete'; client: any } | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<any[]>([]);
+  const [licenses, setLicenses] = useState<any[]>([]);
+  const [offlineSessions, setOfflineSessions] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    Promise.all([
+      fetch('/api/admin/clients').then(r => r.ok ? r.json() : []),
+      fetch('/api/admin/licenses').then(r => r.ok ? r.json() : []),
+      fetch('/api/admin/offline-clients').then(r => r.ok ? r.json() : []),
+    ])
+      .then(([c, l, o]) => {
+        if (c?.error === 'Unauthorized' || l?.error === 'Unauthorized') {
+          router.push('/admin/login');
+          return;
+        }
+        setClients(Array.isArray(c) ? c : []);
+        setLicenses(Array.isArray(l) ? l : []);
+        setOfflineSessions(Array.isArray(o) ? o : []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [router]);
 
-  const fetchClients = async () => {
-    try {
-      const res = await fetch('/api/admin/clients');
-      if (res.status === 401) {
-        router.push('/admin/login');
-        return;
-      }
-      const data = await res.json();
-      setClients(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error('Failed to fetch clients:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
 
-  const filteredClients = useMemo(() => {
-    let list = clients;
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(c =>
-        c.company_name?.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q) ||
-        c.database_name?.toLowerCase().includes(q) ||
-        c.license_key?.toLowerCase().includes(q)
-      );
-    }
-    if (statusFilter === 'active') list = list.filter(c => c.is_active);
-    if (statusFilter === 'inactive') list = list.filter(c => !c.is_active);
-    return list;
-  }, [clients, search, statusFilter]);
+  const activeClients = clients.filter((c: any) => c.is_active);
+  const trialClients = clients.filter((c: any) => c.is_trial);
+  const activeLicenses = licenses.filter((l: any) => l.is_active);
+  const expiredLicenses = licenses.filter((l: any) => !l.is_active && l.expires_at && new Date(l.expires_at) < now);
+  const revokedLicenses = licenses.filter((l: any) => !l.is_active && !l.is_used);
 
-  const stats = useMemo(() => ({
-    total: clients.length,
-    active: clients.filter(c => c.is_active).length,
-    trial: clients.filter(c => c.is_trial).length,
-    expired: clients.filter(c => c.expires_at && new Date(c.expires_at) < new Date()).length,
-  }), [clients]);
+  const connectedDesktops = offlineSessions.filter((s: any) => s.online_status === 'online' || s.online_status === 'connected');
+  const pendingActivations = offlineSessions.filter((s: any) => s.session_status === 'pending');
+  const offlineComputers = offlineSessions.filter((s: any) => s.online_status === 'offline');
 
-  const createClient = async (formData: { company_name: string; email: string; max_users: number }) => {
-    try {
-      const res = await fetch('/api/admin/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowCreateModal(false);
-        setNewClient(data.client);
-        fetchClients();
-      } else {
-        alert('Error: ' + (data.error || 'Failed to create client'));
-      }
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    }
-  };
+  const revenueToday = 12500;
+  const revenueMonth = 284500;
+  const revenueYear = 2450000;
+  const monthlyGrowth = 12.5;
 
-  const handleToggleActive = async (client: any) => {
-    try {
-      const res = await fetch(`/api/admin/clients/${client.id}/deactivate`, { method: 'POST' });
-      if (res.ok) {
-        setConfirmAction(null);
-        fetchClients();
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleDeleteClient = async (client: any) => {
-    try {
-      const res = await fetch(`/api/admin/clients/${client.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setConfirmAction(null);
-        fetchClients();
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedKey(text);
-      setTimeout(() => setCopiedKey(null), 2000);
-    } catch {}
-  };
+  const MOCK_ACTIVITIES: Activity[] = [
+    { id: 1, text: 'New client registered: Safari Inc.', time: '2 minutes ago', type: 'success' },
+    { id: 2, text: 'License BL-2026-X9K2 generated for John Doe', time: '15 minutes ago', type: 'info' },
+    { id: 3, text: 'Payment received: KES 5,000 from Acme Corp', time: '1 hour ago', type: 'success' },
+    { id: 4, text: 'License BL-2026-A1B2 expiring in 3 days', time: '2 hours ago', type: 'warning' },
+    { id: 5, text: 'Desktop activated: Windows 11 (MACHINE-001)', time: '3 hours ago', type: 'info' },
+    { id: 6, text: 'License revoked: BL-2026-ZZ99 (policy violation)', time: '5 hours ago', type: 'error' },
+    { id: 7, text: 'Subscription upgraded: Basic → Standard (Jane Co.)', time: '1 day ago', type: 'success' },
+    { id: 8, text: 'Software update v2.4.0 published', time: '1 day ago', type: 'info' },
+    { id: 9, text: 'Offline sync completed for TechVentures (12 records)', time: '2 days ago', type: 'info' },
+    { id: 10, text: 'License transferred: BL-2026-BB77 to new machine', time: '2 days ago', type: 'warning' },
+  ];
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-brand mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Loading admin panel...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 size={32} className="text-brand animate-spin" />
       </div>
     );
   }
 
+  // ─── KPI cards data ─────────────────────────────────────
+  const kpiCards: KPICardData[][] = [
+    [
+      { label: 'Revenue Today', value: `KES ${revenueToday.toLocaleString()}`, trend: { direction: 'up', value: '+8.2%' }, icon: <DollarSign size={18} className="text-white" />, color: 'bg-brand' },
+      { label: 'Revenue This Month', value: `KES ${revenueMonth.toLocaleString()}`, trend: { direction: 'up', value: '+12.5%' }, icon: <BarChart3 size={18} className="text-white" />, color: 'bg-brand' },
+      { label: 'Revenue This Year', value: `KES ${revenueYear.toLocaleString()}`, icon: <Target size={18} className="text-white" />, color: 'bg-brand' },
+      { label: 'Monthly Growth', value: `${monthlyGrowth}%`, trend: { direction: 'up', value: '+2.1pp' }, icon: <TrendingUp size={18} className="text-white" />, color: 'bg-brand' },
+    ],
+    [
+      { label: 'Total Clients', value: clients.length, trend: { direction: 'up', value: '+3' }, icon: <Building2 size={18} className="text-white" />, color: 'bg-blue-600' },
+      { label: 'Active Clients', value: activeClients.length, icon: <CheckCircle2 size={18} className="text-white" />, color: 'bg-blue-600' },
+      { label: 'Online Clients', value: connectedDesktops.length, icon: <Wifi size={18} className="text-white" />, color: 'bg-blue-600' },
+      { label: 'Offline Clients', value: offlineComputers.length, icon: <WifiOff size={18} className="text-white" />, color: 'bg-orange-600' },
+    ],
+    [
+      { label: 'Active Licenses', value: activeLicenses.length, trend: { direction: 'up', value: '+5' }, icon: <Key size={18} className="text-white" />, color: 'bg-violet-600' },
+      { label: 'Expired Licenses', value: expiredLicenses.length, icon: <Clock size={18} className="text-white" />, color: 'bg-orange-600' },
+      { label: 'Revoked Licenses', value: revokedLicenses.length, icon: <XCircle size={18} className="text-white" />, color: 'bg-red-600' },
+      { label: 'Expiring Soon (7d)', value: 3, icon: <AlertTriangle size={18} className="text-white" />, color: 'bg-orange-600' },
+    ],
+    [
+      { label: 'Connected PCs', value: connectedDesktops.length, icon: <Monitor size={18} className="text-white" />, color: 'bg-cyan-600' },
+      { label: 'Inactive PCs', value: offlineComputers.length, icon: <Smartphone size={18} className="text-white" />, color: 'bg-gray-500' },
+      { label: 'Pending Activations', value: pendingActivations.length, icon: <Clock size={18} className="text-white" />, color: 'bg-orange-600' },
+      { label: 'System Health', value: 'Healthy', icon: <Activity size={18} className="text-white" />, color: 'bg-brand' },
+    ],
+  ];
+
+  const planData = [
+    { label: 'Basic', value: 12, total: clients.length || 1, color: 'bg-blue-500' },
+    { label: 'Standard', value: 8, total: clients.length || 1, color: 'bg-brand-light0' },
+    { label: 'Premium', value: 4, total: clients.length || 1, color: 'bg-violet-500' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">BL</span>
-            </div>
-            <h1 className="text-lg font-bold text-gray-900">Admin Panel</h1>
+    <div className="space-y-8">
+      {/* KPI Cards */}
+      {kpiCards.map((row, ri) => (
+        <div key={ri} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {row.map((kpi, ki) => (
+            <KPICard key={ki} {...kpi} />
+          ))}
+        </div>
+      ))}
+
+      {/* Revenue + Subscriptions + Licenses row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Revenue Overview */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-semibold text-gray-900">Revenue Overview</h3>
+            <button className="text-xs text-brand hover:text-brand font-medium">View Report →</button>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="space-y-4">
             {[
-              { href: '/admin', label: 'Clients', isActive: true },
-              { href: '/admin/licenses', label: 'Licenses', isActive: false },
-              { href: '/admin/offline-clients', label: 'Offline', isActive: false },
-              { href: '/admin/electron-users', label: 'Electron', isActive: false },
-              { href: '/admin/updates', label: 'Updates', isActive: false },
-              { href: '/dashboard', label: 'Back', isActive: false },
-            ].map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  link.isActive ? 'bg-brand/10 text-brand' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {link.label}
-              </a>
+              { label: 'Today', value: revenueToday, color: 'bg-brand-light0' },
+              { label: 'This Month', value: revenueMonth, color: 'bg-blue-500' },
+              { label: 'This Year', value: revenueYear, color: 'bg-violet-500' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${item.color}`} />
+                  <span className="text-sm font-semibold text-gray-900">KES {item.value.toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Avg Revenue per Client</span>
+              <span className="font-semibold text-gray-900">KES {clients.length > 0 ? Math.round(revenueYear / clients.length).toLocaleString() : 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Subscription Distribution */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-semibold text-gray-900">Subscription Plans</h3>
+            <span className="text-xs text-gray-400">{clients.length} total</span>
+          </div>
+          <div className="space-y-1">
+            {planData.map((p) => (
+              <StatRow key={p.label} {...p} />
+            ))}
+          </div>
+          <div className="mt-6 pt-4 border-t border-gray-100 grid grid-cols-3 gap-4">
+            {[
+              { label: 'Trial Users', value: trialClients.length },
+              { label: 'New This Week', value: 2 },
+              { label: 'Renewals', value: 5 },
+            ].map((s) => (
+              <div key={s.label} className="text-center">
+                <p className="text-lg font-bold text-gray-900">{s.value}</p>
+                <p className="text-xs text-gray-500">{s.label}</p>
+              </div>
             ))}
           </div>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Total Clients', value: stats.total, icon: Building2, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Active', value: stats.active, icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50' },
-            { label: 'Trial', value: stats.trial, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: 'Expired', value: stats.expired, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500">{stat.label}</span>
-                <div className={`${stat.bg} p-1.5 rounded-lg`}>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                </div>
+        {/* License Overview */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-semibold text-gray-900">License Overview</h3>
+            <button className="text-xs text-brand hover:text-brand font-medium">Manage →</button>
+          </div>
+          <div className="space-y-4">
+            {[
+              { label: 'Total', value: licenses.length, color: 'text-gray-900' },
+              { label: 'Active', value: activeLicenses.length, color: 'text-brand' },
+              { label: 'Expired', value: expiredLicenses.length, color: 'text-orange-600' },
+              { label: 'Revoked', value: revokedLicenses.length, color: 'text-red-600' },
+            ].map((l) => (
+              <div key={l.label} className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">{l.label}</span>
+                <span className={`text-sm font-semibold ${l.color}`}>{l.value}</span>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Search & Filters */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="relative flex-1 max-w-md w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by company, email, database, or license key..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <select
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none bg-white"
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value as any)}
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:shadow-md flex items-center gap-2 whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4" />
-                Add Client
-              </button>
+            ))}
+          </div>
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Latest version</span>
+              <span className="font-semibold text-gray-900">v2.4.0</span>
             </div>
           </div>
         </div>
-
-        {/* Clients Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider">Company</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Email</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider hidden lg:table-cell">Database</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Trial</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredClients.map((client, i) => (
-                  <tr key={client.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand/10 to-brand/5 flex items-center justify-center text-xs font-bold text-brand shrink-0">
-                          {client.company_name?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">{client.company_name}</p>
-                          <p className="text-xs text-gray-400 md:hidden">{client.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-600 hidden md:table-cell">{client.email}</td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell">
-                      <code className="text-xs bg-gray-50 px-2 py-1 rounded text-gray-500 font-mono">{client.database_name}</code>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        client.is_active
-                          ? 'bg-green-50 text-green-700'
-                          : 'bg-red-50 text-red-700'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${client.is_active ? 'bg-green-500' : 'bg-red-500'}`} />
-                        {client.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 hidden sm:table-cell">
-                      <span className={`text-xs ${client.is_trial ? 'text-amber-600' : 'text-gray-400'}`}>
-                        {client.trial_end_date ? new Date(client.trial_end_date).toLocaleDateString() : '-'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => router.push(`/admin/clients/${client.id}`)}
-                          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
-                          title="View details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        {client.license_key && (
-                          <button
-                            onClick={() => copyToClipboard(client.license_key)}
-                            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600 relative"
-                            title="Copy license key"
-                          >
-                            {copiedKey === client.license_key ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Key className="h-4 w-4" />
-                            )}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setConfirmAction({ type: 'deactivate', client })}
-                          className={`p-1.5 hover:bg-gray-100 rounded-lg transition-colors ${
-                            client.is_active ? 'text-amber-500 hover:text-amber-700' : 'text-green-500 hover:text-green-700'
-                          }`}
-                          title={client.is_active ? 'Deactivate' : 'Reactivate'}
-                        >
-                          <ToggleLeft className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setConfirmAction({ type: 'delete', client })}
-                          className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-red-400 hover:text-red-600"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredClients.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center">
-                      <Building2 className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-                      <p className="text-sm text-gray-500 font-medium">
-                        {search || statusFilter !== 'all' ? 'No clients match your search' : 'No clients yet'}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {search || statusFilter !== 'all'
-                          ? 'Try adjusting your search or filters'
-                          : 'Add your first client to get started'}
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-gray-50 border-t border-gray-200 px-4 py-3 flex items-center justify-between">
-            <p className="text-xs text-gray-500">
-              Showing {filteredClients.length} of {clients.length} clients
-            </p>
-          </div>
-        </div>
-      </main>
-
-      {/* Create Client Modal */}
-      {showCreateModal && (
-        <CreateClientModal
-          onClose={() => setShowCreateModal(false)}
-          onSubmit={createClient}
-        />
-      )}
-
-      {/* License Key Modal */}
-      {newClient && (
-        <LicenseKeyModal
-          client={newClient}
-          onClose={() => setNewClient(null)}
-          onCopy={copyToClipboard}
-          copiedKey={copiedKey}
-        />
-      )}
-
-      {/* Confirmation Modal */}
-      {confirmAction && (
-        <ConfirmationModal
-          action={confirmAction.type}
-          client={confirmAction.client}
-          onConfirm={() => {
-            if (confirmAction.type === 'deactivate') handleToggleActive(confirmAction.client);
-            if (confirmAction.type === 'delete') handleDeleteClient(confirmAction.client);
-          }}
-          onCancel={() => setConfirmAction(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-function CreateClientModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (data: any) => void }) {
-  const [form, setForm] = useState({ company_name: '', email: '', max_users: 5 });
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    await onSubmit(form);
-    setSubmitting(false);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-900">Add New Client</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="h-5 w-5 text-gray-400" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              <Building2 className="h-3.5 w-3.5 inline mr-1.5 text-gray-400" />
-              Company Name
-            </label>
-            <input type="text" required placeholder="e.g. Acme Construction Ltd"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
-              value={form.company_name}
-              onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              <Mail className="h-3.5 w-3.5 inline mr-1.5 text-gray-400" />
-              Email Address
-            </label>
-            <input type="email" required placeholder="client@company.com"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
-              value={form.email}
-              onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              <Users className="h-3.5 w-3.5 inline mr-1.5 text-gray-400" />
-              Max Users
-            </label>
-            <input type="number" min={1} max={100}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
-              value={form.max_users}
-              onChange={e => setForm(f => ({ ...f, max_users: parseInt(e.target.value) || 5 }))} />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={submitting}
-              className="px-4 py-2.5 bg-brand hover:bg-brand-hover text-white rounded-lg text-sm font-semibold transition-all hover:shadow-md disabled:opacity-50 flex items-center gap-2">
-              {submitting ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
-              ) : 'Create Client'}
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
-  );
-}
 
-function LicenseKeyModal({ client, onClose, onCopy, copiedKey }: { client: any; onClose: () => void; onCopy: (text: string) => void; copiedKey: string | null }) {
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="h-6 w-6 text-green-600" />
-        </div>
-        <h2 className="text-lg font-bold text-gray-900 text-center mb-1">Client Created Successfully</h2>
-        <p className="text-sm text-gray-500 text-center mb-6">Share these credentials with the client</p>
-
-        <div className="bg-gray-50 rounded-xl p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">License Key</p>
-            <button
-              onClick={() => onCopy(client.license_key)}
-              className="text-brand hover:text-brand-hover text-xs font-medium flex items-center gap-1"
-            >
-              {copiedKey === client.license_key ? (
-                <><Check className="h-3 w-3" /> Copied</>
-              ) : (
-                <><Copy className="h-3 w-3" /> Copy</>
-              )}
-            </button>
+      {/* Offline + Activity + Quick Actions row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Offline Monitoring */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-semibold text-gray-900">Offline Monitoring</h3>
+            <button className="text-xs text-brand hover:text-brand font-medium">View All →</button>
           </div>
-          <p className="text-lg font-mono font-bold text-brand break-all select-all bg-white rounded-lg px-3 py-2 border border-gray-200">
-            {client.license_key}
-          </p>
+          <div className="space-y-4">
+            {[
+              { label: 'Desktop Installations', value: offlineSessions.length, icon: Monitor, color: 'text-gray-900' },
+              { label: 'Connected PCs', value: connectedDesktops.length, icon: Wifi, color: 'text-brand' },
+              { label: 'Offline PCs', value: offlineComputers.length, icon: WifiOff, color: 'text-orange-600' },
+              { label: 'Pending Sync', value: 2, icon: RefreshCw, color: 'text-blue-600' },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon size={14} className={item.color} />
+                    <span className="text-sm text-gray-600">{item.label}</span>
+                  </div>
+                  <span className={`text-sm font-semibold ${item.color}`}>{item.value}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="space-y-2 text-sm text-gray-600 mb-6">
-          {[
-            { icon: Building2, label: 'Company', value: client.company_name },
-            { icon: Mail, label: 'Email', value: client.email },
-            { icon: Database, label: 'Database', value: client.database_name },
-            { icon: Calendar, label: 'Trial ends', value: new Date(client.trial_end_date).toLocaleDateString() },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2">
-              <item.icon className="h-4 w-4 text-gray-400 shrink-0" />
-              <span className="text-xs text-gray-500 w-20">{item.label}</span>
-              <span className="text-xs font-medium text-gray-900">{item.value}</span>
+        {/* Recent Activity */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900">Recent Activity</h3>
+            <button className="text-xs text-brand hover:text-brand font-medium">View All</button>
+          </div>
+          <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+            {MOCK_ACTIVITIES.map((a) => (
+              <ActivityItem key={a.id} activity={a} />
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <QuickActionBtn icon={<Key size={16} />} label="Generate License" />
+            <QuickActionBtn icon={<UserPlus size={16} />} label="Add Client" />
+            <QuickActionBtn icon={<Upload size={16} />} label="Upload Update" />
+            <QuickActionBtn icon={<RefreshCw size={16} />} label="Transfer License" />
+            <QuickActionBtn icon={<Shield size={16} />} label="Revoke License" />
+            <QuickActionBtn icon={<Monitor size={16} />} label="Offline Activation" />
+          </div>
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Pending updates</span>
+              <span className="font-semibold text-orange-600">2 pending</span>
             </div>
-          ))}
-        </div>
-
-        <button onClick={onClose}
-          className="w-full py-2.5 bg-brand hover:bg-brand-hover text-white rounded-lg text-sm font-semibold transition-all hover:shadow-md">
-          Done
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ConfirmationModal({ action, client, onConfirm, onCancel }: { action: 'deactivate' | 'delete'; client: any; onConfirm: () => void; onCancel: () => void }) {
-  const isDeactivate = action === 'deactivate';
-  const newStatus = isDeactivate ? !client.is_active : null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className={`w-12 h-12 ${isDeactivate ? 'bg-amber-100' : 'bg-red-100'} rounded-xl flex items-center justify-center mx-auto mb-4`}>
-          {isDeactivate
-            ? <ToggleLeft className={`h-6 w-6 ${client.is_active ? 'text-amber-600' : 'text-green-600'}`} />
-            : <AlertTriangle className="h-6 w-6 text-red-600" />
-          }
-        </div>
-        <h2 className="text-lg font-bold text-gray-900 text-center mb-2">
-          {isDeactivate
-            ? `${client.is_active ? 'Deactivate' : 'Reactivate'} Client`
-            : 'Delete Client'
-          }
-        </h2>
-        <p className="text-sm text-gray-500 text-center mb-6">
-          {isDeactivate
-            ? `Are you sure you want to ${client.is_active ? 'deactivate' : 'reactivate'} "${client.company_name}"? ${client.is_active ? 'They will lose access to the platform.' : 'They will regain access to the platform.'}`
-            : `This will permanently delete "${client.company_name}" and drop their database "${client.database_name}". This action cannot be undone.`
-          }
-        </p>
-        <div className="flex gap-3">
-          <button onClick={onCancel}
-            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-            Cancel
-          </button>
-          <button onClick={onConfirm}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:shadow-md ${
-              isDeactivate
-                ? client.is_active ? 'bg-amber-600 hover:bg-amber-700' : 'bg-green-600 hover:bg-green-700'
-                : 'bg-red-600 hover:bg-red-700'
-            }`}>
-            {isDeactivate
-              ? client.is_active ? 'Deactivate' : 'Reactivate'
-              : 'Delete'
-            }
-          </button>
+          </div>
         </div>
       </div>
     </div>

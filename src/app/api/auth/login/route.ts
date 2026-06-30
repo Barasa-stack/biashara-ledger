@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { adminGet, adminRun } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,15 +25,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use Neon serverless driver with DATABASE_URL from environment
-    const sql = neon(process.env.DATABASE_URL!);
-
-    // Query user
-    const users = await sql`
-      SELECT * FROM users WHERE email = ${email}
-    `;
-
-    const user = users[0];
+    const user = await adminGet(
+      'SELECT id, tenant_id, email, password_hash FROM users WHERE email = $1 LIMIT 1',
+      [email.toLowerCase().trim()]
+    ) as any;
 
     if (!user) {
       return NextResponse.json(
@@ -54,10 +49,10 @@ export async function POST(req: NextRequest) {
     // Create session
     const sessionToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    await sql`
-      INSERT INTO sessions (user_id, token, expires_at)
-      VALUES (${user.id}, ${sessionToken}, ${expiresAt})
-    `;
+    await adminRun(
+      'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+      [user.tenant_id, user.id, sessionToken, expiresAt]
+    );
 
     // Generate JWT
     const jwtToken = jwt.sign(

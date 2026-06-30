@@ -3,6 +3,7 @@
 import { Download, Monitor, Globe, CheckCircle, ChevronRight, Loader2, Apple } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import PageHero, { defaultCityImages } from '@/components/PageHero';
 
 const requirements = [
   'Windows 10 or Windows 11 (64-bit)',
@@ -82,18 +83,18 @@ export default function DownloadPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <PageHero
+        images={defaultCityImages}
+        showTrustBanner={false}
+        title={
+          <>
+            Download <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand via-red-300 to-orange-200">BiasharaLedger</span>
+          </>
+        }
+        subtitle="Choose how you want to use BiasharaLedger — online from any browser, or as a native desktop application."
+      />
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-        <div className="text-center mb-12">
-          <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center mx-auto mb-4">
-            <Download className="h-8 w-8 text-brand" />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-            Download BiasharaLedger
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Choose how you want to use BiasharaLedger — online from any browser, or as a native desktop application.
-          </p>
-        </div>
 
         <div className="grid md:grid-cols-3 gap-6 mb-16">
           <div className="border border-gray-200 rounded-2xl p-8 hover:shadow-lg transition-shadow bg-white">

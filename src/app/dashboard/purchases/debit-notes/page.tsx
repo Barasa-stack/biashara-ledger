@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2, X, FileX, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
 
 type DebitNote = {
-  id: number;
+  id: string;
   note_number: string;
   supplier: string;
   amount: number;

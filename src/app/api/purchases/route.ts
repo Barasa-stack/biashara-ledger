@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { get, run, insertReturning } from '@/lib/db';
+import { get, run, insertReturning, withTenantContext } from '@/lib/db';
 import { requireSubscription } from '@/lib/auth-guard';
 
 async function recalcPurchaseInvoiceStatus(invoiceId: number) {
@@ -11,7 +11,8 @@ async function recalcPurchaseInvoiceStatus(invoiceId: number) {
 }
 
 export async function POST(request: Request) {
-  await requireSubscription();
+  const { session } = await requireSubscription();
+  return await withTenantContext(session.tenant_id!, async () => {
   const body = await request.json();
   const { type } = body;
 
@@ -66,4 +67,5 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+  });
 }

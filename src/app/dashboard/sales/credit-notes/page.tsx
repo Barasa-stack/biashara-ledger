@@ -6,9 +6,9 @@ import { Plus, Pencil, Trash2, X, FileText, Search, Download } from 'lucide-reac
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
 
 type Invoice = {
-  id: number;
+  id: string;
   invoice_number: string;
-  customer_id: number;
+  customer_id: string;
   customer_name: string;
   description: string;
   amount: number;
@@ -17,16 +17,16 @@ type Invoice = {
 };
 
 type Customer = {
-  id: number;
+  id: string;
   customer_name: string;
   email_address: string;
 };
 
 type CreditNote = {
-  id: number;
+  id: string;
   credit_note_number: string;
-  invoice_id: number;
-  customer_id: number;
+  invoice_id: string;
+  customer_id: string;
   customer_name: string;
   customer_email: string;
   description: string;
@@ -37,7 +37,7 @@ type CreditNote = {
 };
 
 const emptyForm = {
-  credit_note_number: '', invoice_id: 0, customer_id: 0, customer_name: '',
+  credit_note_number: '', invoice_id: '', customer_id: '', customer_name: '',
   customer_email: '', description: '', amount: 0, reason: '',
   payment_terms: '', issue_date: '',
 };
@@ -145,9 +145,9 @@ export default function CreditNotesPage() {
   };
 
   const handleInvoiceSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const invoiceId = Number(e.target.value);
+    const invoiceId = e.target.value;
     if (!invoiceId) {
-      setForm(prev => ({ ...prev, invoice_id: 0, customer_id: 0, customer_name: '', customer_email: '', description: '', amount: 0, payment_terms: '', issue_date: '' }));
+      setForm(prev => ({ ...prev, invoice_id: '', customer_id: '', customer_name: '', customer_email: '', description: '', amount: 0, payment_terms: '', issue_date: '' }));
       return;
     }
     const invoice = invoices.find(inv => inv.id === invoiceId);

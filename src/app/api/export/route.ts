@@ -82,7 +82,7 @@ export async function POST(request: Request) {
         const isAmount = c.key.includes('amount') || c.key === 'salary' || c.key === 'total';
         return `<th style="background: #1e3a5f; color: #fff; padding: 8px; font-size: 10px; font-weight: 600; text-align: ${isAmount ? 'right' : 'left'};">${c.label}</th>`;
       }).join('');
-      const company = await get('SELECT * FROM company_settings WHERE id=1') as any;
+      const company = await get('SELECT * FROM company_settings') as any;
       const cName = company?.company_name || 'BiasharaLedger';
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title || 'Report'}</title>
         <style>body{font-family:'Helvetica Neue',Arial;padding:20px;color:#333;font-size:11px;}

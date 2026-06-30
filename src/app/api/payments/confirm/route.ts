@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     };
 
     const days = planDurations[plan] || 30;
-    await activateSubscription(session.user_id, plan, days, paymentMethod || 'mpesa', transactionId || `demo-${Date.now()}`);
+    await activateSubscription(session.user_id, plan, days, paymentMethod || 'mpesa', transactionId || `demo-${Date.now()}`, session.tenant_id);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

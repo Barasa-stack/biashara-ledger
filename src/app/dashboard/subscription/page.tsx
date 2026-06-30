@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { CreditCard } from 'lucide-react';
 
 type BillingRecord = {
-  id: number;
+  id: string;
   date: string;
   description: string;
   amount: number;

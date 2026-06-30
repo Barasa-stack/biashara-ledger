@@ -31,7 +31,7 @@ type ApiData = {
   netOperatingCashFlow: number;
   monthlyCash: { month: string; incoming: number; outgoing: number; profit: number }[];
   trialBalance: { account: string; type: string; balance: number }[];
-  generalLedger: { id: number; type: string; amount: number; detail: string; date: string; created_at: string }[];
+  generalLedger: { id: string; type: string; amount: number; detail: string; date: string; created_at: string }[];
   receivablesAging: { bucket: string; total: number; count: number }[];
   payablesAging: { bucket: string; total: number; count: number }[];
   expenseByCategory: { category: string; total: number; count: number }[];
@@ -41,7 +41,7 @@ type ApiData = {
   budgetVsActual: { category: string; budget: number; actual: number; variance: number }[];
   equityReport: { retainedEarnings: number; capitalContributions: number; withdrawals: number; currentPeriodProfit: number; totalEquity: number };
   taxReport: { vatOutput: number; vatInput: number; vatPayable: number; taxableSales: number; taxablePurchases: number; note: string };
-  auditTrail: { action: string; id: number; amount: number; created_at: string }[];
+  auditTrail: { action: string; id: string; amount: number; created_at: string }[];
 };
 
 const reportTabs = [

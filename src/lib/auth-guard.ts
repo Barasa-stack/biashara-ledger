@@ -1,14 +1,14 @@
-import { query, get, run, insertReturning } from './db';
+import { query, get, run, withTenantContext } from './db';
 import { getSessionFromCookies } from './auth-server';
 
 const GRACE_PERIOD_DAYS = 3;
 const TRIAL_DAYS = 14;
 const EXPIRY_WARNING_DAYS = 7;
 
-export async function logSubscriptionEvent(userId: number, eventType: string, description: string, metadata: Record<string, any> = {}) {
+export async function logSubscriptionEvent(userId: string, eventType: string, description: string, metadata: Record<string, any> = {}, tenantId?: string) {
   await run(
-    'INSERT INTO subscription_events (user_id, event_type, description, metadata) VALUES ($1, $2, $3, $4)',
-    [userId, eventType, description, JSON.stringify(metadata)]
+    'INSERT INTO subscription_events (tenant_id, user_id, event_type, description, metadata) VALUES ($1, $2, $3, $4, $5)',
+    [tenantId || '', userId, eventType, description, JSON.stringify(metadata)]
   );
 }
 
@@ -40,7 +40,7 @@ export async function requireSubscription() {
       new Date(Date.now() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000).toISOString(),
       session.user_id,
     ]);
-    await logSubscriptionEvent(session.user_id, 'expired', 'Subscription expired, grace period started');
+    await logSubscriptionEvent(session.user_id, 'expired', 'Subscription expired, grace period started', {}, session.tenant_id);
     throw new AuthError('Your subscription has expired. Renew within the grace period to restore access.', 'SUBSCRIPTION_EXPIRED');
   }
 
@@ -56,7 +56,7 @@ export async function requireSubscription() {
         await run('UPDATE users SET last_reminder_sent = $1 WHERE id = $2', [
           now.toISOString(), session.user_id,
         ]);
-        await logSubscriptionEvent(session.user_id, 'expiry_warning', `Subscription expires in ${daysUntilExpiry} days`);
+        await logSubscriptionEvent(session.user_id, 'expiry_warning', `Subscription expires in ${daysUntilExpiry} days`, {}, session.tenant_id);
       }
     }
   }
@@ -82,21 +82,21 @@ export async function hasPermission(role: string, permission: string): Promise<b
   return perms.includes('all') || perms.includes(permission);
 }
 
-export async function getBillingHistory(userId: number) {
+export async function getBillingHistory(userId: string) {
   return query(
     'SELECT * FROM billing_history WHERE user_id = $1 ORDER BY created_at DESC',
     [userId]
   );
 }
 
-export async function getSubscriptionEvents(userId: number, limit = 20) {
+export async function getSubscriptionEvents(userId: string, limit = 20) {
   return query(
     'SELECT * FROM subscription_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
     [userId, limit]
   );
 }
 
-export async function getSubscriptionStatus(userId: number) {
+export async function getSubscriptionStatus(userId: string) {
   const user = await get(
     'SELECT id, email, subscription_plan, subscription_status, subscription_expiry, role, grace_period_end FROM users WHERE id = $1',
     [userId]
@@ -122,7 +122,7 @@ export async function getSubscriptionStatus(userId: number) {
   };
 }
 
-export async function createTrialSubscription(userId: number) {
+export async function createTrialSubscription(userId: string) {
   const expiry = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
   await run(
     'UPDATE users SET subscription_plan = $1, subscription_status = $2, subscription_expiry = $3, verified = $4 WHERE id = $5',
@@ -131,7 +131,7 @@ export async function createTrialSubscription(userId: number) {
   await logSubscriptionEvent(userId, 'trial_started', '14-day trial started', { expiresAt: expiry });
 }
 
-export async function activateSubscription(userId: number, planName: string, durationDays: number, paymentMethod: string = 'mpesa', transactionId: string = '') {
+export async function activateSubscription(userId: string, planName: string, durationDays: number, paymentMethod: string = 'mpesa', transactionId: string = '', tenantId: string = '') {
   const now = new Date();
   const periodStart = now.toISOString();
   const periodEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
@@ -142,13 +142,13 @@ export async function activateSubscription(userId: number, planName: string, dur
   );
 
   await run(
-    'INSERT INTO billing_history (user_id, amount, plan_name, payment_method, transaction_id, period_start, period_end) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-    [userId, getPlanPrice(planName), planName, paymentMethod, transactionId, periodStart, periodEnd]
+    'INSERT INTO billing_history (tenant_id, user_id, amount, plan_name, payment_method, transaction_id, period_start, period_end) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+    [tenantId, userId, getPlanPrice(planName), planName, paymentMethod, transactionId, periodStart, periodEnd]
   );
 
   await logSubscriptionEvent(userId, 'subscription_activated', `${planName} plan activated`, {
     plan: planName, durationDays, periodStart, periodEnd,
-  });
+  }, tenantId);
 }
 
 function getPlanPrice(planName: string): number {

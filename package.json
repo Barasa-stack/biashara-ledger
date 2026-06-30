@@ -26,12 +26,16 @@
     "test-api": "node scripts/test-api.js",
     "verify": "node scripts/check-env.js && node scripts/test-api.js",
     "check-services": "node scripts/test-api.js",
+    "migrate-data": "node --import tsx scripts/migrate-data.ts",
+    "verify:tenant-isolation": "node --import tsx scripts/verify-tenant-isolation.ts",
     "test:all": "node scripts/check-env.js && node scripts/test-api.js",
     "verify-deployment": "node scripts/verify-deployment.js",
     "postinstall": "node -e \"try{require('electron-rebuild')}catch(e){}\""
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@niledatabase/nextjs": "^5.3.1",
+    "@niledatabase/server": "^5.3.1",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.0.0",
     "dotenv": "^17.4.2",
@@ -73,5 +77,8 @@
   },
   "main": "electron/main.cjs",
   "author": "Biashara Ledger",
-  "description": "Biashara Ledger - Offline Accounting Software"
+  "description": "Biashara Ledger - Offline Accounting Software",
+  "overrides": {
+    "next": "$next"
+  }
 }

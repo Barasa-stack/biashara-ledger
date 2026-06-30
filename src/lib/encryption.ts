@@ -6,7 +6,7 @@ if (!process.env.ENCRYPTION_KEY) {
 }
 const KEY = crypto.scryptSync(process.env.ENCRYPTION_KEY, 'salt', 32);
 
-export function encryptField(userId: number, value: string): string {
+export function encryptField(userId: string, value: string): string {
   const userKey = crypto.createHash('sha256').update(String(userId)).update(KEY).digest();
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv(ALGORITHM, userKey, iv);
@@ -16,7 +16,7 @@ export function encryptField(userId: number, value: string): string {
   return `${iv.toString('hex')}:${authTag}:${encrypted}`;
 }
 
-export function decryptField(userId: number, encrypted: string): string {
+export function decryptField(userId: string, encrypted: string): string {
   const [ivHex, authTagHex, data] = encrypted.split(':');
   const userKey = crypto.createHash('sha256').update(String(userId)).update(KEY).digest();
   const iv = Buffer.from(ivHex, 'hex');

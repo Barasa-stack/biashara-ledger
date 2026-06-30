@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, Calendar, Clock, User } from 'lucide-react';
+import PageHero, { defaultCityImages } from '@/components/PageHero';
 
 const posts = [
   {
@@ -61,22 +62,19 @@ const posts = [
 export default function BlogPage() {
   return (
     <div>
-      <section className="py-20 md:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-full px-4 py-1.5 mb-6">
-            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
-            <span className="text-xs font-medium text-brand">Blog</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-[#000000] leading-tight mb-6">
+      <PageHero
+        images={defaultCityImages}
+        title={
+          <>
             Insights for
             <br />
-            <span className="text-brand">Kenyan Business Owners</span>
-          </h1>
-          <p className="text-lg text-[#000000]/60 max-w-2xl mx-auto mb-10">
-            Tips, guides, and best practices for accounting, payroll, tax compliance, and growing your business.
-          </p>
-        </div>
-      </section>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand via-red-300 to-orange-200">Kenyan Business Owners</span>
+          </>
+        }
+        subtitle="Tips, guides, and best practices for accounting, payroll, tax compliance, and growing your business."
+        badge="Blog"
+        badgeWithoutTrust
+      />
 
       <section className="py-16 bg-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

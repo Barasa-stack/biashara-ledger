@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
-import { query, get, run, adminQuery, adminGet, adminRun, getOrCreatePool } from './db';
+import { get, run, adminGet, adminRun } from './db';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -17,77 +17,31 @@ export function generateToken(): string {
   return randomUUID();
 }
 
-export async function createSession(userId: number, clientDb?: string): Promise<{ token: string; expiresAt: string }> {
+export async function createSession(userId: string, tenantId: string): Promise<{ token: string; expiresAt: string }> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
   await adminRun(
-    'INSERT INTO sessions (user_id, token, expires_at, client_db) VALUES ($1, $2, $3, $4)',
-    [userId, token, expiresAt, clientDb || '']
+    'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+    [tenantId, userId, token, expiresAt]
   );
   return { token, expiresAt };
 }
 
 export async function getSession(token: string) {
-  const row = await adminGet(
-    'SELECT id, user_id, token, expires_at, client_db FROM sessions WHERE token = $1 AND expires_at > NOW()',
-    [token]
-  );
-  if (!row) return null;
-
-  const s = row as any;
-
-  if (s.client_db) {
-    const pool = getOrCreatePool(5, s.client_db);
-    const userResult = await pool.query(
-      `SELECT id as user_id, email, first_name, last_name, phone,
-              subscription_plan, subscription_status,
-              verified, subscription_expiry,
-              grace_period_end, last_reminder_sent, role
-       FROM users WHERE id = $1`,
-      [s.user_id]
-    );
-    if (userResult.rows.length === 0) return null;
-    const u = userResult.rows[0];
-    return {
-      session_id: s.id,
-      token: s.token,
-      expires_at: s.expires_at,
-      client_db: s.client_db,
-      user_id: u.user_id,
-      email: u.email,
-      first_name: u.first_name,
-      last_name: u.last_name,
-      phone: u.phone,
-      subscription_plan: u.subscription_plan,
-      subscription_status: u.subscription_status,
-      verified: u.verified,
-      subscription_expiry: u.subscription_expiry,
-      grace_period_end: u.grace_period_end,
-      last_reminder_sent: u.last_reminder_sent,
-      role: u.role,
-    };
-  }
-
-  const session = await adminGet(
-    `SELECT s.id as session_id, s.token, s.expires_at, s.client_db,
+  return await adminGet(
+    `SELECT s.tenant_id, s.id as session_id, s.token, s.expires_at,
             u.id as user_id, u.email, u.first_name, u.last_name, u.phone,
             u.subscription_plan, u.subscription_status,
             u.verified, u.subscription_expiry,
             u.grace_period_end, u.last_reminder_sent, u.role
-     FROM sessions s JOIN users u ON u.id = s.user_id
+     FROM sessions s JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id
      WHERE s.token = $1 AND s.expires_at > NOW()`,
     [token]
-  );
-  return session || null;
+  ) || null;
 }
 
 export async function deleteSession(token: string) {
-  const row = await adminGet('SELECT client_db FROM sessions WHERE token = $1', [token]);
   await adminRun('DELETE FROM sessions WHERE token = $1', [token]);
-  if (row && (row as any).client_db) {
-    const pool = getOrCreatePool(5, (row as any).client_db);
-    pool.query('DELETE FROM sessions WHERE token = $1', [token]).catch(() => {});
-  }
 }
 
 export async function deleteExpiredSessions() {
@@ -102,8 +56,8 @@ export async function getSessionFromCookies() {
 }
 
 export async function checkUserSubscription(user: {
-  id?: number;
-  user_id?: number;
+  id?: string;
+  user_id?: string;
   verified?: number;
   subscription_status?: string;
   subscription_expiry?: string;

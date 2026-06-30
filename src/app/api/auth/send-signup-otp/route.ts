@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { run } from '@/lib/db';
+import { adminRun } from '@/lib/db';
 import { sendOTPEmail } from '@/lib/email';
+import { ensureDbInitialized } from '@/lib/init';
 
 export async function POST(req: NextRequest) {
+  const run = adminRun;
   try {
-    let { email } = await req.json();
+    await ensureDbInitialized();
+    let { email, purpose } = await req.json();
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
     email = email.trim().toLowerCase();
+    purpose = (purpose || 'signup').trim().toLowerCase();
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
     const rl = checkRateLimit(`send-otp:${email}:${ip}`, 3, 60 * 1000);
@@ -22,16 +26,24 @@ export async function POST(req: NextRequest) {
 
     await run(
       'UPDATE verification_codes SET used = 1 WHERE email = $1 AND purpose = $2 AND used = 0',
-      [email, 'signup']
+      [email, purpose]
     );
 
     await run(
       'INSERT INTO verification_codes (email, code, purpose, expires_at) VALUES ($1, $2, $3, $4)',
-      [email, code, 'signup', expiresAt]
+      [email, code, purpose, expiresAt]
     );
 
     const result = await sendOTPEmail(email, code);
     if (!result.sent) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[DEV OTP] Code for ${email}: ${code}`);
+        return NextResponse.json({
+          success: true,
+          message: 'OTP sent (dev mode — check server logs)',
+          devCode: code,
+        });
+      }
       return NextResponse.json({
         success: false,
         error: 'Failed to send verification email. Please check your SMTP settings.',

@@ -61,7 +61,7 @@ export default function AdminLoginPage() {
             <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">BiasharaLedger</h1>
-          <p className="text-white/50 text-sm">Enterprise Accounting Platform</p>
+          <p className="text-white/50 text-sm">Admin Dashboard</p>
           <div className="mt-12 grid grid-cols-2 gap-4 text-left">
             {[
               { label: 'Clients', value: 'Manage' },
@@ -88,7 +88,7 @@ export default function AdminLoginPage() {
             </div>
             <div>
               <p className="text-lg font-bold text-gray-900">BiasharaLedger</p>
-              <p className="text-xs text-gray-500">Admin Panel</p>
+              <p className="text-xs text-gray-500">Admin Dashboard</p>
             </div>
           </div>
 
@@ -111,7 +111,7 @@ export default function AdminLoginPage() {
                   required
                   autoComplete="email"
                   autoFocus
-                  placeholder="admin@company.com"
+                  placeholder="admin@biasharaledger.com"
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none transition-all"
                   value={email}
                   onChange={e => setEmail(e.target.value)}

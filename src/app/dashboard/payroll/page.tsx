@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2, X, Users, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
 
 type Employee = {
-  id: number;
+  id: string;
   employee_code: string;
   name: string;
   date_of_birth: string;

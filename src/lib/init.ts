@@ -4,6 +4,7 @@ let initialized = false;
 
 export async function ensureDbInitialized() {
   if (initialized) return;
+  if (process.env.NEXT_PHASE === 'phase-production-build') return;
   try {
     await initSchema();
   } catch (e) {
