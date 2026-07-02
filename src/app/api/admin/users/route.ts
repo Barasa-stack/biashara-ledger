@@ -25,6 +25,6 @@ export async function GET() {
     `);
     return NextResponse.json(users);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to manage users' }, { status: 500 });
   }
 }

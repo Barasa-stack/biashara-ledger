@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     email = email.trim().toLowerCase();
 
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rl = checkRateLimit(`otp:${ip}`, 3, 60 * 1000);
+    const rl = await checkRateLimit(`otp:${ip}`, 3, 60 * 1000);
     if (!rl.allowed) {
       return NextResponse.json({ success: false, error: 'Too many requests. Try again later.' }, { status: 429 });
     }
@@ -46,6 +46,6 @@ export async function POST(request: Request) {
       message: `A 6-digit code has been sent to ${email}`,
     });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message || 'Failed to send code' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to send verification code' }, { status: 500 });
   }
 }

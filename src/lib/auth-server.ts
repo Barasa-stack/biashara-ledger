@@ -5,12 +5,12 @@ import { get, run, adminGet, adminRun } from './db';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function hashPassword(password: string): string {
-  return bcrypt.hashSync(password, 10);
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
 }
 
-export function verifyPassword(password: string, hash: string): boolean {
-  return bcrypt.compareSync(password, hash);
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 export function generateToken(): string {
@@ -30,10 +30,10 @@ export async function createSession(userId: string, tenantId: string): Promise<{
 export async function getSession(token: string) {
   return await adminGet(
     `SELECT s.tenant_id, s.id as session_id, s.token, s.expires_at,
-            u.id as user_id, u.email, u.first_name, u.last_name, u.phone,
+            u.id as user_id, u.email, u.first_name, u.last_name, u.phone, u.country,
             u.subscription_plan, u.subscription_status,
             u.verified, u.subscription_expiry,
-            u.grace_period_end, u.last_reminder_sent, u.role
+            u.grace_period_end, u.last_reminder_sent, u.role, u.license_status
      FROM sessions s JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id
      WHERE s.token = $1 AND s.expires_at > NOW()`,
     [token]
@@ -75,7 +75,7 @@ export async function checkUserSubscription(user: {
       return { active: false, reason: 'Your subscription has expired. Please renew.' };
     }
   }
-  if (user.subscription_status !== 'active') {
+  if (user.subscription_status !== 'active' && user.subscription_status !== 'trial') {
     return { active: false, reason: 'Your subscription is not active. Please renew.' };
   }
   return { active: true };

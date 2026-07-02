@@ -1,23 +1,33 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { get, run, withTenantContext, adminRun, adminGet } from '@/lib/db';
 import { hashPassword, createSession } from '@/lib/auth-server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { getTrialDates } from '@/lib/license';
 import { createTenant } from '@/lib/nile';
 import { ensureDbInitialized } from '@/lib/init';
-import { getSmtpConfig, sendWelcomeEmail } from '@/lib/email';
+import { sendWelcomeEmail } from '@/lib/email';
+import { logError } from '@/lib/logger';
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'digitalbaroz@gmail.com';
+function timingSafeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export async function POST(request: Request) {
   try {
     await ensureDbInitialized();
     const body = await request.json();
-    let { email, password, phone, firstName, lastName, otp } = body;
+    let { email, password, phone, firstName, lastName, otp, selectedPackage, country } = body;
     if (email) email = email.trim().toLowerCase();
 
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rl = checkRateLimit(`signup:${ip}`, 3, 60 * 1000);
+    const rl = await checkRateLimit(`signup:${ip}`, 3, 60 * 1000);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 });
     }
@@ -43,7 +53,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No valid verification code found. Request a new one.' }, { status: 400 });
     }
 
-    if (storedOtp.code !== otp) {
+    if (!timingSafeEqual(String(storedOtp.code), String(otp))) {
       return NextResponse.json({ error: 'Invalid verification code' }, { status: 400 });
     }
 
@@ -52,13 +62,15 @@ export async function POST(request: Request) {
       [email]
     ) as any;
     if (existing) {
-      return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
+      return NextResponse.json({ error: 'Invalid verification code' }, { status: 409 });
     }
 
+    const plan = selectedPackage || 'Basic';
+    const userCountry = country || 'KE';
     const tenantName = `${[firstName, lastName].filter(Boolean).join(' ') || email.split('@')[0]}'s Business`;
     const tenant = await createTenant(tenantName, {
       email,
-      plan: 'trial',
+      plan: plan.toLowerCase(),
       created_at: new Date().toISOString(),
     });
     const tenantId = tenant.id;
@@ -66,27 +78,28 @@ export async function POST(request: Request) {
 
     // Register in admin_clients so web signups appear in the admin dashboard
     await adminRun(
-      `INSERT INTO admin_clients (company_name, email, database_name, is_trial, trial_start_date, trial_end_date, expires_at, last_active)
-       VALUES ($1, $2, $3, true, $4, $5, $5, NOW())
+      `INSERT INTO admin_clients (company_name, email, database_name, is_trial, plan, trial_start_date, trial_end_date, expires_at, last_active)
+       VALUES ($1, $2, $3, true, $4, $5, $6, $6, NOW())
        ON CONFLICT (email) DO UPDATE SET
          company_name = EXCLUDED.company_name,
+         plan = EXCLUDED.plan,
          last_active = NOW()`,
-      [tenantName, email, `web-${tenantId}`, trialStartDate, trialEndDate]
+      [tenantName, email, `web-${tenantId}`, plan.toLowerCase(), trialStartDate, trialEndDate]
     );
 
-    const passwordHash = hashPassword(password);
+    const passwordHash = await hashPassword(password);
 
     let userId!: string;
     await withTenantContext(tenantId!, async () => {
       const user = await get(
-        `INSERT INTO users (tenant_id, email, password_hash, first_name, last_name, phone,
+        `INSERT INTO users (tenant_id, email, password_hash, first_name, last_name, phone, country,
           subscription_plan, subscription_status, verified, subscription_expiry,
           trial_start_date, trial_end_date, trial_used, license_status, role)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'user')
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'admin')
          RETURNING id`,
-       [tenantId, email, passwordHash, firstName || '', lastName || '', phone || '',
-         'trial', 'active', 1, trialEndDate,
-         trialStartDate, trialEndDate, 1, 'trial']
+         [tenantId, email, passwordHash, firstName || '', lastName || '', phone || '', userCountry,
+          plan, 'trial', 1, trialEndDate,
+          trialStartDate, trialEndDate, 1, 'trial']
       ) as any;
       userId = user.id;
 
@@ -108,19 +121,25 @@ export async function POST(request: Request) {
     try {
       await sendWelcomeEmail(email, firstName || '');
     } catch (emailError) {
-      console.error('[EMAIL] Failed to send welcome email:', emailError);
+      logError('email', 'Failed to send welcome email', { error: (emailError as Error).message });
     }
+
+    const trialDaysRemaining = Math.ceil((new Date(trialEndDate).getTime() - Date.now()) / 86400000);
 
     const response = NextResponse.json({
       user: {
         id: userId, email, firstName, lastName, phone,
-        subscriptionPlan: 'trial', subscriptionStatus: 'active',
+        country: userCountry,
+        subscriptionPlan: plan, subscriptionStatus: 'trial',
+        subscriptionExpiry: trialEndDate,
         trialEndDate,
+        trialDaysRemaining,
         tenantId,
+        licenseStatus: 'trial',
       },
       trialEndDate,
+      trialDaysRemaining,
       requiresPackageSelection: false,
-      token,
     }, { status: 201 });
 
     response.cookies.set('bl_session', token, {
@@ -130,10 +149,17 @@ export async function POST(request: Request) {
       path: '/',
       maxAge: 7 * 24 * 60 * 60,
     });
+    response.cookies.set('bl_sub_status', `${plan}:trial`, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
 
     return response;
   } catch (err: any) {
-    console.error('Signup error:', err);
+    logError('signup', 'Signup error', { error: (err as Error).message });
     return NextResponse.json({ error: 'Internal server error. Our team has been notified.' }, { status: 500 });
   }
 }

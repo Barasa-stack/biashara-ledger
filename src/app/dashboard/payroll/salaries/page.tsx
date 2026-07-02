@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Plus, Pencil, Trash2, X, DollarSign } from 'lucide-react';
 
 type Salary = {
@@ -30,8 +30,8 @@ const emptyForm = {
   status: 'pending',
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const PAYMENT_METHODS = ['Bank Transfer', 'Cash', 'Cheque', 'Mobile Money'];
 const STATUSES = ['paid', 'pending'];
@@ -50,15 +50,28 @@ export default function SalariesPage() {
     setLoading(true);
     setError('');
     fetch('/api/payroll/salaries')
-      .then(r => r.ok ? r.json() : Promise.reject('Failed to load salaries'))
+      .then(async r => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(body.error || `Failed to load salaries (${r.status})`);
+        }
+        return r.json();
+      })
       .then(setSalaries)
-      .catch(e => setError(String(e)))
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   };
 
   const fetchEmployees = () =>
     fetch('/api/payroll')
-      .then(r => r.ok ? r.json() : [])
+      .then(async r => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          console.warn('Failed to load employees for dropdown:', body.error || r.status);
+          return [];
+        }
+        return r.json();
+      })
       .then(setEmployees)
       .catch(() => {});
 
@@ -98,14 +111,14 @@ export default function SalariesPage() {
       setShowModal(false);
       fetchSalaries();
     } catch (e: any) {
-      alert(e.message || 'Error saving salary');
+      toast(e.message || 'Error saving salary');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (s: Salary) => {
-    if (!confirm(`Delete salary record for "${s.employee_name}"?`)) return;
+    if (!await confirm(`Delete salary record for "${s.employee_name}"?`)) return;
     try {
       const res = await fetch('/api/payroll/salaries', {
         method: 'DELETE',
@@ -115,7 +128,7 @@ export default function SalariesPage() {
       if (!res.ok) throw new Error('Failed to delete');
       fetchSalaries();
     } catch (e: any) {
-      alert(e.message || 'Error deleting salary');
+      toast(e.message || 'Error deleting salary');
     }
   };
 
@@ -190,8 +203,8 @@ export default function SalariesPage() {
                   <tr key={s.id} className="hover:bg-surface/50 transition-colors">
                     <td className="py-3 pr-4 text-gray-400 w-8">{salaries.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{s.employee_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(s.amount)}</td>
-                    <td className="py-3 pr-4 text-gray-700">{s.pay_date ? new Date(s.pay_date).toLocaleDateString('en-KE') : '—'}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(s.amount)}</td>
+                    <td className="py-3 pr-4 text-gray-700">{s.pay_date ? new Date(s.pay_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
                         s.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
@@ -245,7 +258,7 @@ export default function SalariesPage() {
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
                 <Field label="Pay Date" value={form.pay_date} onChange={set('pay_date')} type="date" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -295,6 +308,7 @@ export default function SalariesPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

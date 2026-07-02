@@ -5,16 +5,24 @@ const ADMIN_PATH = '/admin';
 const ADMIN_LOGIN_PATH = '/admin/login';
 const ADMIN_API_PREFIX = '/api/admin';
 
-const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https:; media-src 'self'; object-src 'none'";
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https:; frame-ancestors 'none'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
+
+const DASHBOARD_PATH = '/dashboard';
+const DASHBOARD_LOGIN_PATH = '/sign-in';
+const RENEW_PATH = '/renew';
+const PROTECTED_ROUTES = ['/dashboard', '/admin', '/payment', '/select-package'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('bl_session');
 
+  if (pathname === '/sign-up' && request.method === 'POST') {
+    return NextResponse.next();
+  }
+
+  const isProtected = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+
   if (pathname === ADMIN_LOGIN_PATH) {
-    if (sessionCookie) {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
     return NextResponse.next();
   }
 
@@ -27,26 +35,49 @@ export function proxy(request: NextRequest) {
     }
   }
 
+  if (pathname.startsWith(DASHBOARD_PATH)) {
+    if (!sessionCookie) {
+      return NextResponse.redirect(new URL(DASHBOARD_LOGIN_PATH, request.url));
+    }
+    const subCookie = request.cookies.get('bl_sub_status');
+    if (subCookie) {
+      const [, status] = subCookie.value.split(':');
+      if (status === 'expired' || status === 'cancelled') {
+        return NextResponse.redirect(new URL(RENEW_PATH, request.url));
+      }
+    }
+  }
+
+  if ((pathname.startsWith('/payment') || pathname.startsWith('/select-package')) && !sessionCookie) {
+    return NextResponse.redirect(new URL(DASHBOARD_LOGIN_PATH, request.url));
+  }
+
+  const allowedOrigins = [
+    process.env.NEXT_PUBLIC_APP_URL || `http://localhost:3000`,
+    'https://biashara-ledger.vercel.app',
+    'https://biasharaledger.com',
+  ].filter(Boolean);
+
+  const getCorsHeaders = (origin: string | null) => ({
+    'Access-Control-Allow-Origin': origin && allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] || '*'),
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-csrf-token, X-CSRF-Token',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400',
+  });
+
   if (request.method === 'OPTIONS') {
+    const origin = request.headers.get('origin');
     return new NextResponse(null, {
       status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': request.headers.get('origin') || '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-csrf-token, X-CSRF-Token',
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Max-Age': '86400',
-      },
+      headers: getCorsHeaders(origin),
     });
   }
 
   const origin = request.headers.get('origin');
-  if (origin && origin !== `${request.nextUrl.protocol}//${request.nextUrl.host}`) {
+  if (origin && allowedOrigins.includes(origin)) {
     const response = NextResponse.next();
-    response.headers.set('Access-Control-Allow-Origin', origin);
-    response.headers.set('Access-Control-Allow-Credentials', 'true');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, x-csrf-token');
+    Object.entries(getCorsHeaders(origin)).forEach(([k, v]) => response.headers.set(k, v));
     return response;
   }
 

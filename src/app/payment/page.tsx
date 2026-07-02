@@ -129,7 +129,7 @@ function PaymentContent() {
                 {planName} Plan
               </h1>
               <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-3xl font-bold text-[#000000]">KES {plan.price.toLocaleString()}</span>
+                <span className="text-3xl font-bold text-[#000000]">{plan.price.toLocaleString()}</span>
                 <span className="text-sm text-[#555555]">/month</span>
               </div>
               <ul className="space-y-2">
@@ -195,7 +195,7 @@ function PaymentContent() {
               ) : (
                 <>
                   <Check className="h-5 w-5" />
-                  Pay KES {plan.price.toLocaleString()}
+                  Pay {plan.price.toLocaleString()}
                 </>
               )}
             </button>

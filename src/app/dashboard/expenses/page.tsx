@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, Receipt, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 type Expense = {
   id: string;
@@ -37,14 +39,16 @@ const emptyForm = {
   notes: '',
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const CATEGORIES = ['Office Supplies', 'Utilities', 'Travel', 'Meals', 'Equipment', 'Rent', 'Transport', 'Maintenance', 'Software', 'Training', 'Marketing', 'Other'];
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Cheque', 'Mobile Money', 'Card'];
 const STATUSES = ['pending', 'approved', 'rejected'];
 
 export default function ExpensesPage() {
+  const { toast } = useToast();
+  const { confirm, dialog } = useConfirm();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -128,14 +132,17 @@ export default function ExpensesPage() {
       setShowModal(false);
       fetchExpenses();
     } catch (e: any) {
-      alert(e.message || 'Error saving expense');
+      toast(e.message || 'Error saving expense');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (exp: Expense) => {
-    if (!confirm(`Delete expense "${exp.expense_code}"?`)) return;
+    const ok = await confirm(`Delete expense "${exp.expense_code}"?`);
+    if (!ok) return;
+    const prev = expenses;
+    setExpenses(prev => prev.filter(e => e.id !== exp.id));
     try {
       const res = await fetch('/api/expenses', {
         method: 'DELETE',
@@ -143,9 +150,10 @@ export default function ExpensesPage() {
         body: JSON.stringify({ id: exp.id }),
       });
       if (!res.ok) throw new Error('Failed to delete');
-      fetchExpenses();
+      toast('Expense deleted', 'success');
     } catch (e: any) {
-      alert(e.message || 'Error deleting expense');
+      setExpenses(prev);
+      toast(e.message || 'Error deleting expense');
     }
   };
 
@@ -156,7 +164,7 @@ export default function ExpensesPage() {
     { key: 'expense_code', label: 'Code' },
     { key: 'category', label: 'Category' },
     { key: 'description', label: 'Description' },
-    { key: 'amount', label: 'Amount (KES)' },
+    { key: 'amount', label: 'Amount (USD)' },
     { key: 'expense_date', label: 'Date' },
     { key: 'payment_method', label: 'Payment Method' },
     { key: 'status', label: 'Status' },
@@ -273,8 +281,8 @@ export default function ExpensesPage() {
                       )}
                     </td>
                     <td className="py-3 pr-4 text-gray-700 max-w-[200px] truncate">{exp.description || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(exp.amount)}</td>
-                    <td className="py-3 pr-4 text-gray-700">{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('en-KE') : '—'}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(exp.amount)}</td>
+                    <td className="py-3 pr-4 text-gray-700">{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
                         exp.status === 'approved' ? 'bg-green-100 text-green-700' :
@@ -335,8 +343,8 @@ export default function ExpensesPage() {
               </div>
               <Field label="Description" value={form.description} onChange={set('description')} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
-                <Field label="Tax/VAT (KES)" value={String(form.tax_vat)} onChange={v => set('tax_vat')(Number(v) || 0)} type="number" />
+                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Tax/VAT (USD)" value={String(form.tax_vat)} onChange={v => set('tax_vat')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Expense Date" value={form.expense_date} onChange={set('expense_date')} type="date" />
@@ -389,6 +397,7 @@ export default function ExpensesPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

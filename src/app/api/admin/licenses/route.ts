@@ -10,7 +10,7 @@ export async function GET() {
     const licenses = await adminQuery(`
       SELECT
         l.id, l.license_key, l.client_id, l.plan, l.is_used, l.is_active,
-        l.hardware_fingerprint, l.last_heartbeat, l.last_ip,
+        l.hardware_fingerprint,
         l.activated_at, l.expires_at, l.created_at,
         c.company_name, c.email, c.database_name,
         COALESCE(a.activation_count, 0) as activation_count,
@@ -19,11 +19,20 @@ export async function GET() {
       FROM admin_license_keys l
       LEFT JOIN admin_clients c ON l.client_id = c.id
       LEFT JOIN (SELECT license_key, COUNT(*) as activation_count FROM license_activations GROUP BY license_key) a ON l.license_key = a.license_key
-      ORDER BY l.created_at DESC
+      UNION ALL
+      SELECT
+        NULL as id, c.license_key as license_key, c.id as client_id, NULL::varchar as plan, NULL::boolean as is_used, true as is_active,
+        NULL as hardware_fingerprint,
+        c.expires_at as activated_at, c.expires_at as expires_at, c.created_at as created_at,
+        c.company_name, c.email, c.database_name,
+        0 as activation_count, 0 as active_sessions, NULL as last_seen
+      FROM admin_clients c
+      WHERE c.license_key IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM admin_license_keys lk WHERE lk.license_key = c.license_key)
     `);
     return NextResponse.json(licenses);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch licenses' }, { status: 500 });
   }
 }
 
@@ -70,6 +79,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'License action failed' }, { status: 500 });
   }
 }

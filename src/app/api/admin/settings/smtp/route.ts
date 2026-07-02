@@ -3,8 +3,8 @@ import { adminGuard } from '@/lib/admin';
 import { adminGet, adminRun } from '@/lib/db';
 
 export async function GET() {
-  const guard = await adminGuard();
-  if (guard.error) return guard.error;
+  const { error } = await adminGuard();
+  if (error) return error;
 
   try {
     let settings = await adminGet<{
@@ -16,11 +16,10 @@ export async function GET() {
     }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings LIMIT 1');
 
     if (!settings) {
-      // Return Google SMTP defaults as a template for admin to configure
       settings = {
         smtp_host: 'smtp.gmail.com',
         smtp_port: '587',
-        smtp_user: '', // Admin needs to fill in their own Gmail address
+        smtp_user: '',
         smtp_pass: '',
         company_name: 'BiasharaLedger',
       };
@@ -34,8 +33,8 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  const guard = await adminGuard();
-  if (guard.error) return guard.error;
+  const { error } = await adminGuard();
+  if (error) return error;
 
   try {
     const { smtp_host, smtp_port, smtp_user, smtp_pass } = await req.json();
@@ -47,6 +46,7 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    // Use a fixed admin tenant_id for global settings
     const existing = await adminGet('SELECT tenant_id FROM company_settings LIMIT 1') as any;
 
     if (!existing?.tenant_id) {

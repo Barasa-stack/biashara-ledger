@@ -4,33 +4,57 @@ import { AsyncLocalStorage } from 'async_hooks';
 const tenantPools = new Map<string, Pool>();
 const tenantContext = new AsyncLocalStorage<string | null>();
 
-function getConnectionString() {
-  return process.env.DATABASE_URL || '';
+function getConnectionString(): string {
+  const url = process.env.DATABASE_URL;
+  if (url) return url;
+
+  const host = process.env.NILEDB_HOST || 'us-west-2.db.thenile.dev';
+  const port = process.env.NILEDB_PORT || '5432';
+  const database = process.env.NILEDB_DATABASE || 'Biasharaledger_App';
+  const user = process.env.NILEDB_USER;
+  const password = process.env.NILEDB_PASSWORD;
+
+  if (!user || !password) {
+    throw new Error('Database credentials not configured. Set DATABASE_URL or NILEDB_USER/NILEDB_PASSWORD.');
+  }
+
+  return `postgres://${user}:${password}@${host}:${port}/${database}`;
 }
+
+const pendingPoolPromises = new Map<string, Promise<Pool>>();
 
 async function getTenantPool(tenantId: string): Promise<Pool> {
   const cached = tenantPools.get(tenantId);
   if (cached) return cached;
 
-  const pool = new Pool({
-    connectionString: getConnectionString(),
-    max: 5,
-    idleTimeoutMillis: 30000,
-    onConnect: async (client: any) => {
-      try {
-        await client.query(`SET nile.tenant_id = '${tenantId.replace(/'/g, "''")}'`);
-      } catch (e: any) {
-        console.error(`[db] onConnect error for tenant ${tenantId.substring(0,8)}: ${e.message}`);
-      }
-    },
-  } as any);
+  const pending = pendingPoolPromises.get(tenantId);
+  if (pending) return pending;
 
-  pool.on('error', (err) => {
-    console.error(`PostgreSQL pool error [tenant:${tenantId}]:`, err.message);
-  });
+  const promise = (async () => {
+    const pool = new Pool({
+      connectionString: getConnectionString(),
+      max: 5,
+      idleTimeoutMillis: 30000,
+      onConnect: async (client: any) => {
+        try {
+          await client.query('SET nile.tenant_id = $1', [tenantId]);
+        } catch (e: any) {
+          console.error(`[db] onConnect error for tenant ${tenantId.substring(0,8)}: ${e.message}`);
+        }
+      },
+    } as any);
 
-  tenantPools.set(tenantId, pool);
-  return pool;
+    pool.on('error', (err) => {
+      console.error(`PostgreSQL pool error [tenant:${tenantId}]:`, err.message);
+    });
+
+    tenantPools.set(tenantId, pool);
+    pendingPoolPromises.delete(tenantId);
+    return pool;
+  })();
+
+  pendingPoolPromises.set(tenantId, promise);
+  return promise;
 }
 
 let _basePool: Pool | null = null;

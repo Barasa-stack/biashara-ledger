@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import TopBar from '@/components/TopBar';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
+import { ToastProvider } from '@/components/Toast';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
   constructor(props: { children: ReactNode }) {
@@ -53,16 +54,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.replace('/renew');
       } else {
         setReady(true);
-        if (user.licenseStatus === 'expired' || (user.licenseStatus === 'trial' && user.trialDaysRemaining !== undefined && user.trialDaysRemaining <= 0)) {
+        if (user.licenseStatus === 'expired' || (user.licenseStatus === 'trial' && user.trialDaysRemaining !== undefined && user.trialDaysRemaining <= 0) || trialDaysLeft <= 0) {
           setShowLicenseModal(true);
         }
       }
     }
   }, [user, loading, router]);
 
-  const showUpgradeBanner = user && user.subscriptionPlan !== 'Premium';
-  const trialDaysLeft = user?.trialDaysRemaining ?? 0;
-  const showTrialBanner = user?.licenseStatus === 'trial' && trialDaysLeft > 0 && trialDaysLeft <= 3;
+  const trialDaysLeft = user?.subscriptionExpiry
+    ? Math.ceil((new Date(user.subscriptionExpiry).getTime() - Date.now()) / 86400000)
+    : 0;
+  const planName = user?.subscriptionPlan || 'Basic';
+  const isTrialPeriod = (user?.subscriptionStatus === 'trial' || user?.subscriptionStatus === 'active') && !!user?.subscriptionExpiry && trialDaysLeft > 0;
+  const showUpgradeBanner = user && planName !== 'Premium' && !isTrialPeriod;
+  const showTrialBanner = isTrialPeriod && trialDaysLeft <= 3;
 
   async function handleActivateLicense(e: React.FormEvent) {
     e.preventDefault();
@@ -101,6 +106,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <ToastProvider>
     <div className="flex flex-col min-h-screen bg-white">
       <TopBar />
 
@@ -167,38 +173,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       )}
 
-      {/* Trial Countdown Banner */}
-      {showTrialBanner && (
+      {/* Trial Countdown Banner — shown in last 3 days of trial */}
+      {showTrialBanner && isTrialPeriod && (
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <p className="text-xs text-amber-800">
-              <span className="font-semibold">{trialDaysLeft} day(s)</span> remaining in your free trial.{' '}
+              <span className="font-semibold">{trialDaysLeft} day(s)</span> remaining in your{' '}
+              <span className="font-semibold">{planName}</span> trial.{' '}
               <Link href="/dashboard/subscription" className="underline font-medium">Upgrade now</Link> to keep access.
             </p>
             <Link
               href="/pricing"
               className="text-xs font-semibold text-brand hover:text-gray-800 transition-colors"
             >
-              Upgrade Now &rarr;
+              Upgrade Now →
             </Link>
           </div>
         </div>
       )}
 
-      {/* Upgrade Banner */}
+      {/* Upgrade Banner — shown when user is past trial or on a non-Premium plan */}
       {showUpgradeBanner && !showTrialBanner && (
         <div className="bg-brand/5 border-b border-brand/20 px-6 py-2.5">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <p className="text-xs text-gray-700">
-              {user.subscriptionPlan === 'trial'
-                ? 'You\'re on a free trial. Upgrade to keep access to all features.'
-                : `You're on the ${user.subscriptionPlan} plan. Upgrade for more features.`}
+              You&apos;re on the <span className="font-semibold">{planName}</span> plan. Upgrade for more features.
             </p>
             <Link
               href="/pricing"
               className="text-xs font-semibold text-brand hover:text-gray-800 transition-colors"
             >
-              Upgrade Now &rarr;
+              Upgrade Now →
             </Link>
           </div>
         </div>
@@ -206,7 +211,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="flex flex-1">
         <Suspense fallback={<aside className="w-60 border-r border-dark-border bg-dark" />}>
-          <Sidebar />
+          <Sidebar subscriptionPlan={user?.subscriptionPlan} />
         </Suspense>
         <ErrorBoundary>
           <main className="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full">
@@ -215,5 +220,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </ErrorBoundary>
       </div>
     </div>
+    </ToastProvider>
   );
 }

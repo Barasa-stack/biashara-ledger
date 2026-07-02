@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, ClipboardList, Search, Download } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';;
 
 type PO = {
   id: string;
@@ -38,8 +40,8 @@ const emptyForm = {
   issue_date: new Date().toISOString().split('T')[0],
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const STATUSES = ['Draft', 'Approved', 'Sent', 'Partial', 'Received', 'Cancelled'];
 
@@ -94,7 +96,7 @@ export default function PurchaseOrdersPage() {
   const exportColumns = [
     { key: 'po_id', label: 'PO#' },
     { key: 'client_name', label: 'Supplier' },
-    { key: 'amount', label: 'Amount (KES)' },
+    { key: 'amount', label: 'Amount (USD)' },
     { key: 'status', label: 'Status' },
     { key: 'issue_date', label: 'Date' },
   ];
@@ -139,14 +141,14 @@ export default function PurchaseOrdersPage() {
       setShowModal(false);
       fetchPOs();
     } catch (e: any) {
-      alert(e.message || 'Error saving purchase order');
+      toast(e.message || 'Error saving purchase order');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (po: PO) => {
-    if (!confirm(`Delete purchase order "${po.po_id}"?`)) return;
+    if (!await confirm(`Delete purchase order "${po.po_id}"?`)) return;
     try {
       const res = await fetch('/api/purchases/pos', {
         method: 'DELETE',
@@ -156,7 +158,7 @@ export default function PurchaseOrdersPage() {
       if (!res.ok) throw new Error('Failed to delete');
       fetchPOs();
     } catch (e: any) {
-      alert(e.message || 'Error deleting purchase order');
+      toast(e.message || 'Error deleting purchase order');
     }
   };
 
@@ -269,7 +271,7 @@ export default function PurchaseOrdersPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredPos.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{po.po_id}</td>
                     <td className="py-3 pr-4 text-gray-700">{po.client_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(po.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(po.amount)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
                         po.status === 'Received' ? 'bg-green-100 text-green-700' :
@@ -280,7 +282,7 @@ export default function PurchaseOrdersPage() {
                         {po.status}
                       </span>
                     </td>
-                    <td className="py-3 pr-4 text-gray-700">{po.issue_date ? new Date(po.issue_date).toLocaleDateString('en-KE') : '—'}</td>
+                    <td className="py-3 pr-4 text-gray-700">{po.issue_date ? new Date(po.issue_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 text-right">
                       <div className="inline-flex items-center gap-1">
                         <button onClick={() => openEdit(po)} className="p-1.5 text-gray-400 hover:text-brand hover:bg-brand/5 rounded transition-colors" title="Edit">
@@ -338,11 +340,11 @@ export default function PurchaseOrdersPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Field label="Quantity" value={String(form.quantity)} onChange={v => set('quantity')(Number(v) || 0)} type="number" />
-                <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={v => set('unit_price')(Number(v) || 0)} type="number" />
-                <Field label="Subtotal (KES)" value={String(form.subtotal)} onChange={set('subtotal')} type="number" />
+                <Field label="Unit Price (USD)" value={String(form.unit_price)} onChange={v => set('unit_price')(Number(v) || 0)} type="number" />
+                <Field label="Subtotal (USD)" value={String(form.subtotal)} onChange={set('subtotal')} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
                   <select
@@ -379,6 +381,7 @@ export default function PurchaseOrdersPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

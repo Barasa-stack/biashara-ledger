@@ -7,7 +7,7 @@ import {
   Wallet, PiggyBank, Landmark, LayoutDashboard,
 } from 'lucide-react';
 
-const fmt = (n: number) => `KES ${(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmt = (n: number) => `$${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 type ApiData = {
   grossSales: number; salesReturns: number; discounts: number; allowances: number;
@@ -29,6 +29,7 @@ type ApiData = {
   payables: { total: number; open: number; overdue: number };
   cashOperatingInflow: number; cashOperatingOutflow: number;
   netOperatingCashFlow: number;
+  cashSupplierPayments: number; cashExpensePayments: number; cashSalaryPayments: number;
   monthlyCash: { month: string; incoming: number; outgoing: number; profit: number }[];
   trialBalance: { account: string; type: string; balance: number }[];
   generalLedger: { id: string; type: string; amount: number; detail: string; date: string; created_at: string }[];
@@ -37,10 +38,10 @@ type ApiData = {
   expenseByCategory: { category: string; total: number; count: number }[];
   salariesDetail: { total: number; count: number };
   salesByCustomer: { company_name: string; total: number; count: number }[];
-  inventoryValuation: { totalItems: number; totalValue: number; message: string };
+  inventoryValuation: { totalItems: number; totalValue: number; items: any[]; message: string };
   budgetVsActual: { category: string; budget: number; actual: number; variance: number }[];
   equityReport: { retainedEarnings: number; capitalContributions: number; withdrawals: number; currentPeriodProfit: number; totalEquity: number };
-  taxReport: { vatOutput: number; vatInput: number; vatPayable: number; taxableSales: number; taxablePurchases: number; note: string };
+  taxReport: { vatOutput: number; vatInput: number; vatPayable: number; taxableSales: number; taxablePurchases: number; vatRate: number; incomeTaxRate: number; profitBeforeTax: number; incomeTax: number; netProfitAfterTax: number; note: string };
   auditTrail: { action: string; id: string; amount: number; created_at: string }[];
 };
 
@@ -311,7 +312,7 @@ function ReportsContent() {
         <h1 className="text-2xl font-bold text-brand">
           {activeType !== 'all' ? (tabMap[activeType] || 'Report') : 'Financial Reports'}
         </h1>
-        <p className="text-sm text-[#000000]">Real-time KES financial statements — auto-generated from your records</p>
+        <p className="text-sm text-[#000000]">Real-time financial statements — auto-generated from your records</p>
       </div>
 
       {/* Date Range Filter */}
@@ -491,9 +492,9 @@ function ReportsContent() {
           <Row label="Total Operating Inflows" value={fmt(d.cashOperatingInflow)} color="text-green-700" />
           <div className="mt-3">
             <p className="text-xs text-[#000000] italic mb-2">Outflows</p>
-            <Row label="Cash Paid to Suppliers (Purchases)" value={fmt(d.totalPurchases)} color="text-red-600" />
-            <Row label="Cash Paid for Expenses" value={fmt(d.totalExpenses)} color="text-red-600" />
-            <Row label="Cash Paid for Salaries" value={fmt(d.totalSalaries)} color="text-red-600" />
+            <Row label="Cash Paid to Suppliers (Purchases)" value={fmt(d.cashSupplierPayments)} color="text-red-600" />
+            <Row label="Cash Paid for Expenses" value={fmt(d.cashExpensePayments)} color="text-red-600" />
+            <Row label="Cash Paid for Salaries" value={fmt(d.cashSalaryPayments)} color="text-red-600" />
             <div className="border-t border-border my-1" />
             <Row label="Total Operating Outflows" value={fmt(d.cashOperatingOutflow)} color="text-red-700" />
           </div>
@@ -505,8 +506,8 @@ function ReportsContent() {
           </div>
           <div className="mt-3 pt-3 border-t border-border">
             <p className="text-xs text-[#000000] italic mb-1">Cash Flow from Financing Activities</p>
-            <Row label="Owner's Contributions" value="KES 0.00" />
-            <Row label="Owner's Drawings" value="KES 0.00" />
+            <Row label="Owner's Contributions" value="0.00" />
+            <Row label="Owner's Drawings" value="0.00" />
           </div>
           <div className="border-t-2 border-double border-brand my-2" />
           <div className="flex justify-between text-sm font-bold pt-1">
@@ -516,9 +517,9 @@ function ReportsContent() {
           <ReportDownload title="Cash Flow Statement" data={[[
             { label: 'Cash Received from Customers', value: fmt(d.cashOperatingInflow) },
             { label: 'Total Operating Inflows', value: fmt(d.cashOperatingInflow) },
-            { label: 'Cash Paid for Purchases', value: fmt(d.totalPurchases) },
-            { label: 'Cash Paid for Expenses', value: fmt(d.totalExpenses) },
-            { label: 'Cash Paid for Salaries', value: fmt(d.totalSalaries) },
+            { label: 'Cash Paid for Purchases', value: fmt(d.cashSupplierPayments) },
+            { label: 'Cash Paid for Expenses', value: fmt(d.cashExpensePayments) },
+            { label: 'Cash Paid for Salaries', value: fmt(d.cashSalaryPayments) },
             { label: 'Total Operating Outflows', value: fmt(d.cashOperatingOutflow) },
             { label: 'Net Cash from Operating Activities', value: fmt(d.netOperatingCashFlow) },
           ]]} />
@@ -570,7 +571,7 @@ function ReportsContent() {
               {d.generalLedger.slice(0, 20).map((r, i) => (
                 <tr key={i} className="border-b border-border/50">
                   <td className="py-2 text-gray-400 w-8">{Math.min(d.generalLedger.length, 20) - i}</td>
-                  <td className="py-2 text-[#000000]">{r.date ? new Date(r.date).toLocaleDateString('en-KE') : '—'}</td>
+                  <td className="py-2 text-[#000000]">{r.date ? new Date(r.date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-2"><span className="text-xs px-2 py-0.5 rounded bg-brand/10 text-brand">{r.type}</span></td>
                     <td className="py-2 text-[#000000]">{r.detail || '—'}</td>
                     <td className="py-2 text-right font-medium text-brand">{fmt(r.amount)}</td>
@@ -581,7 +582,7 @@ function ReportsContent() {
           </div>
           <p className="text-xs text-[#000000] mt-3">Showing the 20 most recent entries.</p>
           <TableDownload title="General Ledger" headers={['#', 'Date', 'Type', 'Detail', 'Amount']} rows={d.generalLedger.slice(0, 20).map((r, i) => [String(Math.min(d.generalLedger.length, 20) - i),
-            r.date ? new Date(r.date).toLocaleDateString('en-KE') : '—',
+            r.date ? new Date(r.date).toLocaleDateString('en-US') : '—',
             r.type,
             r.detail || '—',
             fmt(r.amount),
@@ -742,7 +743,7 @@ function ReportsContent() {
               ))}
             </tbody>
           </table>
-          <p className="text-xs text-[#000000] mt-3">Budgets estimated at 110% of current actuals.</p>
+          <p className="text-xs text-[#000000] mt-3">Set up budgets in the Budgets page to track performance against targets. Without budgets, estimates at 110% of actuals are shown.</p>
           <TableDownload title="Budget vs Actual" headers={['#', 'Category', 'Budget', 'Actual', 'Variance']} rows={d.budgetVsActual.map((r, i) => [String(d.budgetVsActual.length - i), r.category, fmt(r.budget), fmt(r.actual), fmt(r.variance)])} />
         </Section>
       )}
@@ -768,19 +769,39 @@ function ReportsContent() {
 
       {/* ── Tax Report ── */}
       {(activeType === 'all' || activeType === 'tax') && (
-        <Section icon={Landmark} title="Tax Report" subtitle="VAT and statutory obligations">
-          <Row label="Taxable Sales (Output VAT at 16%)" value={fmt(d.taxReport.vatOutput)} color="text-brand" />
-          <Row label="Taxable Purchases (Input VAT at 16%)" value={fmt(d.taxReport.vatInput)} color="text-green-600" />
+        <Section icon={Landmark} title="Tax Report" subtitle="VAT, income tax, and statutory obligations">
+          <p className="text-xs font-semibold text-[#000000] uppercase mb-2">VAT Summary</p>
+          <Row label={`Taxable Sales (Output VAT at ${d.taxReport.vatRate ?? 16}%)`} value={fmt(d.taxReport.vatOutput)} color="text-brand" />
+          <Row label={`Taxable Purchases (Input VAT at ${d.taxReport.vatRate ?? 16}%)`} value={fmt(d.taxReport.vatInput)} color="text-green-600" />
           <div className="border-t border-border my-2" />
           <Row label="VAT Payable / (Refundable)" value={fmt(Math.abs(d.taxReport.vatPayable))} color={d.taxReport.vatPayable >= 0 ? 'text-brand' : 'text-green-600'} />
+
+          {d.taxReport.incomeTaxRate > 0 && (
+            <>
+              <div className="mt-4 pt-3 border-t border-border">
+                <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Income Tax</p>
+                <Row label="Profit Before Tax" value={fmt(d.taxReport.profitBeforeTax)} />
+                <Row label={`Income Tax Rate`} value={`${d.taxReport.incomeTaxRate}%`} />
+                <Row label="Income Tax Provision" value={`(${fmt(d.taxReport.incomeTax)})`} color="text-red-500" />
+                <div className="border-t border-border my-2" />
+                <Row label="Net Profit After Tax" value={fmt(d.taxReport.netProfitAfterTax)} color={d.taxReport.netProfitAfterTax >= 0 ? 'text-green-700' : 'text-red-700'} fontWeight="font-bold" />
+              </div>
+            </>
+          )}
+
           <div className="bg-surface rounded-lg p-3 mt-3 text-xs text-[#000000]">
             <p className="font-medium">Note</p>
             <p className="mt-1">{d.taxReport.note}</p>
           </div>
           <ReportDownload title="Tax Report" data={[[
-            { label: 'Taxable Sales (Output VAT 16%)', value: fmt(d.taxReport.vatOutput) },
-            { label: 'Taxable Purchases (Input VAT 16%)', value: fmt(d.taxReport.vatInput) },
+            { label: `Taxable Sales (Output VAT ${d.taxReport.vatRate ?? 16}%)`, value: fmt(d.taxReport.vatOutput) },
+            { label: `Taxable Purchases (Input VAT ${d.taxReport.vatRate ?? 16}%)`, value: fmt(d.taxReport.vatInput) },
             { label: 'VAT Payable / (Refundable)', value: fmt(Math.abs(d.taxReport.vatPayable)) },
+            ...(d.taxReport.incomeTaxRate > 0 ? [
+              { label: 'Profit Before Tax', value: fmt(d.taxReport.profitBeforeTax) },
+              { label: `Income Tax (${d.taxReport.incomeTaxRate}%)`, value: `(${fmt(d.taxReport.incomeTax)})` },
+              { label: 'Net Profit After Tax', value: fmt(d.taxReport.netProfitAfterTax) },
+            ] : []),
           ]]} />
         </Section>
       )}
@@ -802,7 +823,7 @@ function ReportsContent() {
               {d.auditTrail.slice(0, 25).map((r, i) => (
                 <tr key={i} className="border-b border-border/50">
                   <td className="py-2 text-gray-400 w-8">{Math.min(d.auditTrail.length, 25) - i}</td>
-                  <td className="py-2 text-[#000000]">{new Date(r.created_at).toLocaleString('en-KE')}</td>
+                  <td className="py-2 text-[#000000]">{new Date(r.created_at).toLocaleString('en-US')}</td>
                     <td className="py-2"><span className="text-xs px-2 py-0.5 rounded bg-brand/10 text-brand">{r.action}</span></td>
                     <td className="py-2 text-right font-medium text-brand">{fmt(r.amount)}</td>
                   </tr>
@@ -812,7 +833,7 @@ function ReportsContent() {
           </div>
           <p className="text-xs text-[#000000] mt-3">Showing the 25 most recent audit entries.</p>
           <TableDownload title="Audit Trail" headers={['Date', 'Action', 'Amount']} rows={d.auditTrail.slice(0, 25).map(r => [
-            new Date(r.created_at).toLocaleString('en-KE'),
+            new Date(r.created_at).toLocaleString('en-US'),
             r.action,
             fmt(r.amount),
           ])} />

@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Backup failed' }, { status: 500 });
   }
 }
 
@@ -41,6 +41,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json(backup);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Backup retrieval failed' }, { status: 500 });
   }
 }

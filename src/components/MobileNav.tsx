@@ -58,7 +58,7 @@ export default function MobileNav() {
               <Link
                 href="/sign-in"
                 onClick={() => setOpen(false)}
-                className="px-4 py-3 text-sm font-medium text-[#000000] hover:bg-brand/5 hover:text-brand rounded-lg transition-colors"
+                className="block w-full bg-brand hover:bg-brand-hover text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors text-center"
               >
                 Sign In
               </Link>

@@ -22,6 +22,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Confirmation failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Confirmation failed' }, { status: 500 });
   }
 }

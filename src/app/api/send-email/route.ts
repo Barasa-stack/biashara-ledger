@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     });
 
     const docNumber = item?.invoice_number || item?.quotation_number || item?.credit_note_number || `#${item?.id || ''}`;
-    const amount = Number(item?.amount || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 });
+    const amount = Number(item?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
     const companyName = company?.company_name || 'BiasharaLedger';
     const isType = type === 'Invoice' ? 'Invoice' : type === 'Quotation' ? 'Quotation' : 'Credit_Note';
     const pdfName = `${isType}-${docNumber.replace(/\s+/g, '_')}.pdf`;
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
             </tr>
             <tr>
               <td style="padding: 10px 12px; border-bottom: 1px solid #eee; color: #888;">Amount</td>
-              <td style="padding: 10px 12px; border-bottom: 1px solid #eee; font-weight: 600;">KES ${amount}</td>
+              <td style="padding: 10px 12px; border-bottom: 1px solid #eee; font-weight: 600;">$${amount}</td>
             </tr>
             <tr>
               <td style="padding: 10px 12px; border-bottom: 1px solid #eee; color: #888;">Status</td>
@@ -104,9 +104,13 @@ export async function POST(request: Request) {
       await transporter.sendMail(mailOptions);
       return NextResponse.json({ success: true, pdfAttached: !!pdfBuffer, pdfError });
     } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
+      return NextResponse.json({ error: 'Email sending failed' }, { status: 500 });
     }
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (e: any) {
+    if (e?.message === 'Unauthorized' || !e?.message) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

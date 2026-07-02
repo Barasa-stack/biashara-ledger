@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Backup creation failed' }, { status: 500 });
   }
 }
 
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     const backups = await getBackups(licenseKey);
     return NextResponse.json(backups);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to list backups' }, { status: 500 });
   }
 }
 
@@ -92,7 +92,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true, data: result.data });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Backup restoration failed' }, { status: 500 });
   }
 }
 
@@ -108,6 +108,6 @@ export async function DELETE(request: Request) {
     const result = await deleteBackup(backupId);
     return NextResponse.json(result);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Backup deletion failed' }, { status: 500 });
   }
 }

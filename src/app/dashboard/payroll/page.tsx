@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, Users, Search, Download } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';;
 
 type Employee = {
   id: string;
@@ -50,8 +52,8 @@ const emptyForm = {
   salary: 0,
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const EMPLOYMENT_TYPES = ['full-time', 'part-time', 'contract'];
 
@@ -73,9 +75,15 @@ export default function PayrollPage() {
     setLoading(true);
     setError('');
     fetch('/api/payroll')
-      .then(r => r.ok ? r.json() : Promise.reject('Failed to load employees'))
+      .then(async r => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(body.error || `Failed to load employees (${r.status})`);
+        }
+        return r.json();
+      })
       .then(setEmployees)
-      .catch(e => setError(String(e)))
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   };
 
@@ -145,14 +153,14 @@ export default function PayrollPage() {
       setShowModal(false);
       fetchEmployees();
     } catch (e: any) {
-      alert(e.message || 'Error saving employee');
+      toast(e.message || 'Error saving employee');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (emp: Employee) => {
-    if (!confirm(`Delete employee "${emp.name}"? This cannot be undone.`)) return;
+    if (!await confirm(`Delete employee "${emp.name}"? This cannot be undone.`)) return;
     try {
       const res = await fetch('/api/payroll', {
         method: 'DELETE',
@@ -162,7 +170,7 @@ export default function PayrollPage() {
       if (!res.ok) throw new Error('Failed to delete');
       fetchEmployees();
     } catch (e: any) {
-      alert(e.message || 'Error deleting employee');
+      toast(e.message || 'Error deleting employee');
     }
   };
 
@@ -175,7 +183,7 @@ export default function PayrollPage() {
     { key: 'department', label: 'Department' },
     { key: 'job_title', label: 'Job Title' },
     { key: 'employment_type', label: 'Employment Type' },
-    { key: 'salary', label: 'Salary (KES)' },
+    { key: 'salary', label: 'Salary (USD)' },
     { key: 'status', label: 'Status' },
     { key: 'phone', label: 'Phone' },
     { key: 'email', label: 'Email' },
@@ -358,7 +366,7 @@ export default function PayrollPage() {
                     {EMPLOYMENT_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace('-', ' ')}</option>)}
                   </select>
                 </div>
-                <Field label="Salary (KES)" value={String(form.salary)} onChange={v => set('salary')(Number(v) || 0)} type="number" />
+                <Field label="Salary (USD)" value={String(form.salary)} onChange={v => set('salary')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Bank Name" value={form.bank_name} onChange={set('bank_name')} />
@@ -394,6 +402,7 @@ export default function PayrollPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

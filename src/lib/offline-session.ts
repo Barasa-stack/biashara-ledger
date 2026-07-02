@@ -3,7 +3,11 @@ import { adminGet, adminRun, adminQuery } from './db';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const RENEWAL_THRESHOLD_MS = 24 * 60 * 60 * 1000;
-const SESSION_SECRET = process.env.ENCRYPTION_KEY || 'biashara-ledger-session-secret';
+const SESSION_SECRET = (() => {
+  const s = process.env.ENCRYPTION_KEY;
+  if (!s) throw new Error('ENCRYPTION_KEY environment variable is required for session tokens');
+  return s;
+})();
 
 export function generateSessionToken(): string {
   const raw = crypto.randomBytes(32);
@@ -26,22 +30,23 @@ export async function createOfflineSession(params: {
 }> {
   try {
     const existing = await adminGet(
-      'SELECT id, status, expires_at FROM offline_sessions WHERE license_key = $1 AND status = $2',
+      'SELECT id, status, expires_at, session_token FROM offline_sessions WHERE license_key = $1 AND status = $2',
       [params.licenseKey, 'active']
     );
 
     if (existing) {
-      const expDate = new Date((existing as any).expires_at);
+      const e = existing as any;
+      const expDate = new Date(e.expires_at);
       if (expDate > new Date()) {
         return {
           success: true,
-          sessionToken: (existing as any).session_token,
-          expiresAt: (existing as any).expires_at,
+          sessionToken: e.session_token,
+          expiresAt: e.expires_at,
         };
       }
       await adminRun(
         'UPDATE offline_sessions SET status = $1 WHERE id = $2',
-        ['expired', (existing as any).id]
+        ['expired', e.id]
       );
     }
 
@@ -60,11 +65,6 @@ export async function createOfflineSession(params: {
         expiresAt,
         params.ipAddress || '',
       ]
-    );
-
-    await adminRun(
-      'UPDATE license_keys SET offline_session_token = $1 WHERE license_key = $2',
-      [sessionToken, params.licenseKey]
     );
 
     return { success: true, sessionToken, expiresAt };
@@ -164,11 +164,6 @@ export async function heartbeatOfflineSession(sessionToken: string, ipAddress?: 
     const now = new Date().toISOString();
     await adminRun(
       'UPDATE offline_sessions SET last_heartbeat = $1, last_ip = $2 WHERE session_token = $3',
-      [now, ipAddress || '', sessionToken]
-    );
-
-    await adminRun(
-      'UPDATE license_keys SET last_heartbeat = $1, last_ip = $2 WHERE offline_session_token = $3',
       [now, ipAddress || '', sessionToken]
     );
 

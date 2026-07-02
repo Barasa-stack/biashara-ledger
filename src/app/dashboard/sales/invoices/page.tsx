@@ -3,7 +3,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, FileText, Download, Search, Filter, CheckCircle, Printer, XCircle } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord, getDefaultDateRange } from '@/lib/export-utils';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
+import { getVatRate } from '@/lib/vat-rates';
+import { getCountryByCode } from '@/lib/countries';
 
 type Invoice = {
   id: string;
@@ -21,22 +25,25 @@ type Invoice = {
   status: string;
   issue_date: string;
   due_date: string;
+  customer_country?: string;
 };
 
 type Customer = {
   id: string;
   customer_name: string;
   email_address: string;
+  country: string;
 };
 
 const emptyForm = {
   invoice_number: '', customer_id: '', customer_name: '', description: '',
   quantity: 1, unit_price: 0, subtotal: 0, tax_vat: 0, discounts: 0,
   amount: 0, payment_terms: 'Net 30', status: 'draft', issue_date: '', due_date: '',
+  customer_country: '',
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const STATUSES = ['draft', 'sent', 'unpaid', 'paid', 'partially_paid', 'overdue', 'declined', 'cancelled'];
 const PAYMENT_TERMS = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90'];
@@ -50,6 +57,8 @@ export default function InvoicesPage() {
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { toast: showToast } = useToast();
+  const { confirm, dialog } = useConfirm();
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
   const [companyName, setCompanyName] = useState('');
   const [vatRate, setVatRate] = useState(0);
@@ -96,6 +105,7 @@ export default function InvoicesPage() {
   const exportColumns = [
     { key: 'invoice_number', label: 'Invoice#' },
     { key: 'customer_name', label: 'Customer' },
+    { key: 'customer_country', label: 'Country' },
     { key: 'amount', label: 'Amount' },
     { key: 'status', label: 'Status' },
     { key: 'issue_date', label: 'Issue Date' },
@@ -143,11 +153,25 @@ export default function InvoicesPage() {
 
   useEffect(() => { fetchInvoices(); fetchCustomers(); fetchCompanyName(); }, []);
 
+  const activeVatRate = useMemo(() => {
+    if (form.customer_country) return getVatRate(form.customer_country).rate;
+    return vatRate;
+  }, [form.customer_country, vatRate]);
+
+  const activeVatLabel = useMemo(() => {
+    if (form.customer_country) {
+      const r = getVatRate(form.customer_country);
+      return `VAT (${r.rate}%${r.rate > 0 ? '' : ' — No VAT'}${r.code !== 'XX' ? `, ${r.code}` : ''})`;
+    }
+    return `VAT (${vatRate}%)`;
+  }, [form.customer_country, vatRate]);
+
   const recalc = (f: typeof form) => {
     const qty = Number(f.quantity) || 0;
     const price = Number(f.unit_price) || 0;
     const subtotal = qty * price;
-    const vat = subtotal * vatRate / 100;
+    const rate = f.customer_country ? getVatRate(f.customer_country).rate : vatRate;
+    const vat = subtotal * rate / 100;
     const disc = Number(f.discounts) || 0;
     const amount = subtotal + vat - disc;
     return { ...f, subtotal, tax_vat: vat, amount };
@@ -186,6 +210,7 @@ export default function InvoicesPage() {
       status: inv.status,
       issue_date: inv.issue_date?.split('T')[0] || '',
       due_date: inv.due_date?.split('T')[0] || '',
+      customer_country: inv.customer_country || '',
     }));
     setModalOpen(true);
   };
@@ -223,7 +248,7 @@ export default function InvoicesPage() {
         }
       }
     } catch (e: any) {
-      alert(e.message || 'Save failed');
+      showToast(e.message || 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -264,17 +289,20 @@ export default function InvoicesPage() {
   };
 
   const handleDelete = async (inv: Invoice) => {
-    if (!confirm(`Delete invoice "${inv.invoice_number}"?`)) return;
+    if (!await confirm(`Delete invoice "${inv.invoice_number}"?`)) return;
+    const prev = invoices;
+    setInvoices(prev => prev.filter(i => i.id !== inv.id));
     try {
       const res = await fetch('/api/sales/invoices', {
-        method: 'POST',
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: inv.id }),
       });
       if (!res.ok) throw new Error('Delete failed');
-      fetchInvoices();
+      showToast('Invoice deleted', 'success');
     } catch (e: any) {
-      alert(e.message || 'Delete failed');
+      setInvoices(prev);
+      showToast(e.message || 'Delete failed');
     }
   };
 
@@ -304,18 +332,18 @@ export default function InvoicesPage() {
       const result = await res.json();
       fetchInvoices();
       setPaymentModal(null);
-      const paidLabel = `Invoice "${paymentModal.invoice.invoice_number}" ${paymentModal.paymentType === 'partial' ? `partially paid (${fmtKES(paidAmount)})` : 'marked as paid'}`;
+      const paidLabel = `Invoice "${paymentModal.invoice.invoice_number}" ${paymentModal.paymentType === 'partial' ? `partially paid (${fmtUSD(paidAmount)})` : 'marked as paid'}`;
       const receiptMsg = result.emailSent ? '. Receipt emailed to customer.' : result.emailError ? `. Receipt email failed: ${result.emailError}` : '';
       setToast({ message: paidLabel + receiptMsg, type: result.emailError ? 'warning' : 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to mark as paid');
+      toast(e.message || 'Failed to mark as paid');
     } finally {
       setProcessingPayment(false);
     }
   };
 
   const handleDecline = async (inv: Invoice) => {
-    if (!confirm(`Mark invoice "${inv.invoice_number}" as declined by customer?`)) return;
+    if (!await confirm(`Mark invoice "${inv.invoice_number}" as declined by customer?`)) return;
     try {
       const res = await fetch('/api/sales/invoices', {
         method: 'PUT',
@@ -326,13 +354,16 @@ export default function InvoicesPage() {
       fetchInvoices();
       setToast({ message: `Invoice "${inv.invoice_number}" marked as declined`, type: 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to decline invoice');
+      toast(e.message || 'Failed to decline invoice');
     }
   };
 
   const handlePrint = (inv: Invoice) => {
     const w = window.open('', '_blank');
     if (!w) return;
+    const invVatRate = inv.customer_country ? getVatRate(inv.customer_country) : null;
+    const vatLabel = invVatRate ? `VAT (${invVatRate.rate}%)` : 'VAT';
+    const buyerCountry = inv.customer_country ? getCountryByCode(inv.customer_country) : null;
     w.document.write(`
       <html>
         <head>
@@ -362,6 +393,7 @@ export default function InvoicesPage() {
           </div>
           <div class="details">
             <p><strong>Customer:</strong> ${inv.customer_name || '—'}</p>
+            ${buyerCountry ? `<p><strong>Country:</strong> ${buyerCountry.flag} ${buyerCountry.name} (${buyerCountry.code})</p>` : ''}
             <p><strong>Issue Date:</strong> ${inv.issue_date?.split('T')[0] || '—'}</p>
             <p><strong>Due Date:</strong> ${inv.due_date?.split('T')[0] || '—'}</p>
             <p><strong>Payment Terms:</strong> ${inv.payment_terms || '—'}</p>
@@ -374,16 +406,16 @@ export default function InvoicesPage() {
               <tr>
                 <td>${inv.description || '—'}</td>
                 <td style="text-align:right">${inv.quantity}</td>
-                <td style="text-align:right">${fmtKES(inv.unit_price)}</td>
-                <td style="text-align:right">${fmtKES(inv.subtotal)}</td>
+                <td style="text-align:right">${fmtUSD(inv.unit_price)}</td>
+                <td style="text-align:right">${fmtUSD(inv.subtotal)}</td>
               </tr>
             </tbody>
           </table>
           <div class="totals">
-            <div><span>Subtotal</span><span>${fmtKES(inv.subtotal)}</span></div>
-            <div><span>VAT</span><span>${fmtKES(inv.tax_vat)}</span></div>
-            <div><span>Discounts</span><span>${fmtKES(inv.discounts)}</span></div>
-            <div class="grand"><span>Total</span><span>${fmtKES(inv.amount)}</span></div>
+            <div><span>Subtotal</span><span>${fmtUSD(inv.subtotal)}</span></div>
+            <div><span>${vatLabel}</span><span>${fmtUSD(inv.tax_vat)}</span></div>
+            <div><span>Discounts</span><span>${fmtUSD(inv.discounts)}</span></div>
+            <div class="grand"><span>Total (incl. VAT)</span><span>${fmtUSD(inv.amount)}</span></div>
           </div>
           <script>window.print();<\/script>
         </body>
@@ -545,6 +577,7 @@ export default function InvoicesPage() {
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4 w-8">#</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Invoice#</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Customer</th>
+                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Country</th>
                   <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Amount</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Status</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Issue Date</th>
@@ -558,7 +591,8 @@ export default function InvoicesPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredInvoices.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{inv.invoice_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{inv.customer_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(inv.amount)}</td>
+                    <td className="py-3 pr-4 text-gray-500 text-xs">{inv.customer_country || '—'}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(inv.amount)}</td>
                     <td className="py-3 pr-4">{statusBadge(inv.status)}</td>
                     <td className="py-3 pr-4 text-gray-700">{inv.issue_date?.split('T')[0] || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{inv.due_date?.split('T')[0] || '—'}</td>
@@ -646,13 +680,13 @@ export default function InvoicesPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer *</label>
-                  <select
-                    value={form.customer_id}
-                    onChange={e => {
-                      const id = e.target.value;
-                      const c = customers.find(c => c.id === id);
-                      setForm(prev => recalc({ ...prev, customer_id: id, customer_name: c?.customer_name || '' }));
-                    }}
+                    <select
+                      value={form.customer_id}
+                      onChange={e => {
+                        const id = e.target.value;
+                        const c = customers.find(c => c.id === id);
+                        setForm(prev => recalc({ ...prev, customer_id: id, customer_name: c?.customer_name || '', customer_country: c?.country || '' }));
+                      }}
                     className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
                   >
                     <option value="">Select customer</option>
@@ -679,23 +713,33 @@ export default function InvoicesPage() {
               <Field label="Item/Service Description" value={form.description} onChange={set('description')} textarea />
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <Field label="Quantity" value={String(form.quantity)} onChange={set('quantity')} type="number" />
-                <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
+                <Field label="Unit Price (USD)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">VAT (KES)</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{activeVatLabel}</label>
                   <div className="w-full border border-border bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-600 cursor-not-allowed">
-                    {fmtKES(form.tax_vat)}
+                    {fmtUSD(form.tax_vat)}
                   </div>
                 </div>
-                <Field label="Discounts (KES)" value={String(form.discounts)} onChange={set('discounts')} type="number" />
+                <Field label="Discounts (USD)" value={String(form.discounts)} onChange={set('discounts')} type="number" />
               </div>
-              <div className="bg-surface rounded-lg p-4 border border-border grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">Subtotal:</span>
-                  <span className="ml-2 font-medium text-gray-800">{fmtKES(form.subtotal)}</span>
+              <div className="bg-surface rounded-lg p-4 border border-border space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-medium text-gray-800">{fmtUSD(form.subtotal)}</span>
                 </div>
-                <div>
-                  <span className="text-gray-500">Total Amount:</span>
-                  <span className="ml-2 font-bold text-brand">{fmtKES(form.amount)}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">{activeVatLabel}</span>
+                  <span className="font-medium text-gray-800">{fmtUSD(form.tax_vat)}</span>
+                </div>
+                {form.discounts > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Discounts</span>
+                    <span className="font-medium text-red-500">-{fmtUSD(form.discounts)}</span>
+                  </div>
+                )}
+                <div className="border-t border-border pt-2 flex justify-between items-center">
+                  <span className="text-gray-700 font-semibold">Total Amount</span>
+                  <span className="font-bold text-brand text-base">{fmtUSD(form.amount)}</span>
                 </div>
               </div>
             </div>
@@ -742,7 +786,7 @@ export default function InvoicesPage() {
               </div>
               <div className="flex justify-between text-sm py-2 border-b border-gray-100">
                 <span className="text-gray-500">Total Amount</span>
-                <span className="font-semibold text-gray-800">{fmtKES(paymentModal.invoice.amount)}</span>
+                <span className="font-semibold text-gray-800">{fmtUSD(paymentModal.invoice.amount)}</span>
               </div>
 
               <div className="space-y-3 pt-2">
@@ -776,7 +820,7 @@ export default function InvoicesPage() {
                   <div className="pl-7">
                     <label className="block text-xs text-gray-500 mb-1">Amount Paid</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">KES</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
                       <input
                         type="number"
                         value={paymentModal.partialAmount}
@@ -789,7 +833,7 @@ export default function InvoicesPage() {
                     </div>
                     {Number(paymentModal.partialAmount) < paymentModal.invoice.amount && Number(paymentModal.partialAmount) > 0 && (
                       <p className="text-xs text-amber-600 mt-1">
-                        Remaining: {fmtKES(paymentModal.invoice.amount - Number(paymentModal.partialAmount))}
+                        Remaining: {fmtUSD(paymentModal.invoice.amount - Number(paymentModal.partialAmount))}
                       </p>
                     )}
                   </div>
@@ -858,6 +902,7 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

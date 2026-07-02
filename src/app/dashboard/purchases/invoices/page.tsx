@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, FileText, Search, Download } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';;
 
 type Invoice = {
   id: string;
@@ -48,8 +50,8 @@ const emptyForm = {
   due_date: '',
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const STATUSES = ['Draft', 'Sent', 'Approved', 'Partial', 'Paid', 'Overdue', 'Cancelled'];
 const PAYMENT_TERMS = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90'];
@@ -105,7 +107,7 @@ export default function PurchaseInvoicesPage() {
   const exportColumns = [
     { key: 'invoice_number', label: 'Invoice #' },
     { key: 'client_name', label: 'Supplier' },
-    { key: 'amount', label: 'Amount (KES)' },
+    { key: 'amount', label: 'Amount (USD)' },
     { key: 'status', label: 'Status' },
     { key: 'issue_date', label: 'Issue Date' },
     { key: 'due_date', label: 'Due Date' },
@@ -156,14 +158,14 @@ export default function PurchaseInvoicesPage() {
       setShowModal(false);
       fetchInvoices();
     } catch (e: any) {
-      alert(e.message || 'Error saving invoice');
+      toast(e.message || 'Error saving invoice');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (inv: Invoice) => {
-    if (!confirm(`Delete invoice "${inv.invoice_number}"?`)) return;
+    if (!await confirm(`Delete invoice "${inv.invoice_number}"?`)) return;
     try {
       const res = await fetch('/api/purchases/invoices', {
         method: 'DELETE',
@@ -173,7 +175,7 @@ export default function PurchaseInvoicesPage() {
       if (!res.ok) throw new Error('Failed to delete');
       fetchInvoices();
     } catch (e: any) {
-      alert(e.message || 'Error deleting invoice');
+      toast(e.message || 'Error deleting invoice');
     }
   };
 
@@ -290,7 +292,7 @@ export default function PurchaseInvoicesPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredInvoices.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{inv.invoice_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{inv.client_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(inv.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(inv.amount)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
                         inv.status === 'Paid' ? 'bg-green-100 text-green-700' :
@@ -302,8 +304,8 @@ export default function PurchaseInvoicesPage() {
                         {inv.status}
                       </span>
                     </td>
-                    <td className="py-3 pr-4 text-gray-700">{inv.issue_date ? new Date(inv.issue_date).toLocaleDateString('en-KE') : '—'}</td>
-                    <td className="py-3 pr-4 text-gray-700">{inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-KE') : '—'}</td>
+                    <td className="py-3 pr-4 text-gray-700">{inv.issue_date ? new Date(inv.issue_date).toLocaleDateString('en-US') : '—'}</td>
+                    <td className="py-3 pr-4 text-gray-700">{inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 text-right">
                       <div className="inline-flex items-center gap-1">
                         <button onClick={() => openEdit(inv)} className="p-1.5 text-gray-400 hover:text-brand hover:bg-brand/5 rounded transition-colors" title="Edit">
@@ -362,13 +364,13 @@ export default function PurchaseInvoicesPage() {
               <Field label="Description" value={form.description} onChange={set('description')} />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Field label="Quantity" value={String(form.quantity)} onChange={v => set('quantity')(Number(v) || 0)} type="number" />
-                <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={v => set('unit_price')(Number(v) || 0)} type="number" />
-                <Field label="Subtotal (KES)" value={String(form.subtotal)} onChange={set('subtotal')} type="number" />
+                <Field label="Unit Price (USD)" value={String(form.unit_price)} onChange={v => set('unit_price')(Number(v) || 0)} type="number" />
+                <Field label="Subtotal (USD)" value={String(form.subtotal)} onChange={set('subtotal')} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Field label="Tax/VAT (KES)" value={String(form.tax_vat)} onChange={v => set('tax_vat')(Number(v) || 0)} type="number" />
-                <Field label="Discounts (KES)" value={String(form.discounts)} onChange={v => set('discounts')(Number(v) || 0)} type="number" />
-                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Tax/VAT (USD)" value={String(form.tax_vat)} onChange={v => set('tax_vat')(Number(v) || 0)} type="number" />
+                <Field label="Discounts (USD)" value={String(form.discounts)} onChange={v => set('discounts')(Number(v) || 0)} type="number" />
+                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -420,6 +422,7 @@ export default function PurchaseInvoicesPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

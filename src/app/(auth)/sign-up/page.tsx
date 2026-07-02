@@ -1,30 +1,101 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Send, Check, Loader, RefreshCw, Bug } from 'lucide-react';
+import { Eye, EyeOff, Send, Check, Loader, RefreshCw, Bug, Sparkles, ArrowRight, ChevronDown, Search, Globe } from 'lucide-react';
+import { countries, filterCountries, getCountryByCode, getDialCode } from '@/lib/countries';
 
 const SHOW_OTP = true;
+
+const plans = [
+  {
+    name: 'Basic',
+    price: '5',
+    period: '/month',
+    popular: false,
+    features: ['Double-entry bookkeeping', 'Invoicing & quotations', 'Profit & Loss report', 'Balance Sheet', 'Trial Balance', 'Expense tracking'],
+  },
+  {
+    name: 'Standard',
+    price: '10',
+    period: '/month',
+    popular: true,
+    features: ['Everything in Basic', 'HR & Payroll management', 'General Ledger', 'Inventory management', 'Multi-user access (up to 5)', 'Cash flow statements'],
+  },
+  {
+    name: 'Premium',
+    price: '15',
+    period: '/month',
+    popular: false,
+    features: ['Unlimited users', 'Everything in Standard', 'API access', 'Multi-branch support', 'Budget vs actual reports', "Owner's equity statements"],
+  },
+];
+
+function stripDialCode(phone: string, dial: string): string {
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  if (cleaned.startsWith(dial.replace(/[\s\-]/g, ''))) {
+    return cleaned.slice(dial.replace(/[\s\-]/g, '').length);
+  }
+  if (cleaned.startsWith('+')) return cleaned;
+  return phone;
+}
+
+function isValidPhone(phone: string, dial: string): boolean {
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  const digitsOnly = cleaned.replace(/\D/g, '');
+  if (digitsOnly.length < 7 || digitsOnly.length > 15) return false;
+  const knownPrefix = dial.replace(/[\s\-]/g, '');
+  if (cleaned.startsWith('+') && !cleaned.startsWith(knownPrefix)) return false;
+  return true;
+}
 
 export default function SignUpPage() {
   const { signUp } = useAuth();
   const router = useRouter();
+  const [selectedPackage, setSelectedPackage] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState('KE');
+  const [countrySearch, setCountrySearch] = useState('');
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [step, setStep] = useState<'package' | 'form' | 'otp'>('package');
   const [otp, setOtp] = useState('');
   const [message, setMessage] = useState('');
   const [devOtp, setDevOtp] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  const countryRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const selectedCountry = getCountryByCode(country);
+  const dialCode = selectedCountry?.dial || '+254';
+
+  const filteredCountries = filterCountries(countrySearch);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (countryRef.current && !countryRef.current.contains(e.target as Node)) {
+        setShowCountryDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (showCountryDropdown && searchRef.current) {
+      searchRef.current.focus();
+    }
+  }, [showCountryDropdown]);
 
   async function sendOtp() {
     setBusy(true);
@@ -67,11 +138,41 @@ export default function SignUpPage() {
     }, 1000);
   }
 
+  function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+    let value = e.target.value;
+    const dial = selectedCountry?.dial || '+254';
+    const cleaned = value.replace(/[\s\-\(\)]/g, '');
+    if (cleaned.startsWith(dial.replace(/[\s\-]/g, '')) && cleaned.length > dial.replace(/[\s\-]/g, '').length) {
+      value = cleaned.slice(dial.replace(/[\s\-]/g, '').length);
+    } else if (value.startsWith('+') && !value.startsWith(dial.replace(/[\s\-]/g, ''))) {
+      const otherCountry = countries.find(c => value.startsWith(c.dial.replace(/[\s\-]/g, '')));
+      if (otherCountry) {
+        setCountry(otherCountry.code);
+        value = value.slice(otherCountry.dial.replace(/[\s\-]/g, '').length);
+      }
+    }
+    value = value.replace(/[^0-9]/g, '');
+    setPhone(value);
+  }
+
+  function handleCountrySelect(code: string) {
+    setCountry(code);
+    setShowCountryDropdown(false);
+    setCountrySearch('');
+    setError('');
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!/^07\d{8}$/.test(phone) && !/^\+2547\d{8}$/.test(phone)) {
-      setError('Please enter a valid Kenyan phone number (e.g. 0712345678).');
+    if (!country) {
+      setError('Please select your country.');
+      return;
+    }
+    const dial = selectedCountry?.dial || '+254';
+    const fullPhone = dial + phone;
+    if (!phone || !isValidPhone(fullPhone, dial)) {
+      setError(`Please enter a valid phone number for ${selectedCountry?.name || 'your country'}.`);
       return;
     }
     if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
@@ -97,13 +198,17 @@ export default function SignUpPage() {
       return;
     }
     setBusy(true);
+    const dial = selectedCountry?.dial || '+254';
+    const fullPhone = dial + phone;
     const result = await signUp(
       email.trim().toLowerCase(),
       password,
-      phone,
+      fullPhone,
       firstName,
       lastName,
-      otp.trim()
+      otp.trim(),
+      selectedPackage,
+      country
     );
     setBusy(false);
     if (result.success) {
@@ -117,6 +222,45 @@ export default function SignUpPage() {
     }
   }
 
+  function PackageCard({ name, price, period, popular, features: pFeatures }: typeof plans[0]) {
+    const isSelected = selectedPackage === name;
+    return (
+      <button
+        type="button"
+        onClick={() => setSelectedPackage(name)}
+        className={`relative text-left w-full bg-white rounded-xl border-2 p-4 transition-all ${
+          isSelected
+            ? 'border-brand ring-2 ring-brand/20'
+            : popular ? 'border-brand/40' : 'border-border hover:border-brand/40'
+        }`}
+      >
+        {popular && (
+          <div className="absolute -top-2.5 right-3 bg-brand text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full">
+            Most Popular
+          </div>
+        )}
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-bold text-[#000000]">{name}</h3>
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-lg font-bold text-[#000000]">${price}</span>
+            <span className="text-[10px] text-[#555555]">{period}</span>
+          </div>
+        </div>
+        <ul className="space-y-1">
+          {pFeatures.slice(0, 3).map((f) => (
+            <li key={f} className="flex items-start gap-1.5 text-[11px] text-[#000000]/70">
+              <Check className="h-3 w-3 text-green-600 mt-0.5 shrink-0" />
+              {f}
+            </li>
+          ))}
+          {pFeatures.length > 3 && (
+            <li className="text-[11px] text-brand font-medium">+{pFeatures.length - 3} more features</li>
+          )}
+        </ul>
+      </button>
+    );
+  }
+
   return (
     <div className="w-full max-w-sm">
       <div className="bg-white rounded-xl border border-border p-8">
@@ -127,14 +271,37 @@ export default function SignUpPage() {
           <h1 className="text-lg font-bold text-brand">BiasharaLedger</h1>
         </div>
 
-        <div className="bg-brand/5 border border-[#df1c1c]/20 rounded-lg px-3 py-2 mb-4">
-          <p className="text-xs text-brand font-medium">14-day free trial</p>
-          <p className="text-[10px] text-[#000000]">No credit card required. Cancel anytime.</p>
-        </div>
-
-        {step === 'form' ? (
+        {step === 'package' ? (
           <>
-            <h2 className="text-sm font-semibold text-brand mb-5">Create your account</h2>
+            <div className="bg-brand/5 border border-brand/20 rounded-lg px-3 py-2 mb-5">
+              <p className="text-xs text-brand font-medium">14-day free trial</p>
+              <p className="text-[10px] text-[#000000]">No credit card required. Cancel anytime.</p>
+            </div>
+            <h2 className="text-sm font-semibold text-brand mb-4">Choose your plan</h2>
+            <div className="space-y-3 mb-5">
+              {plans.map((plan) => <PackageCard key={plan.name} {...plan} />)}
+            </div>
+            {error && <p className="text-xs text-brand mb-3">{error}</p>}
+            <button
+              onClick={() => {
+                if (!selectedPackage) { setError('Please select a plan to continue.'); return; }
+                setError('');
+                setStep('form');
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
+            >
+              Continue <ArrowRight className="h-4 w-4" />
+            </button>
+          </>
+        ) : step === 'form' ? (
+          <>
+            <button onClick={() => setStep('package')} className="flex items-center gap-1 text-xs text-brand hover:text-[#000000] mb-4 transition-colors">
+              ← Back to plans
+            </button>
+            <h2 className="text-sm font-semibold text-brand mb-1">Create your account</h2>
+            <p className="text-[11px] text-[#555555] mb-5">
+              Selected: <span className="font-semibold text-brand">{selectedPackage}</span> plan
+            </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
@@ -173,15 +340,71 @@ export default function SignUpPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#000000] mb-1">Kenyan Phone Number</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  className="w-full bg-white border border-border rounded-lg px-3 py-2.5 text-sm text-[#000000] focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#555555]"
-                  placeholder="0712 345 678"
-                  required
-                />
+                <label className="block text-xs font-medium text-[#000000] mb-1">Phone Number</label>
+                <div className="flex gap-2">
+                  <div className="relative" ref={countryRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                      className="flex items-center gap-1.5 h-[42px] bg-white border border-border rounded-lg px-3 text-sm text-[#000000] hover:border-brand/40 transition-colors min-w-[100px]"
+                    >
+                      <span className="text-base leading-none">{selectedCountry?.flag || '🇰🇪'}</span>
+                      <span className="text-xs font-medium text-[#000000]">{dialCode}</span>
+                      <ChevronDown className={`h-3 w-3 text-[#555555] transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showCountryDropdown && (
+                      <div className="absolute bottom-full mb-1 left-0 z-50 w-72 bg-white border border-border rounded-xl shadow-lg overflow-hidden">
+                        <div className="p-2 border-b border-border">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#555555]" />
+                            <input
+                              ref={searchRef}
+                              type="text"
+                              value={countrySearch}
+                              onChange={e => setCountrySearch(e.target.value)}
+                              placeholder="Search countries..."
+                              className="w-full pl-8 pr-3 py-2 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-[#000000]"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-52 overflow-y-auto">
+                          {filteredCountries.length === 0 ? (
+                            <p className="text-xs text-[#555555] text-center py-4">No countries found</p>
+                          ) : (
+                            filteredCountries.map((c) => (
+                              <button
+                                key={c.code}
+                                type="button"
+                                onClick={() => handleCountrySelect(c.code)}
+                                className={`w-full flex items-center gap-3 px-3 py-2 text-xs text-left transition-colors ${
+                                  country === c.code
+                                    ? 'bg-brand/10 text-brand font-medium'
+                                    : 'text-[#000000] hover:bg-gray-50'
+                                }`}
+                              >
+                                <span className="text-base leading-none">{c.flag}</span>
+                                <span className="flex-1">{c.name}</span>
+                                <span className="text-[#555555]">{c.dial}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      className="w-full bg-white border border-border rounded-lg px-3 py-2.5 text-sm text-[#000000] focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#555555]"
+                      placeholder={country === 'KE' ? '712 345 678' : 'Phone number'}
+                      required
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>

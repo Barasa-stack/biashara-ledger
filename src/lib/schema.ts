@@ -1,8 +1,15 @@
 import { exec } from './db';
+import { logError } from './logger';
 
 export async function initSchema() {
-  // Create sequences for auto-incrementing integers within each tenant
-  // (Nile doesn't support SERIAL in tenant-aware tables)
+  // Create tenants table first since all tenant-scoped tables reference it
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.tenants (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 
   await exec(`
     CREATE TABLE IF NOT EXISTS public.users (
@@ -13,6 +20,7 @@ export async function initSchema() {
       first_name TEXT DEFAULT '',
       last_name TEXT DEFAULT '',
       phone TEXT DEFAULT '',
+      country TEXT DEFAULT 'KE',
       subscription_plan TEXT DEFAULT 'trial',
       subscription_status TEXT DEFAULT 'active',
       verified INTEGER DEFAULT 0,
@@ -59,6 +67,15 @@ export async function initSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    -- rate_limits for database-backed rate limiting (shared, no tenant_id)
+    CREATE TABLE IF NOT EXISTS public.rate_limits (
+      key TEXT PRIMARY KEY,
+      count INTEGER DEFAULT 1,
+      expires_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS public.roles (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
@@ -82,7 +99,7 @@ export async function initSchema() {
       id UUID DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL,
       amount REAL NOT NULL,
-      currency TEXT DEFAULT 'KES',
+      currency TEXT DEFAULT 'USD',
       plan_name TEXT NOT NULL,
       payment_method TEXT DEFAULT 'mpesa',
       transaction_id TEXT DEFAULT '',
@@ -104,6 +121,7 @@ export async function initSchema() {
       billing_address TEXT DEFAULT '',
       shipping_address TEXT DEFAULT '',
       tax_id TEXT DEFAULT '',
+      country TEXT DEFAULT '',
       payment_terms TEXT DEFAULT 'Net 30',
       credit_limit REAL DEFAULT 0,
       notes TEXT DEFAULT '',
@@ -439,6 +457,7 @@ export async function initSchema() {
       database_name VARCHAR(255) UNIQUE NOT NULL,
       license_key VARCHAR(255) UNIQUE,
       max_users INTEGER DEFAULT 5,
+      plan VARCHAR(50) DEFAULT 'basic',
       is_active BOOLEAN DEFAULT TRUE,
       is_trial BOOLEAN DEFAULT TRUE,
       trial_start_date TIMESTAMP,
@@ -447,6 +466,8 @@ export async function initSchema() {
       last_active TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    ALTER TABLE public.admin_clients ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'basic';
 
     CREATE TABLE IF NOT EXISTS public.admin_users (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -483,8 +504,20 @@ export async function initSchema() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS public.license_activations (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      license_key VARCHAR(255) NOT NULL,
+      user_email VARCHAR(255) NOT NULL,
+      hardware_fingerprint TEXT DEFAULT '',
+      ip_address VARCHAR(45) DEFAULT '',
+      device_info TEXT DEFAULT '',
+      status VARCHAR(20) NOT NULL DEFAULT '',
+      error_reason TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS public.electron_activity (
-      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      tenant_id UUID REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
       license_key VARCHAR(255) NOT NULL,
       action VARCHAR(100) NOT NULL,
@@ -539,6 +572,121 @@ export async function initSchema() {
     );
   `);
 
+  await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS country TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
+
+  // ═══════════════════════════════════════════════
+  // INVENTORY MODULE
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.inventory_items (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      item_name TEXT NOT NULL DEFAULT '',
+      sku TEXT DEFAULT '',
+      category TEXT DEFAULT '',
+      unit_of_measure TEXT DEFAULT 'pcs',
+      opening_stock REAL DEFAULT 0,
+      current_stock REAL DEFAULT 0,
+      unit_cost REAL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.inventory_transactions (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      item_id UUID NOT NULL,
+      transaction_type TEXT NOT NULL DEFAULT 'PURCHASE',
+      quantity REAL NOT NULL DEFAULT 0,
+      unit_cost REAL DEFAULT 0,
+      total_cost REAL DEFAULT 0,
+      reference_type TEXT DEFAULT '',
+      reference_id TEXT DEFAULT '',
+      transaction_date TEXT NOT NULL,
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // OTHER INCOME & EXPENSES
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.other_transactions (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      type TEXT NOT NULL DEFAULT 'OTHER_INCOME',
+      category TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      amount REAL NOT NULL DEFAULT 0,
+      transaction_date TEXT NOT NULL,
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // CAPITAL CONTRIBUTIONS & WITHDRAWALS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.capital_transactions (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      type TEXT NOT NULL DEFAULT 'CAPITAL_INJECTION',
+      amount REAL NOT NULL DEFAULT 0,
+      transaction_date TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      reference TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // USER-DEFINED BUDGETS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.budgets (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      fiscal_year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM NOW()),
+      period TEXT NOT NULL DEFAULT 'MONTHLY',
+      category_type TEXT NOT NULL DEFAULT 'REVENUE',
+      category_name TEXT DEFAULT '',
+      amount REAL NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // Income tax fields on company_settings
+  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS income_tax_rate REAL DEFAULT 0`);
+  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS tax_filing_frequency TEXT DEFAULT 'monthly'`);
+
+  // ═══════════════════════════════════════════════
+  // AUDIT LOG (import tracking)
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.audit_log (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      user_id UUID,
+      entity_type TEXT NOT NULL,
+      imported_count INTEGER DEFAULT 0,
+      errors_count INTEGER DEFAULT 0,
+      error_details TEXT DEFAULT '[]',
+      file_name TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
   await exec(`
     INSERT INTO public.admin_users (username, password_hash, email, role)
     VALUES ('admin', '$2b$10$dummy', 'admin@biasharaledger.com', 'super_admin')
@@ -553,4 +701,536 @@ export async function initSchema() {
       ('employee', 'View own data only', '["dashboard.read","hr.own"]')
     ON CONFLICT (name) DO NOTHING;
   `);
+
+  // ═══════════════════════════════════════════════
+  // MULTI-CURRENCY — currency fields on all tables
+  // ═══════════════════════════════════════════════
+  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS base_currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.exchange_rates (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      source_currency TEXT NOT NULL,
+      target_currency TEXT NOT NULL DEFAULT 'USD',
+      rate REAL NOT NULL DEFAULT 1,
+      rate_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // CHART OF ACCOUNTS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.chart_of_accounts (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      account_code TEXT NOT NULL,
+      account_name TEXT NOT NULL,
+      account_type TEXT NOT NULL DEFAULT 'EXPENSE',
+      parent_id UUID,
+      is_active INTEGER DEFAULT 1,
+      opening_balance REAL DEFAULT 0,
+      description TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // JOURNAL ENTRIES
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.journal_entries (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      entry_number TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      entry_date TEXT NOT NULL,
+      reference TEXT DEFAULT '',
+      status TEXT DEFAULT 'draft',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.journal_entry_lines (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      journal_entry_id UUID NOT NULL,
+      account_id UUID NOT NULL,
+      description TEXT DEFAULT '',
+      debit_amount REAL DEFAULT 0,
+      credit_amount REAL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // BANK RECONCILIATION
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.bank_accounts (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      account_name TEXT NOT NULL DEFAULT '',
+      account_number TEXT DEFAULT '',
+      bank_name TEXT DEFAULT '',
+      currency TEXT DEFAULT 'USD',
+      opening_balance REAL DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.bank_statements (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      bank_account_id UUID NOT NULL,
+      transaction_date TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      reference TEXT DEFAULT '',
+      amount REAL NOT NULL DEFAULT 0,
+      type TEXT NOT NULL DEFAULT 'DEBIT',
+      balance REAL DEFAULT 0,
+      status TEXT DEFAULT 'unreconciled',
+      reconciliation_id UUID,
+      matched_transaction_type TEXT DEFAULT '',
+      matched_transaction_id TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.reconciliation_runs (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      bank_account_id UUID NOT NULL,
+      statement_balance REAL DEFAULT 0,
+      system_balance REAL DEFAULT 0,
+      difference REAL DEFAULT 0,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      status TEXT DEFAULT 'in_progress',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // FIXED ASSETS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.fixed_assets (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      asset_name TEXT NOT NULL DEFAULT '',
+      asset_type TEXT DEFAULT 'Equipment',
+      purchase_date TEXT NOT NULL,
+      purchase_cost REAL NOT NULL DEFAULT 0,
+      useful_life_years REAL NOT NULL DEFAULT 5,
+      depreciation_method TEXT DEFAULT 'straight-line',
+      salvage_value REAL DEFAULT 0,
+      accumulated_depreciation REAL DEFAULT 0,
+      book_value REAL DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      disposal_date TEXT DEFAULT '',
+      disposal_amount REAL DEFAULT 0,
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // RECURRING TRANSACTIONS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.recurring_templates (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      template_name TEXT NOT NULL DEFAULT '',
+      entity_type TEXT NOT NULL DEFAULT 'invoice',
+      template_data TEXT DEFAULT '{}',
+      frequency TEXT NOT NULL DEFAULT 'monthly',
+      interval_count INTEGER DEFAULT 1,
+      next_run_date TEXT NOT NULL,
+      last_run_date TEXT DEFAULT '',
+      is_active INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // WORKFLOW APPROVALS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.approval_workflows (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      workflow_name TEXT NOT NULL DEFAULT '',
+      entity_type TEXT NOT NULL,
+      trigger_amount REAL DEFAULT 0,
+      approver_role TEXT DEFAULT 'admin',
+      is_active INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.approval_requests (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      workflow_id UUID,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      entity_amount REAL DEFAULT 0,
+      requested_by UUID,
+      status TEXT DEFAULT 'pending',
+      approved_by UUID,
+      approved_at TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // CRM PIPELINE
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.deals (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      deal_name TEXT NOT NULL DEFAULT '',
+      customer_id UUID,
+      contact_name TEXT DEFAULT '',
+      contact_email TEXT DEFAULT '',
+      contact_phone TEXT DEFAULT '',
+      deal_value REAL DEFAULT 0,
+      currency TEXT DEFAULT 'USD',
+      pipeline_stage TEXT DEFAULT 'lead',
+      probability INTEGER DEFAULT 10,
+      expected_close_date TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      status TEXT DEFAULT 'open',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // PROJECT COSTING
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.projects (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      project_name TEXT NOT NULL DEFAULT '',
+      description TEXT DEFAULT '',
+      start_date TEXT DEFAULT '',
+      end_date TEXT DEFAULT '',
+      budget REAL DEFAULT 0,
+      currency TEXT DEFAULT 'USD',
+      customer_id UUID,
+      status TEXT DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.project_transactions (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      project_id UUID NOT NULL,
+      entity_type TEXT NOT NULL DEFAULT 'expense',
+      entity_id TEXT NOT NULL DEFAULT '',
+      amount REAL NOT NULL DEFAULT 0,
+      transaction_date TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // OPEN API / WEBHOOKS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.api_keys (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      key_name TEXT NOT NULL DEFAULT '',
+      api_key TEXT NOT NULL,
+      permissions TEXT DEFAULT 'read',
+      last_used_at TIMESTAMP,
+      expires_at TIMESTAMP,
+      is_active INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.webhooks (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      webhook_name TEXT NOT NULL DEFAULT '',
+      url TEXT NOT NULL,
+      events TEXT DEFAULT '[]',
+      secret TEXT DEFAULT '',
+      is_active INTEGER DEFAULT 1,
+      last_triggered_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // NOTIFICATIONS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.notification_preferences (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL,
+      email_notifications INTEGER DEFAULT 1,
+      sms_notifications INTEGER DEFAULT 0,
+      in_app_notifications INTEGER DEFAULT 1,
+      invoice_reminders INTEGER DEFAULT 1,
+      payment_confirmations INTEGER DEFAULT 1,
+      low_stock_alerts INTEGER DEFAULT 1,
+      approval_requests INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.notification_log (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      user_id UUID,
+      notification_type TEXT NOT NULL,
+      title TEXT DEFAULT '',
+      message TEXT DEFAULT '',
+      channel TEXT DEFAULT 'in_app',
+      is_read INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  // ═══════════════════════════════════════════════════════════
+  // DATA INTEGRITY MIGRATIONS — REAL → NUMERIC(14,2)
+  // ═══════════════════════════════════════════════════════════
+  const moneyColumns: { table: string; column: string }[] = [
+    { table: 'sales_invoices', column: 'amount' },
+    { table: 'sales_invoices', column: 'subtotal' },
+    { table: 'sales_invoices', column: 'tax_vat' },
+    { table: 'sales_invoices', column: 'discounts' },
+    { table: 'sales_invoices', column: 'quantity' },
+    { table: 'sales_invoices', column: 'unit_price' },
+    { table: 'quotations', column: 'amount' },
+    { table: 'quotations', column: 'subtotal' },
+    { table: 'quotations', column: 'tax_vat' },
+    { table: 'quotations', column: 'quantity' },
+    { table: 'quotations', column: 'unit_price' },
+    { table: 'payments', column: 'amount' },
+    { table: 'credit_notes', column: 'amount' },
+    { table: 'credit_notes', column: 'subtotal' },
+    { table: 'credit_notes', column: 'tax_vat' },
+    { table: 'credit_notes', column: 'discounts' },
+    { table: 'credit_notes', column: 'quantity' },
+    { table: 'credit_notes', column: 'unit_price' },
+    { table: 'purchase_orders', column: 'amount' },
+    { table: 'purchase_orders', column: 'subtotal' },
+    { table: 'purchase_orders', column: 'tax_vat' },
+    { table: 'purchase_orders', column: 'quantity' },
+    { table: 'purchase_orders', column: 'unit_price' },
+    { table: 'purchase_invoices', column: 'amount' },
+    { table: 'purchase_invoices', column: 'subtotal' },
+    { table: 'purchase_invoices', column: 'tax_vat' },
+    { table: 'purchase_invoices', column: 'discounts' },
+    { table: 'purchase_invoices', column: 'quantity' },
+    { table: 'purchase_invoices', column: 'unit_price' },
+    { table: 'debit_notes', column: 'amount' },
+    { table: 'debit_notes', column: 'quantity' },
+    { table: 'debit_notes', column: 'unit_price' },
+    { table: 'supplier_payments', column: 'amount' },
+    { table: 'expenses', column: 'amount' },
+    { table: 'employees', column: 'salary' },
+    { table: 'salaries', column: 'amount' },
+    { table: 'journal_entry_lines', column: 'debit_amount' },
+    { table: 'journal_entry_lines', column: 'credit_amount' },
+    { table: 'chart_of_accounts', column: 'opening_balance' },
+    { table: 'bank_statements', column: 'balance' },
+    { table: 'fixed_assets', column: 'purchase_cost' },
+    { table: 'fixed_assets', column: 'accumulated_depreciation' },
+    { table: 'fixed_assets', column: 'book_value' },
+    { table: 'fixed_assets', column: 'salvage_value' },
+    { table: 'budgets', column: 'amount' },
+    { table: 'other_transactions', column: 'amount' },
+    { table: 'capital_transactions', column: 'amount' },
+    { table: 'deals', column: 'deal_value' },
+    { table: 'projects', column: 'budget' },
+    { table: 'project_transactions', column: 'amount' },
+    { table: 'customers', column: 'credit_limit' },
+    { table: 'reconciliation_runs', column: 'opening_balance' },
+    { table: 'reconciliation_runs', column: 'closing_balance' },
+    { table: 'reconciliation_runs', column: 'difference' },
+    { table: 'inventory_items', column: 'unit_cost' },
+    { table: 'inventory_items', column: 'opening_stock' },
+    { table: 'inventory_items', column: 'current_stock' },
+    { table: 'inventory_items', column: 'reorder_level' },
+    { table: 'company_settings', column: 'vat_rate' },
+    { table: 'company_settings', column: 'income_tax_rate' },
+  ];
+  for (const { table, column } of moneyColumns) {
+    try {
+      await exec(`ALTER TABLE public.${table} ALTER COLUMN ${column} TYPE NUMERIC(14,2) USING ${column}::numeric`);
+    } catch {}
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TEXT → DATE conversions for date columns
+  // ═══════════════════════════════════════════════════════════
+  const dateColumns: { table: string; column: string }[] = [
+    { table: 'sales_invoices', column: 'issue_date' },
+    { table: 'sales_invoices', column: 'due_date' },
+    { table: 'quotations', column: 'issue_date' },
+    { table: 'quotations', column: 'valid_until' },
+    { table: 'quotations', column: 'due_date' },
+    { table: 'payments', column: 'payment_date' },
+    { table: 'credit_notes', column: 'issue_date' },
+    { table: 'purchase_orders', column: 'issue_date' },
+    { table: 'purchase_orders', column: 'delivery_date' },
+    { table: 'purchase_invoices', column: 'issue_date' },
+    { table: 'purchase_invoices', column: 'due_date' },
+    { table: 'debit_notes', column: 'issue_date' },
+    { table: 'expenses', column: 'expense_date' },
+    { table: 'salaries', column: 'pay_date' },
+    { table: 'journal_entries', column: 'entry_date' },
+    { table: 'employees', column: 'hire_date' },
+    { table: 'bank_statements', column: 'statement_date' },
+    { table: 'fixed_assets', column: 'purchase_date' },
+    { table: 'capital_transactions', column: 'transaction_date' },
+    { table: 'other_transactions', column: 'transaction_date' },
+    { table: 'budgets', column: 'fiscal_year' },
+  ];
+  for (const { table, column } of dateColumns) {
+    try {
+      await exec(`ALTER TABLE public.${table} ALTER COLUMN ${column} TYPE DATE USING NULLIF(${column}, '')::date`);
+    } catch {}
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FOREIGN KEY CONSTRAINTS
+  // ═══════════════════════════════════════════════════════════
+  const fkConstraints: { table: string; column: string; ref: string; name: string }[] = [
+    { table: 'sales_invoices', column: 'customer_id', ref: 'customers(id)', name: 'fk_sales_invoices_customer' },
+    { table: 'quotations', column: 'customer_id', ref: 'customers(id)', name: 'fk_quotations_customer' },
+    { table: 'payments', column: 'invoice_id', ref: 'sales_invoices(id)', name: 'fk_payments_invoice' },
+    { table: 'payments', column: 'customer_id', ref: 'customers(id)', name: 'fk_payments_customer' },
+    { table: 'credit_notes', column: 'invoice_id', ref: 'sales_invoices(id)', name: 'fk_credit_notes_invoice' },
+    { table: 'credit_notes', column: 'customer_id', ref: 'customers(id)', name: 'fk_credit_notes_customer' },
+    { table: 'purchase_orders', column: 'client_id', ref: 'clients(id)', name: 'fk_po_client' },
+    { table: 'purchase_invoices', column: 'client_id', ref: 'clients(id)', name: 'fk_pi_client' },
+    { table: 'purchase_invoices', column: 'po_id', ref: 'purchase_orders(id)', name: 'fk_pi_po' },
+    { table: 'debit_notes', column: 'purchase_invoice_id', ref: 'purchase_invoices(id)', name: 'fk_dn_pi' },
+    { table: 'debit_notes', column: 'client_id', ref: 'clients(id)', name: 'fk_dn_client' },
+    { table: 'supplier_payments', column: 'invoice_id', ref: 'purchase_invoices(id)', name: 'fk_sp_invoice' },
+    { table: 'supplier_payments', column: 'client_id', ref: 'clients(id)', name: 'fk_sp_client' },
+    { table: 'salaries', column: 'employee_id', ref: 'employees(id)', name: 'fk_salaries_employee' },
+    { table: 'journal_entry_lines', column: 'journal_entry_id', ref: 'journal_entries(id)', name: 'fk_jel_je' },
+    { table: 'journal_entry_lines', column: 'account_id', ref: 'chart_of_accounts(id)', name: 'fk_jel_account' },
+    { table: 'inventory_transactions', column: 'item_id', ref: 'inventory_items(id)', name: 'fk_it_item' },
+    { table: 'bank_statements', column: 'bank_account_id', ref: 'bank_accounts(id)', name: 'fk_bs_ba' },
+    { table: 'reconciliation_runs', column: 'bank_account_id', ref: 'bank_accounts(id)', name: 'fk_rr_ba' },
+    { table: 'project_transactions', column: 'project_id', ref: 'projects(id)', name: 'fk_pt_project' },
+    { table: 'deals', column: 'customer_id', ref: 'customers(id)', name: 'fk_deals_customer' },
+    { table: 'projects', column: 'customer_id', ref: 'customers(id)', name: 'fk_projects_customer' },
+    { table: 'chart_of_accounts', column: 'parent_id', ref: 'chart_of_accounts(id)', name: 'fk_coa_parent' },
+    { table: 'approval_requests', column: 'requested_by', ref: 'users(id)', name: 'fk_ar_requestor' },
+    { table: 'approval_requests', column: 'approved_by', ref: 'users(id)', name: 'fk_ar_approver' },
+  ];
+  for (const { table, column, ref, name } of fkConstraints) {
+    try {
+      await exec(`ALTER TABLE public.${table} ADD CONSTRAINT ${name} FOREIGN KEY (${column}) REFERENCES public.${ref} ON DELETE SET NULL`);
+    } catch {}
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // UNIQUE CONSTRAINTS on business identifiers
+  // ═══════════════════════════════════════════════════════════
+  const uniqueConstraints: { table: string; columns: string; name: string }[] = [
+    { table: 'sales_invoices', columns: 'tenant_id, invoice_number', name: 'uq_sales_invoices_number' },
+    { table: 'purchase_invoices', columns: 'tenant_id, invoice_number', name: 'uq_pi_number' },
+    { table: 'purchase_orders', columns: 'tenant_id, po_number', name: 'uq_po_number' },
+    { table: 'credit_notes', columns: 'tenant_id, credit_note_number', name: 'uq_cn_number' },
+    { table: 'debit_notes', columns: 'tenant_id, debit_note_number', name: 'uq_dn_number' },
+    { table: 'chart_of_accounts', columns: 'tenant_id, account_code', name: 'uq_coa_code' },
+    { table: 'journal_entries', columns: 'tenant_id, entry_number', name: 'uq_je_number' },
+    { table: 'customers', columns: 'tenant_id, email_address', name: 'uq_customers_email' },
+    { table: 'api_keys', columns: 'api_key', name: 'uq_api_keys_key' },
+    { table: 'clients', columns: 'tenant_id, email', name: 'uq_clients_email' },
+  ];
+  for (const { table, columns, name } of uniqueConstraints) {
+    try {
+      await exec(`ALTER TABLE public.${table} ADD CONSTRAINT ${name} UNIQUE (${columns})`);
+    } catch {}
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INDICES on foreign key columns for query performance
+  // ═══════════════════════════════════════════════════════════
+  const indexColumns: { table: string; column: string; name: string }[] = [
+    ...fkConstraints.map(fk => ({ table: fk.table, column: fk.column, name: `idx_${fk.name.replace('fk_', '')}` })),
+    { table: 'sessions', column: 'user_id', name: 'idx_sessions_user' },
+    { table: 'sessions', column: 'token', name: 'idx_sessions_token' },
+    { table: 'payments', column: 'payment_date', name: 'idx_payments_date' },
+    { table: 'expenses', column: 'expense_date', name: 'idx_expenses_date' },
+    { table: 'journal_entries', column: 'entry_date', name: 'idx_je_date' },
+    { table: 'journal_entries', column: 'status', name: 'idx_je_status' },
+    { table: 'sales_invoices', column: 'status', name: 'idx_si_status' },
+    { table: 'sales_invoices', column: 'issue_date', name: 'idx_si_date' },
+    { table: 'purchase_invoices', column: 'status', name: 'idx_pi_status' },
+    { table: 'notification_log', column: 'user_id', name: 'idx_nl_user' },
+    { table: 'notification_log', column: 'is_read', name: 'idx_nl_read' },
+    { table: 'audit_log', column: 'entity_type', name: 'idx_al_entity' },
+    { table: 'audit_log', column: 'created_at', name: 'idx_al_date' },
+  ];
+  for (const { table, column, name } of indexColumns) {
+    try {
+      await exec(`CREATE INDEX IF NOT EXISTS ${name} ON public.${table} (${column})`);
+    } catch {}
+  }
 }

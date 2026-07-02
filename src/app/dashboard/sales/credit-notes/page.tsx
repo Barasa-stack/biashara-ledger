@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, FileText, Search, Download } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';;
 
 type Invoice = {
   id: string;
@@ -42,8 +44,8 @@ const emptyForm = {
   payment_terms: '', issue_date: '',
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function CreditNotesPage() {
   const [notes, setNotes] = useState<CreditNote[]>([]);
@@ -73,7 +75,7 @@ export default function CreditNotesPage() {
   const fetchInvoicesAndCustomers = () => {
     return Promise.all([
       fetch('/api/sales/invoices').then(r => r.ok ? r.json() : []),
-      fetch('/api/sales/customers').then(r => r.ok ? r.json() : []),
+      fetch('/api/customers').then(r => r.ok ? r.json() : []),
     ]);
   };
 
@@ -100,7 +102,7 @@ export default function CreditNotesPage() {
     { key: 'id', label: 'Note ID' },
     { key: 'credit_note_number', label: 'Credit Note #' },
     { key: 'customer_name', label: 'Customer' },
-    { key: 'amount', label: 'Amount (KES)' },
+    { key: 'amount', label: 'Amount (USD)' },
     { key: 'reason', label: 'Reason' },
     { key: 'issue_date', label: 'Issue Date' },
   ];
@@ -182,14 +184,14 @@ export default function CreditNotesPage() {
       setModalOpen(false);
       fetchNotes();
     } catch (e: any) {
-      alert(e.message || 'Save failed');
+      toast(e.message || 'Save failed');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (n: CreditNote) => {
-    if (!confirm(`Delete credit note "${n.credit_note_number}"?`)) return;
+    if (!await confirm(`Delete credit note "${n.credit_note_number}"?`)) return;
     try {
       const res = await fetch('/api/sales/credit-notes', {
         method: 'DELETE',
@@ -199,7 +201,7 @@ export default function CreditNotesPage() {
       if (!res.ok) throw new Error('Delete failed');
       fetchNotes();
     } catch (e: any) {
-      alert(e.message || 'Delete failed');
+      toast(e.message || 'Delete failed');
     }
   };
 
@@ -320,7 +322,7 @@ export default function CreditNotesPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredNotes.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{n.credit_note_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{n.customer_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(n.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(n.amount)}</td>
                     <td className="py-3 pr-4 text-gray-700 max-w-[200px] truncate">{n.reason || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{n.issue_date?.split('T')[0] || '—'}</td>
                     <td className="py-3 text-right">
@@ -386,7 +388,7 @@ export default function CreditNotesPage() {
                 <Field label="Customer Name" value={form.customer_name} onChange={set('customer_name')} required />
                 <Field label="Customer Email" value={form.customer_email} onChange={set('customer_email')} />
                 <Field label="Issue Date" value={form.issue_date} onChange={set('issue_date')} type="date" />
-                <Field label="Amount (KES)" value={String(form.amount)} onChange={set('amount')} type="number" required />
+                <Field label="Amount (USD)" value={String(form.amount)} onChange={set('amount')} type="number" required />
                 <Field label="Payment Terms" value={form.payment_terms} onChange={set('payment_terms')} />
               </div>
               <Field label="Item/Service Description" value={form.description} onChange={set('description')} textarea />
@@ -417,6 +419,7 @@ export default function CreditNotesPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

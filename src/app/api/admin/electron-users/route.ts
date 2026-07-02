@@ -23,6 +23,6 @@ export async function GET() {
     `);
     return NextResponse.json(users);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
   }
 }

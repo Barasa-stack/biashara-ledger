@@ -2,8 +2,12 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
-import { Plus, Pencil, Trash2, X, Search, Download } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { Plus, Pencil, Trash2, X, Search, Download, Upload } from 'lucide-react';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';;
+import { countries } from '@/lib/countries';
+import ImportModal from '@/components/ImportModal';
 
 type Customer = {
   id: string;
@@ -15,6 +19,7 @@ type Customer = {
   billing_address: string;
   shipping_address: string;
   tax_id: string;
+  country: string;
   payment_terms: string;
   credit_limit: number;
   notes: string;
@@ -24,11 +29,11 @@ type Customer = {
 const emptyForm = {
   customer_name: '', company_name: '', contact_person: '', email_address: '',
   phone_number: '', billing_address: '', shipping_address: '', tax_id: '',
-  payment_terms: 'Net 30', credit_limit: 0, notes: '',
+  country: '', payment_terms: 'Net 30', credit_limit: 0, notes: '',
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -38,7 +43,10 @@ export default function CustomersPage() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+  const { confirm, dialog } = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 200);
 
   const fetchCustomers = () => {
@@ -92,6 +100,7 @@ export default function CustomersPage() {
       billing_address: c.billing_address,
       shipping_address: c.shipping_address,
       tax_id: c.tax_id,
+      country: c.country,
       payment_terms: c.payment_terms,
       credit_limit: c.credit_limit,
       notes: c.notes,
@@ -114,14 +123,16 @@ export default function CustomersPage() {
       setModalOpen(false);
       fetchCustomers();
     } catch (e: any) {
-      alert(e.message || 'Save failed');
+      toast(e.message || 'Save failed');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (c: Customer) => {
-    if (!confirm(`Delete customer "${c.customer_name}"? This cannot be undone.`)) return;
+    if (!await confirm(`Delete customer "${c.customer_name}"? This cannot be undone.`)) return;
+    const prev = customers;
+    setCustomers(prev => prev.filter(cust => cust.id !== c.id));
     try {
       const res = await fetch('/api/customers', {
         method: 'DELETE',
@@ -129,9 +140,10 @@ export default function CustomersPage() {
         body: JSON.stringify({ id: c.id }),
       });
       if (!res.ok) throw new Error('Delete failed');
-      fetchCustomers();
+      toast('Customer deleted', 'success');
     } catch (e: any) {
-      alert(e.message || 'Delete failed');
+      setCustomers(prev);
+      toast(e.message || 'Delete failed');
     }
   };
 
@@ -156,13 +168,22 @@ export default function CustomersPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-gray-800">Customers</h1>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center gap-1.5 bg-brand hover:bg-brand-hover text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Add Customer
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="inline-flex items-center gap-1.5 border border-brand text-brand hover:bg-brand/5 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            <Upload className="h-4 w-4" />
+            Import
+          </button>
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-1.5 bg-brand hover:bg-brand-hover text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Add Customer
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border border-border p-4">
@@ -235,7 +256,7 @@ export default function CustomersPage() {
                     <td className="py-3 pr-4 text-gray-700">{c.email_address || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{c.phone_number || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{c.payment_terms}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(c.credit_limit)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(c.credit_limit)}</td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
@@ -283,7 +304,20 @@ export default function CustomersPage() {
                 <Field label="Contact Person" value={form.contact_person} onChange={set('contact_person')} />
                 <Field label="Email Address" value={form.email_address} onChange={set('email_address')} type="email" />
                 <Field label="Phone Number" value={form.phone_number} onChange={set('phone_number')} />
-                <Field label="Tax ID" value={form.tax_id} onChange={set('tax_id')} />
+                <Field label="Tax ID / VAT Reg" value={form.tax_id} onChange={set('tax_id')} />
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Country *</label>
+                  <select
+                    value={form.country}
+                    onChange={set('country')}
+                    className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="">Select country</option>
+                    {countries.map(c => (
+                      <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Payment Terms</label>
                   <select
@@ -298,7 +332,7 @@ export default function CustomersPage() {
                     <option>Due on Receipt</option>
                   </select>
                 </div>
-                <Field label="Credit Limit (KES)" value={String(form.credit_limit)} onChange={set('credit_limit')} type="number" />
+                <Field label="Credit Limit (USD)" value={String(form.credit_limit)} onChange={set('credit_limit')} type="number" />
               </div>
               <Field label="Billing Address" value={form.billing_address} onChange={set('billing_address')} textarea />
               <Field label="Shipping Address" value={form.shipping_address} onChange={set('shipping_address')} textarea />
@@ -329,6 +363,31 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+      {importOpen && (
+        <ImportModal
+          title="Import Customers"
+          apiEndpoint="/api/import/customers"
+          templateFilename="customer-import-template.csv"
+          existingEmails={customers.map(c => c.email_address).filter(Boolean)}
+          fields={[
+            { key: 'customer_name', label: 'Customer Name', required: true },
+            { key: 'company_name', label: 'Company Name' },
+            { key: 'contact_person', label: 'Contact Person' },
+            { key: 'email_address', label: 'Email', type: 'email' },
+            { key: 'phone_number', label: 'Phone', type: 'tel' },
+            { key: 'billing_address', label: 'Billing Address' },
+            { key: 'shipping_address', label: 'Shipping Address' },
+            { key: 'tax_id', label: 'Tax ID / VAT' },
+            { key: 'country', label: 'Country' },
+            { key: 'payment_terms', label: 'Payment Terms' },
+            { key: 'credit_limit', label: 'Credit Limit', type: 'number' },
+            { key: 'notes', label: 'Notes' },
+          ]}
+          onClose={() => setImportOpen(false)}
+          onSuccess={() => { setImportOpen(false); fetchCustomers(); }}
+        />
+      )}
+      {dialog}
     </div>
   );
 }

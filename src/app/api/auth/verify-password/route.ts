@@ -15,12 +15,12 @@ export async function POST(request: Request) {
     }
 
     const user = await get('SELECT password_hash FROM users WHERE id = $1', [session.user_id]) as any;
-    if (!user || !verifyPassword(password, user.password_hash)) {
+    if (!user || !(await verifyPassword(password, user.password_hash))) {
       return NextResponse.json({ error: 'Current password is incorrect' }, { status: 401 });
     }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Verification failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
   }
 }

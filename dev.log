@@ -1,0 +1,55 @@
+
+> biashara-ledger@1.0.0 dev
+> next dev -p 3000
+
+▲ Next.js 16.2.9 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.10:3000
+- Environments: .env.local
+✓ Ready in 1938ms
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/enockshimakabarasa/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /Users/enockshimakabarasa/Desktop/vibe-app/package-lock.json
+
+- Experiments (use with caution):
+  · serverActions
+
+[browser] SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at ClientsPageContent.useEffect (src/app/admin/clients/page.tsx:40:18)
+  38 |       .then(r => {
+  39 |         if (r.status === 401 || r.status === 403) { router.push('/admin/login'); return nu...
+> 40 |         return r.json();
+     |                  ^
+  41 |       })
+  42 |       .then(data => {
+  43 |         if (data?.clients) setClients(Array.isArray(data.clients) ? data.clients : []);
+[browser] SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at ClientsPageContent.useEffect (src/app/admin/clients/page.tsx:40:18)
+  38 |       .then(r => {
+  39 |         if (r.status === 401 || r.status === 403) { router.push('/admin/login'); return nu...
+> 40 |         return r.json();
+     |                  ^
+  41 |       })
+  42 |       .then(data => {
+  43 |         if (data?.clients) setClients(Array.isArray(data.clients) ? data.clients : []);
+ GET /admin 200 in 2.0s (next.js: 781ms, proxy.ts: 484ms, application-code: 753ms)
+ GET /admin 200 in 1399ms (next.js: 92ms, proxy.ts: 52ms, application-code: 1255ms)
+ GET /admin 200 in 1312ms (next.js: 42ms, proxy.ts: 632ms, application-code: 638ms)
+ GET /renew 200 in 26.3s (next.js: 6.6s, proxy.ts: 6.4s, application-code: 13.4s)
+ GET /sign-in 200 in 176ms (next.js: 11ms, proxy.ts: 13ms, application-code: 152ms)
+ GET /admin/clients 200 in 17.7s (next.js: 2.1s, proxy.ts: 3.4s, application-code: 12.2s)
+ GET /admin/licenses 200 in 308ms (next.js: 102ms, proxy.ts: 15ms, application-code: 192ms)
+ GET /admin/licenses 200 in 493ms (next.js: 19ms, proxy.ts: 10ms, application-code: 464ms)
+ GET /admin/licenses 200 in 623ms (next.js: 162ms, proxy.ts: 126ms, application-code: 335ms)
+ GET /admin/offline 200 in 512ms (next.js: 136ms, proxy.ts: 33ms, application-code: 343ms)
+ GET /admin/offline 200 in 284ms (next.js: 18ms, proxy.ts: 13ms, application-code: 253ms)
+ GET /admin/offline 200 in 232ms (next.js: 12ms, proxy.ts: 11ms, application-code: 209ms)
+ GET / 200 in 64s (next.js: 2.5s, proxy.ts: 6.0s, application-code: 56s)
+ GET /admin/clients 200 in 45s (next.js: 10ms, proxy.ts: 8ms, application-code: 45s)
+ GET /renew 200 in 70s (next.js: 3.4s, proxy.ts: 6.2s, application-code: 61s)
+ GET /sign-in 200 in 60s (next.js: 296ms, proxy.ts: 1643ms, application-code: 58s)
+ GET /admin/clients 200 in 65s (next.js: 2.5s, proxy.ts: 2.2s, application-code: 60s)
+[?25h

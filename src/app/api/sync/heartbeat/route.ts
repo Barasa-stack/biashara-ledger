@@ -80,6 +80,6 @@ export async function POST(request: Request) {
       } : null,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Heartbeat failed' }, { status: 500 });
   }
 }

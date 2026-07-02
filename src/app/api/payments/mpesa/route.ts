@@ -17,6 +17,6 @@ export async function POST(request: Request) {
       _demoAutoConfirm: true,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Payment failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Payment failed' }, { status: 500 });
   }
 }

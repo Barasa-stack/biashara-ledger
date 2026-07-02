@@ -28,6 +28,9 @@ type Company = {
   smtp_user: string;
   smtp_pass: string;
   vat_rate: number;
+  income_tax_rate: number;
+  tax_filing_frequency: string;
+  base_currency: string;
 };
 
 const emptyForm: Company = {
@@ -37,6 +40,7 @@ const emptyForm: Company = {
   branch_code: '', bank_code: '', swift_code: '',
   terms_conditions: '', invoice_prefix: 'INV', quotation_prefix: 'QTN',
   smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', vat_rate: 16,
+  income_tax_rate: 0, tax_filing_frequency: 'monthly', base_currency: 'USD',
 };
 
 function Section({ icon: Icon, title, desc, children }: { icon: any; title: string; desc?: string; children: React.ReactNode }) {
@@ -221,6 +225,38 @@ export default function SettingsPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="VAT Rate (%)" value={String(form.vat_rate)} onChange={e => setForm(prev => ({ ...prev, vat_rate: Number(e.target.value) || 0 }))} type="number" placeholder="16" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Income Tax Rate (%)" value={String(form.income_tax_rate)} onChange={e => setForm(prev => ({ ...prev, income_tax_rate: Number(e.target.value) || 0 }))} type="number" placeholder="0" />
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Base Currency</label>
+                <select value={form.base_currency} onChange={e => setForm(prev => ({ ...prev, base_currency: e.target.value }))}
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white">
+                  <option value="USD">USD ($)</option>
+                  <option value="KES">KES (KSh)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="NGN">NGN (₦)</option>
+                  <option value="ZAR">ZAR (R)</option>
+                  <option value="TZS">TZS (TSh)</option>
+                  <option value="UGX">UGX (USh)</option>
+                  <option value="RWF">RWF (FRw)</option>
+                  <option value="XAF">XAF (FCFA)</option>
+                  <option value="XOF">XOF (CFA)</option>
+                  <option value="GHS">GHS (GH₵)</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Tax Filing Frequency</label>
+                <select value={form.tax_filing_frequency} onChange={e => setForm(prev => ({ ...prev, tax_filing_frequency: e.target.value }))}
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white">
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="annually">Annually</option>
+                </select>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Terms & Conditions</label>

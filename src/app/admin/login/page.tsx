@@ -34,7 +34,8 @@ export default function AdminLoginPage() {
       }
 
       if (data.success) {
-        router.push('/admin');
+        window.location.href = '/admin';
+        return;
       } else {
         setError(data.error || 'Login failed');
         setLoading(false);

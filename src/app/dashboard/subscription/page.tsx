@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { CreditCard } from 'lucide-react';
 
@@ -20,7 +20,7 @@ type SubscriptionStatus = {
   billingHistory?: BillingRecord[];
 };
 
-const fmt = (n: number) => `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmt = (n: number) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function SubscriptionPage() {
   const [data, setData] = useState<SubscriptionStatus | null>(null);
@@ -94,7 +94,7 @@ export default function SubscriptionPage() {
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Expiry Date</p>
                 <p className="text-sm font-medium text-gray-800">
-                  {data.expiryDate ? new Date(data.expiryDate).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+                  {data.expiryDate ? new Date(data.expiryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
                 </p>
               </div>
               <div>
@@ -136,7 +136,7 @@ export default function SubscriptionPage() {
                   <tr key={r.id} className="hover:bg-surface/50 transition-colors">
                     <td className="py-3 pr-4 text-gray-400 w-8">{data!.billingHistory!.length - i}</td>
                     <td className="py-3 pr-4 text-gray-800">
-                      {new Date(r.date).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      {new Date(r.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                     </td>
                     <td className="py-3 pr-4 text-gray-800">{r.description}</td>
                     <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmt(r.amount)}</td>

@@ -10,8 +10,12 @@ export async function GET() {
       return await get('SELECT * FROM company_settings') as any;
     });
     return NextResponse.json(settings || {});
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (e: any) {
+    if (e?.message === 'Unauthorized' || !e?.message) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -28,7 +32,7 @@ export async function PUT(request: Request) {
           bank_branch=$12, branch_code=$13, bank_code=$14, swift_code=$15,
           terms_conditions=$16, invoice_prefix=$17, quotation_prefix=$18,
           smtp_host=$19, smtp_port=$20, smtp_user=$21, smtp_pass=$22,
-          vat_rate=$23,
+          vat_rate=$23, income_tax_rate=$24, tax_filing_frequency=$25,
           updated_at=NOW()`,
         [body.company_name || '', body.address || '', body.location || '',
          body.country || 'Kenya', body.phone || '', body.email || '',
@@ -37,11 +41,15 @@ export async function PUT(request: Request) {
          body.branch_code || '', body.bank_code || '', body.swift_code || '',
          body.terms_conditions || '', body.invoice_prefix || 'INV', body.quotation_prefix || 'QTN',
          body.smtp_host || '', body.smtp_port || '587', body.smtp_user || '', body.smtp_pass || '',
-         body.vat_rate ?? 16]
+         body.vat_rate ?? 16, body.income_tax_rate ?? 0, body.tax_filing_frequency || 'monthly']
       );
     });
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (e: any) {
+    if (e?.message === 'Unauthorized' || !e?.message) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

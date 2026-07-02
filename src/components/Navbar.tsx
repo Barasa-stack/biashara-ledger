@@ -18,9 +18,9 @@ export default function Navbar() {
   }, []);
 
   const showWhite = !isHome || scrolled;
-  const textColor = showWhite ? 'text-gray-600 hover:text-brand' : 'text-white/80 hover:text-white';
-  const textColorLogo = showWhite ? 'text-gray-900' : 'text-white';
-  const bgClass = showWhite ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent';
+  const textColor = 'text-white/80 hover:text-white';
+  const textColorLogo = 'text-white';
+  const bgClass = showWhite ? 'bg-black/60 backdrop-blur-md border-b border-white/10' : 'bg-transparent';
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${bgClass}`}>
@@ -57,7 +57,7 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <Link
               href="/sign-in"
-              className={`hidden sm:inline text-sm font-medium transition-colors ${showWhite ? 'text-gray-600 hover:text-brand' : 'text-white/80 hover:text-white'}`}
+              className={`hidden sm:inline bg-brand hover:bg-brand-hover text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:shadow-lg hover:shadow-brand/25 ${showWhite ? 'bg-brand hover:bg-brand-hover' : 'bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/20'}`}
             >
               Sign In
             </Link>
@@ -83,7 +83,6 @@ export default function Navbar() {
             { href: '/industries', label: 'Industries' },
             { href: '/about', label: 'About' },
             { href: '/contact', label: 'Contact' },
-            { href: '/sign-in', label: 'Sign In' },
           ].map((item) => (
             <Link
               key={item.label}
@@ -94,6 +93,13 @@ export default function Navbar() {
               {item.label}
             </Link>
           ))}
+          <Link
+            href="/sign-in"
+            onClick={() => setMobileOpen(false)}
+            className="block text-center bg-brand hover:bg-brand-hover text-white px-5 py-3 rounded-xl text-sm font-semibold transition-all"
+          >
+            Sign In
+          </Link>
           <Link
             href="/sign-up"
             onClick={() => setMobileOpen(false)}

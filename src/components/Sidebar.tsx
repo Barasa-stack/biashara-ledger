@@ -5,9 +5,15 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard, Users, ShoppingCart,
   Package, UsersRound, Receipt, FileBarChart, Settings,
-  ChevronDown, ChevronRight, CreditCard,
+  ChevronDown, ChevronRight, CreditCard, Lock, Sparkles,
+  Archive, ArrowRightLeft, Banknote, Target,
+  Globe, BookOpen, PenTool, Landmark, Building2,
+  RotateCcw, CheckSquare, TrendingUp, Briefcase,
+  Key, Webhook, Bell,
 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
+import { isFeatureAvailable } from '@/lib/feature-gate';
+import UpgradeModal from './UpgradeModal';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -48,6 +54,52 @@ const navItems = [
   },
   { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt },
   {
+    label: 'Inventory',
+    icon: Archive,
+    children: [
+      { href: '/dashboard/inventory/items', label: 'Stock Items' },
+    ],
+  },
+  { href: '/dashboard/other-transactions', label: 'Other Income/Expenses', icon: ArrowRightLeft },
+  { href: '/dashboard/capital-transactions', label: 'Capital Transactions', icon: Banknote },
+  { href: '/dashboard/budgets', label: 'Budgets', icon: Target },
+  { href: '/dashboard/exchange-rates', label: 'Exchange Rates', icon: Globe },
+  {
+    label: 'Chart of Accounts',
+    icon: BookOpen,
+    children: [
+      { href: '/dashboard/chart-of-accounts', label: 'Accounts' },
+    ],
+  },
+  { href: '/dashboard/journal-entries', label: 'Journal Entries', icon: PenTool },
+  {
+    label: 'Banking',
+    icon: Landmark,
+    children: [
+      { href: '/dashboard/bank-accounts', label: 'Bank Accounts' },
+      { href: '/dashboard/bank-reconciliation', label: 'Reconciliation' },
+    ],
+  },
+  { href: '/dashboard/fixed-assets', label: 'Fixed Assets', icon: Building2 },
+  {
+    label: 'Automation',
+    icon: RotateCcw,
+    children: [
+      { href: '/dashboard/recurring', label: 'Recurring' },
+      { href: '/dashboard/approvals', label: 'Approvals' },
+    ],
+  },
+  { href: '/dashboard/deals', label: 'CRM Pipeline', icon: TrendingUp },
+  { href: '/dashboard/projects', label: 'Projects', icon: Briefcase },
+  {
+    label: 'Developer',
+    icon: Key,
+    children: [
+      { href: '/dashboard/api-keys', label: 'API Keys' },
+      { href: '/dashboard/webhooks', label: 'Webhooks' },
+    ],
+  },
+  {
     label: 'Financial Reports',
     icon: FileBarChart,
     children: [
@@ -67,13 +119,29 @@ const navItems = [
       { href: '/dashboard/reports?type=audit-trail', label: 'Audit Trail' },
     ],
   },
+  { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
   { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/dashboard/settings', label: 'Company Settings', icon: Settings },
 ];
 
-function NavLink({ href, icon: Icon, label }: { href: string; icon?: any; label: string }) {
+function NavLink({ href, icon: Icon, label, locked }: { href: string; icon?: any; label: string; locked?: boolean }) {
   const pathname = usePathname();
   const isActive = pathname === href;
+
+  if (locked) {
+    return (
+      <div className="group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/30 cursor-not-allowed select-none">
+        {Icon && <Icon className="h-4 w-4 shrink-0" />}
+        <span>{label}</span>
+        <Lock className="h-3 w-3 ml-auto shrink-0 text-white/20" />
+        <div className="absolute left-0 top-0 w-full h-full rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 bg-dark/80 transition-opacity pointer-events-none">
+          <span className="flex items-center gap-1 text-[10px] font-medium text-amber-400">
+            <Sparkles className="h-3 w-3" /> Upgrade to unlock
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Link
@@ -90,11 +158,18 @@ function NavLink({ href, icon: Icon, label }: { href: string; icon?: any; label:
   );
 }
 
-function Sidebar() {
+interface SidebarProps {
+  subscriptionPlan?: string;
+}
+
+function Sidebar({ subscriptionPlan }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [upgradeFeature, setUpgradeFeature] = useState<{ name: string; requiredPlan: string } | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fullPath = pathname + (searchParams.toString() ? '?' + searchParams.toString() : '');
+
+  const plan = subscriptionPlan === 'Premium' ? 'Premium' : subscriptionPlan === 'Standard' ? 'Standard' : (subscriptionPlan === 'Basic' ? 'Basic' : 'Basic');
 
   useEffect(() => {
     setExpandedMenus(
@@ -108,21 +183,42 @@ function Sidebar() {
     );
   }
 
+  function handleLockedClick(featureName: string) {
+    const reqPlan = !isFeatureAvailable(featureName, plan)
+      ? (isFeatureAvailable(featureName, 'Premium') ? 'Premium' : 'Standard')
+      : null;
+    if (reqPlan) setUpgradeFeature({ name: featureName, requiredPlan: reqPlan });
+  }
+
+  function isLocked(featureKey: string): boolean {
+    if (plan === 'Premium') return false;
+    return !isFeatureAvailable(featureKey, plan);
+  }
+
   return (
     <aside className="w-60 border-r border-dark-border bg-dark flex flex-col shrink-0">
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" />
+        <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" locked={isLocked('Dashboard')} />
         {navItems.slice(1).map((item) => {
           if ('children' in item && item.children) {
             const isExpanded = expandedMenus.includes(item.label);
             const isActive = item.children.some((c) => fullPath === c.href);
+            const groupLocked = isLocked(item.label);
 
             return (
               <div key={item.label}>
                 <button
-                  onClick={() => toggleMenu(item.label)}
+                  onClick={() => {
+                    if (groupLocked) {
+                      handleLockedClick(item.label);
+                      return;
+                    }
+                    toggleMenu(item.label);
+                  }}
                   className={`flex items-center justify-between w-full rounded-md px-3 py-2 text-sm transition-all ${
-                    isActive
+                    groupLocked
+                      ? 'text-white/30 cursor-not-allowed'
+                      : isActive
                       ? 'bg-brand/10 text-brand font-semibold'
                       : 'text-white hover:bg-brand/10 hover:text-brand'
                   }`}
@@ -131,7 +227,9 @@ function Sidebar() {
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span className="truncate">{item.label}</span>
                   </div>
-                  {isExpanded ? (
+                  {groupLocked ? (
+                    <Lock className="h-3 w-3 shrink-0 text-white/20" />
+                  ) : isExpanded ? (
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white" />
                   ) : (
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-white" />
@@ -144,29 +242,64 @@ function Sidebar() {
                 >
                   {item.children.map((child) => {
                     const isChildActive = fullPath === child.href;
+                    const childLocked = isLocked(child.href);
                     return (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-all ${
-                          isChildActive
-                            ? 'bg-brand/10 text-brand font-medium'
-                            : 'text-white/60 hover:bg-brand/10 hover:text-brand'
-                        }`}
-                      >
-                        <span className="w-1 h-1 rounded-full bg-current shrink-0" />
-                        <span>{child.label}</span>
-                      </Link>
+                      <div key={child.href} className="group relative">
+                        {childLocked ? (
+                          <button
+                            onClick={() => handleLockedClick(child.label)}
+                            className="w-full flex items-center gap-3 rounded-md px-3 py-1.5 text-sm text-white/30 cursor-not-allowed"
+                          >
+                            <span className="w-1 h-1 rounded-full bg-current shrink-0" />
+                            <span className="flex-1 text-left">{child.label}</span>
+                            <Lock className="h-3 w-3 shrink-0 text-white/20" />
+                          </button>
+                        ) : (
+                          <Link
+                            href={child.href}
+                            className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-all ${
+                              isChildActive
+                                ? 'bg-brand/10 text-brand font-medium'
+                                : 'text-white/60 hover:bg-brand/10 hover:text-brand'
+                            }`}
+                          >
+                            <span className="w-1 h-1 rounded-full bg-current shrink-0" />
+                            <span>{child.label}</span>
+                          </Link>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
               </div>
             );
           }
-          return <NavLink key={item.href || ''} href={item.href || '/'} icon={item.icon} label={item.label} />;
+          const itemLocked = isLocked(item.href || '');
+          return itemLocked ? (
+            <div key={item.href} className="group relative">
+              <button
+                onClick={() => handleLockedClick(item.label)}
+                className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/30 cursor-not-allowed"
+              >
+                {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                <span className="flex-1 text-left">{item.label}</span>
+                <Lock className="h-3 w-3 shrink-0 text-white/20" />
+              </button>
+            </div>
+          ) : (
+            <NavLink key={item.href || ''} href={item.href || '/'} icon={item.icon} label={item.label} />
+          );
         })}
       </nav>
 
+      {upgradeFeature && (
+        <UpgradeModal
+          featureName={upgradeFeature.name}
+          currentPlan={plan}
+          requiredPlan={upgradeFeature.requiredPlan}
+          onClose={() => setUpgradeFeature(null)}
+        />
+      )}
     </aside>
   );
 }

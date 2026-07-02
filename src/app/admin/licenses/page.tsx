@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, Plus, Key, Copy, Check, Loader2, AlertTriangle, XCircle, CheckCircle2, Clock,
-  MoreHorizontal, Ban, Repeat, ExternalLink, RefreshCw, User, Calendar, Download, Filter
+  MoreHorizontal, Ban, Repeat, ExternalLink, RefreshCw, User, Calendar, Download, Filter, X
 } from 'lucide-react';
 
 export default function LicensesPage() {
@@ -14,6 +14,10 @@ export default function LicensesPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'revoked'>('all');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [showGenModal, setShowGenModal] = useState(false);
+  const [genForm, setGenForm] = useState({ email: '', plan: 'standard', clientName: '' });
+  const [genSaving, setGenSaving] = useState(false);
+  const [genMessage, setGenMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/licenses')
@@ -53,14 +57,35 @@ export default function LicensesPage() {
 
   const handleAction = async (licenseKey: string, action: string) => {
     try {
+      const days = action === 'extend' ? prompt('Enter days to extend (default 365):') : null;
       await fetch('/api/admin/licenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ licenseKey, action }),
+        body: JSON.stringify({ licenseKey, action, days: days ? parseInt(days) || 365 : undefined }),
       });
       const res = await fetch('/api/admin/licenses');
       if (res.ok) setLicenses(await res.json());
     } catch (e) { console.error(e); }
+  };
+
+  const handleGenerate = async () => {
+    if (!genForm.email.trim()) { setGenMessage({ type: 'error', text: 'Client email is required' }); return; }
+    setGenSaving(true);
+    setGenMessage(null);
+    try {
+      const res = await fetch('/api/admin/licenses/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(genForm),
+      });
+      const data = await res.json();
+      if (!res.ok) { setGenMessage({ type: 'error', text: data.error || 'Failed to generate license' }); return; }
+      setGenMessage({ type: 'success', text: `License ${data.licenseKey} generated!` });
+      setGenForm({ email: '', plan: 'standard', clientName: '' });
+      const refresh = await fetch('/api/admin/licenses');
+      if (refresh.ok) setLicenses(await refresh.json());
+    } catch (e: any) { setGenMessage({ type: 'error', text: e.message }); }
+    finally { setGenSaving(false); }
   };
 
   if (loading) {
@@ -113,7 +138,7 @@ export default function LicensesPage() {
             <option value="expired">Expired</option>
             <option value="revoked">Revoked</option>
           </select>
-          <button className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-brand hover:bg-brand-hover rounded-lg transition-colors">
+          <button onClick={() => setShowGenModal(true)} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-brand hover:bg-brand-hover rounded-lg transition-colors">
             <Plus size={16} />
             Generate License
           </button>
@@ -204,6 +229,46 @@ export default function LicensesPage() {
           </table>
         </div>
       </div>
+      {/* Generate License Modal */}
+      {showGenModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-20 overflow-y-auto" onClick={() => setShowGenModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-gray-900">Generate License</h2>
+              <button onClick={() => setShowGenModal(false)} className="p-1 text-gray-400 hover:text-gray-700 rounded-lg"><X size={18} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {genMessage && (
+                <div className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm ${
+                  genMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                }`}>
+                  {genMessage.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                  {genMessage.text}
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Client Email *</label>
+                <input type="email" value={genForm.email} onChange={e => setGenForm({ ...genForm, email: e.target.value })}
+                  placeholder="client@example.com" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Plan</label>
+                <select value={genForm.plan} onChange={e => setGenForm({ ...genForm, plan: e.target.value })}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-white">
+                  <option value="basic">Basic</option>
+                  <option value="standard">Standard</option>
+                  <option value="premium">Premium</option>
+                </select>
+              </div>
+              <button onClick={handleGenerate} disabled={genSaving}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-brand hover:bg-brand-hover disabled:bg-gray-300 rounded-lg transition-colors">
+                {genSaving ? <Loader2 size={16} className="animate-spin" /> : <Key size={16} />}
+                {genSaving ? 'Generating...' : 'Generate License'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

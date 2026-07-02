@@ -30,7 +30,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete client' }, { status: 500 });
   }
 }
 
@@ -57,6 +57,6 @@ export async function GET(
 
     return NextResponse.json(client);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch client' }, { status: 500 });
   }
 }

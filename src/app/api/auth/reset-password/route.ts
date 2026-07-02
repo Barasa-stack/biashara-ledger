@@ -36,11 +36,11 @@ export async function POST(request: Request) {
 
     await run('UPDATE verification_codes SET used = 1 WHERE id = $1', [stored.id]);
 
-    const passwordHash = hashPassword(newPassword);
+    const passwordHash = await hashPassword(newPassword);
     await run('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, user.id]);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Password reset failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Password reset failed' }, { status: 500 });
   }
 }

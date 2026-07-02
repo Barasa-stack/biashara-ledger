@@ -3,9 +3,9 @@ import { run } from '@/lib/db';
 import { requireSubscription } from '@/lib/auth-guard';
 
 const PLAN_CONFIG: Record<string, { days: number; amount: number }> = {
-  Basic: { days: 30, amount: 1500 },
-  Standard: { days: 30, amount: 3000 },
-  Premium: { days: 30, amount: 5000 },
+  Basic: { days: 30, amount: 5 },
+  Standard: { days: 30, amount: 10 },
+  Premium: { days: 30, amount: 15 },
 };
 
 export async function POST(request: Request) {
@@ -45,6 +45,6 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ success: true });
     return response;
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Package selection failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Package selection failed' }, { status: 500 });
   }
 }

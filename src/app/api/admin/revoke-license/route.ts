@@ -19,6 +19,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, message: 'License revoked successfully' });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to revoke license' }, { status: 500 });
   }
 }

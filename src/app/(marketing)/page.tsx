@@ -4,92 +4,90 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  ArrowRight, CheckCircle, Star, ChevronRight, Shield, HeadphonesIcon,
-  Globe, Download, Monitor, Smartphone, Tablet, Cloud, Wifi,
-  ShoppingCart, Calculator, FileText, Users, BarChart3,
-  Box, Store, Warehouse, PackageOpen, Layers, RefreshCw, Lock,
-  UserCheck, HardDrive, Zap, TrendingUp, HeartHandshake, Award, Building2,
-  ChevronDown, Play, Quote, Server, CreditCard, Settings,
-  Palette, Truck, ShoppingBag, GraduationCap, Stethoscope, Factory
+  ArrowRight, Star, ChevronRight, Download, Play, ChevronDown,
+  CheckCircle, RefreshCw, Quote, Lock, Server, Shield, Cloud, HardDrive, Award,
+  Zap, Wifi, Building, Book, Headset, TrendingUp, BarChart3, CreditCard,
+  Store, ShoppingCart, Wrench, Pill, UtensilsCrossed, Warehouse, Factory, Monitor, Shirt, Sprout, Truck,
+  Calendar, User as UserIcon
 } from 'lucide-react';
 
 // ─── DATA ───
 
 const heroImages = [
-  { src: 'https://images.unsplash.com/photo-1574227492706-f65b24c3688a?w=1920&q=80', alt: 'Marina Bay financial district skyline, Singapore' },
-  { src: 'https://images.unsplash.com/photo-1693464550496-8a6b114585b8?w=1920&q=80', alt: 'Upper Hill business district skyline, Nairobi' },
-  { src: 'https://images.unsplash.com/photo-1749058388308-744fdc8991ed?w=1920&q=80', alt: 'Victoria Island waterfront skyline, Lagos' },
-  { src: 'https://images.unsplash.com/photo-1573422565615-e3d0b3c0d7c3?w=1920&q=80', alt: 'Sandton financial district skyline, Johannesburg' },
-  { src: 'https://images.unsplash.com/photo-1680198276344-3e820e68c825?w=1920&q=80', alt: 'Beach resort aerial view, Cancún' },
-  { src: 'https://images.unsplash.com/photo-1771868453049-b7b4a4680b5c?w=1920&q=80', alt: 'Construction workers on building site' },
-  { src: 'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=1920&q=80', alt: 'Cavo Tagoo luxury resort, Mykonos' },
-  { src: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=1920&q=80', alt: 'Rodeo Drive luxury shopping, Beverly Hills' },
-  { src: 'https://images.unsplash.com/photo-1765246312031-87e7a216a543?w=1920&q=80', alt: 'Chicago skyline across Lake Michigan' },
-  { src: 'https://images.unsplash.com/photo-1746208440749-b25fcc19e025?w=1920&q=80', alt: 'Aerial view of tropical beach, Antigua' },
-  { src: 'https://images.unsplash.com/photo-1706921255467-4236b197b530?w=1920&q=80', alt: 'Starlux Airlines business class cabin' },
-  { src: 'https://images.unsplash.com/photo-1514395462725-fb4566210144?w=1920&q=80', alt: 'Melbourne city skyline, Australia' },
-  { src: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1920&q=80', alt: 'Global city financial district skyline at dusk' },
-  { src: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80', alt: 'Modern metropolitan skyline with skyscrapers' },
-  { src: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920&q=80', alt: 'Downtown cityscape with towering glass buildings' },
-  { src: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&q=80', alt: 'Corporate architecture modern business district' },
-  { src: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1920&q=80', alt: 'Urban city corridor between skyscrapers' },
-  { src: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1920&q=80', alt: 'Modern glass office building architecture' },
+  { src: '/images/hero/hero-1574227492706-f65b24c3688a.jpg', alt: 'Marina Bay financial district skyline, Singapore' },
+  { src: '/images/hero/hero-1693464550496-8a6b114585b8.jpg', alt: 'Upper Hill business district skyline, Nairobi' },
+  { src: '/images/hero/hero-1749058388308-744fdc8991ed.jpg', alt: 'Victoria Island waterfront skyline, Lagos' },
+  { src: '/images/hero/hero-skyscraper-glass-modern.jpg', alt: 'Sandton financial district skyline, Johannesburg' },
+  { src: '/images/hero/hero-skyscraper-sunset.jpg', alt: 'Beach resort aerial view, Cancún' },
+  { src: '/images/hero/hero-1771868453049-b7b4a4680b5c.jpg', alt: 'Construction workers on building site' },
+  { src: '/images/hero/hero-skyscraper-hongkong.jpg', alt: 'Cavo Tagoo luxury resort, Mykonos' },
+  { src: '/images/hero/hero-skyscraper-kualalumpur.jpg', alt: 'Rodeo Drive luxury shopping, Beverly Hills' },
+  { src: '/images/hero/hero-1765246312031-87e7a216a543.jpg', alt: 'Chicago skyline across Lake Michigan' },
+  { src: '/images/hero/hero-skyscraper-singapore.jpg', alt: 'Aerial view of tropical beach, Antigua' },
+  { src: '/images/hero/hero-skyscraper-dubai.jpg', alt: 'Starlux Airlines business class cabin' },
+  { src: '/images/hero/hero-1514395462725-fb4566210144.jpg', alt: 'Melbourne city skyline, Australia' },
+  { src: '/images/hero/hero-1480714378408-67cf0d13bc1b.jpg', alt: 'Global city financial district skyline at dusk' },
+  { src: '/images/hero/hero-1477959858617-67f85cf4f1df.jpg', alt: 'Modern metropolitan skyline with skyscrapers' },
+  { src: '/images/hero/hero-1519501025264-65ba15a82390.jpg', alt: 'Downtown cityscape with towering glass buildings' },
+  { src: '/images/hero/hero-1486406146926-c627a92ad1ab.jpg', alt: 'Corporate architecture modern business district' },
+  { src: '/images/hero/hero-1449824913935-59a10b8d2000.jpg', alt: 'Urban city corridor between skyscrapers' },
+  { src: '/images/hero/hero-1504384308090-c894fdcc538d.jpg', alt: 'Modern glass office building architecture' },
 ];
 
 const businessTeamImages = [
   {
-    src: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80',
+    src: '/images/team/collaborating.jpg',
     alt: 'Diverse business team collaborating in modern office',
   },
   {
-    src: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&q=80',
+    src: '/images/team/meeting.jpg',
     alt: 'Professional team meeting in corporate office',
   },
   {
-    src: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&q=80',
+    src: '/images/team/laptops.jpg',
     alt: 'Business team working with laptops in modern office',
   },
   {
-    src: 'https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800&q=80',
+    src: '/images/team/discussion.jpg',
     alt: 'Diverse professionals having discussion in office',
   },
 ];
 
 const statsData = [
-  { value: 12500, suffix: '+', label: 'Businesses Served', icon: Building2 },
-  { value: 47, suffix: '+', label: 'Countries Worldwide', icon: Globe },
-  { value: 28, suffix: 'M+', label: 'Daily Transactions', icon: TrendingUp },
-  { value: 4.2, suffix: 'M+', label: 'Invoices Generated', icon: FileText },
+  { value: 12500, suffix: '+', label: 'Businesses Served' },
+  { value: 47, suffix: '+', label: 'Countries Worldwide' },
+  { value: 28, suffix: 'M+', label: 'Daily Transactions' },
+  { value: 4.2, suffix: 'M+', label: 'Invoices Generated' },
 ];
 
 const features = [
-  { title: 'Inventory Management', desc: 'Real-time stock tracking, low-stock alerts, barcode scanning, and multi-warehouse management.', icon: Box },
-  { title: 'Sales & POS', desc: 'Fast point-of-sale with customer management, receipts, and integrated payment processing.', icon: ShoppingCart },
-  { title: 'Accounting', desc: 'Double-entry accounting, general ledger, trial balance, and financial statements.', icon: Calculator },
-  { title: 'Expense Tracking', desc: 'Capture and categorize expenses, receipt scanning, and approval workflows.', icon: FileText },
-  { title: 'Payroll Management', desc: 'Automated payroll with tax calculations, payslips, and statutory deductions.', icon: Users },
-  { title: 'Employee Management', desc: 'Employee records, attendance, leave management, and performance tracking.', icon: UserCheck },
-  { title: 'Supplier Management', desc: 'Vendor records, purchase orders, supplier payments, and performance ratings.', icon: Truck },
-  { title: 'Customer Management', desc: 'Customer database, communication history, credit limits, and loyalty programs.', icon: HeartHandshake },
-  { title: 'Reports & Analytics', desc: 'Customizable reports, dashboards, KPIs, and business intelligence insights.', icon: BarChart3 },
-  { title: 'Cloud Sync', desc: 'Secure cloud backup with real-time synchronization across all your devices.', icon: Cloud },
-  { title: 'Offline Desktop', desc: 'Full functionality without internet. Sync automatically when reconnected.', icon: HardDrive },
-  { title: 'Multi-Branch Support', desc: 'Manage multiple locations from one account with centralized reporting.', icon: Layers },
+  { title: 'Inventory Management', desc: 'Real-time stock tracking, low-stock alerts, barcode scanning, and multi-warehouse management.' },
+  { title: 'Sales & POS', desc: 'Fast point-of-sale with customer management, receipts, and integrated payment processing.' },
+  { title: 'Accounting', desc: 'Double-entry accounting, general ledger, trial balance, and financial statements.' },
+  { title: 'Expense Tracking', desc: 'Capture and categorize expenses, receipt scanning, and approval workflows.' },
+  { title: 'Payroll Management', desc: 'Automated payroll with tax calculations, payslips, and statutory deductions.' },
+  { title: 'Employee Management', desc: 'Employee records, attendance, leave management, and performance tracking.' },
+  { title: 'Supplier Management', desc: 'Vendor records, purchase orders, supplier payments, and performance ratings.' },
+  { title: 'Customer Management', desc: 'Customer database, communication history, credit limits, and loyalty programs.' },
+  { title: 'Reports & Analytics', desc: 'Customizable reports, dashboards, KPIs, and business intelligence insights.' },
+  { title: 'Cloud Sync', desc: 'Secure cloud backup with real-time synchronization across all your devices.' },
+  { title: 'Offline Desktop', desc: 'Full functionality without internet. Sync automatically when reconnected.' },
+  { title: 'Multi-Branch Support', desc: 'Manage multiple locations from one account with centralized reporting.' },
 ];
 
 const industries = [
-  { name: 'Retail Shops', icon: ShoppingBag, desc: 'POS, inventory, customer loyalty, and sales analytics.' },
-  { name: 'Supermarkets', icon: Store, desc: 'Multi-department inventory, barcode scanning, supplier management.' },
-  { name: 'Hardware Stores', icon: Warehouse, desc: 'Stock tracking, supplier orders, job costing, quotations.' },
-  { name: 'Pharmacies', icon: Stethoscope, desc: 'Expiry tracking, prescription management, supplier orders.' },
-  { name: 'Restaurants', icon: ShoppingBag, desc: 'Menu management, table orders, inventory, staff scheduling.' },
-  { name: 'Wholesalers', icon: PackageOpen, desc: 'Bulk pricing, volume discounts, delivery management.' },
-  { name: 'Manufacturers', icon: Factory, desc: 'BOM, production costing, raw material tracking.' },
-  { name: 'Bookshops', icon: GraduationCap, desc: 'Stock management, supplier orders, student accounts.' },
-  { name: 'Electronics Stores', icon: Monitor, desc: 'Serial number tracking, warranty management, repairs.' },
-  { name: 'Fashion Stores', icon: Palette, desc: 'Size/color variants, seasonal inventory, supplier management.' },
-  { name: 'Agribusiness', icon: Layers, desc: 'Crop tracking, supplier payments, harvest recording.' },
-  { name: 'Distributors', icon: Truck, desc: 'Route management, delivery tracking, customer accounts.' },
+  { icon: Store, name: 'Retail Shops', desc: 'POS, inventory, customer loyalty, and sales analytics.' },
+  { icon: ShoppingCart, name: 'Supermarkets', desc: 'Multi-department inventory, barcode scanning, supplier management.' },
+  { icon: Wrench, name: 'Hardware Stores', desc: 'Stock tracking, supplier orders, job costing, quotations.' },
+  { icon: Pill, name: 'Pharmacies', desc: 'Expiry tracking, prescription management, supplier orders.' },
+  { icon: UtensilsCrossed, name: 'Restaurants', desc: 'Menu management, table orders, inventory, staff scheduling.' },
+  { icon: Warehouse, name: 'Wholesalers', desc: 'Bulk pricing, volume discounts, delivery management.' },
+  { icon: Factory, name: 'Manufacturers', desc: 'BOM, production costing, raw material tracking.' },
+  { icon: Book, name: 'Bookshops', desc: 'Stock management, supplier orders, student accounts.' },
+  { icon: Monitor, name: 'Electronics Stores', desc: 'Serial number tracking, warranty management, repairs.' },
+  { icon: Shirt, name: 'Fashion Stores', desc: 'Size/color variants, seasonal inventory, supplier management.' },
+  { icon: Sprout, name: 'Agribusiness', desc: 'Crop tracking, supplier payments, harvest recording.' },
+  { icon: Truck, name: 'Distributors', desc: 'Route management, delivery tracking, customer accounts.' },
 ];
 
 
@@ -100,13 +98,13 @@ const benefits = [
   { icon: Lock, title: 'Secure', desc: 'AES-256 encryption, role-based access, audit trails.' },
   { icon: Wifi, title: 'Offline Capable', desc: 'Work without internet. Sync when connected.' },
   { icon: Cloud, title: 'Cloud Sync', desc: 'Real-time synchronization across all devices.' },
-  { icon: Award, title: 'Enterprise Ready', desc: 'Scalable from 1 to 1,000+ users.' },
+  { icon: Building, title: 'Enterprise Ready', desc: 'Scalable from 1 to 1,000+ users.' },
   { icon: CreditCard, title: 'Affordable', desc: 'Competitive pricing with no hidden fees.' },
-  { icon: HeartHandshake, title: 'Easy to Learn', desc: 'Intuitive interface with video tutorials.' },
+  { icon: Book, title: 'Easy to Learn', desc: 'Intuitive interface with video tutorials.' },
   { icon: RefreshCw, title: 'Auto Updates', desc: 'Always up-to-date with the latest features.' },
-  { icon: HeadphonesIcon, title: 'Professional Support', desc: 'Dedicated support team ready to help.' },
+  { icon: Headset, title: 'Professional Support', desc: 'Dedicated support team ready to help.' },
   { icon: TrendingUp, title: 'Regular Improvements', desc: 'New features and updates every month.' },
-  { icon: Settings, title: 'Scalable', desc: 'Grows with your business. No migration needed.' },
+  { icon: BarChart3, title: 'Scalable', desc: 'Grows with your business. No migration needed.' },
 ];
 
 const testimonials = [
@@ -159,8 +157,9 @@ const testimonials = [
 const pricingPlans = [
   {
     name: 'Basic',
-    price: '1,500',
-    period: '/month',
+    price: '5',
+    annualPrice: '49',
+    period: '/mo',
     desc: 'Perfect for small retail shops and startups.',
     popular: false,
     features: [
@@ -171,8 +170,9 @@ const pricingPlans = [
   },
   {
     name: 'Standard',
-    price: '3,500',
-    period: '/month',
+    price: '10',
+    annualPrice: '99',
+    period: '/mo',
     desc: 'Ideal for growing businesses with multiple needs.',
     popular: true,
     features: [
@@ -184,8 +184,9 @@ const pricingPlans = [
   },
   {
     name: 'Premium',
-    price: '7,500',
-    period: '/month',
+    price: '15',
+    annualPrice: '149',
+    period: '/mo',
     desc: 'For enterprises requiring full capabilities.',
     popular: false,
     features: [
@@ -200,10 +201,11 @@ const pricingPlans = [
 
 // ─── COMPONENTS ───
 
-function Counter({ value, suffix, label, icon: Icon }: { value: number; suffix: string; label: string; icon: any }) {
+function Counter({ value, suffix, label }: { value: number; suffix: string; label: string }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const counted = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -215,11 +217,12 @@ function Counter({ value, suffix, label, icon: Icon }: { value: number; suffix: 
         const steps = 60;
         const increment = value / steps;
         let current = 0;
-        const timer = setInterval(() => {
+        timerRef.current = setInterval(() => {
           current += increment;
           if (current >= value) {
             setCount(value);
-            clearInterval(timer);
+            if (timerRef.current) clearInterval(timerRef.current);
+            timerRef.current = null;
           } else {
             setCount(current);
           }
@@ -227,7 +230,10 @@ function Counter({ value, suffix, label, icon: Icon }: { value: number; suffix: 
       }
     }, { threshold: 0.5 });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [value]);
 
   const display = value >= 1000
@@ -235,10 +241,7 @@ function Counter({ value, suffix, label, icon: Icon }: { value: number; suffix: 
     : `${Math.round(count)}${suffix}`;
 
   return (
-    <div ref={ref} className="text-center group">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand/10 to-brand/5 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-        <Icon className="h-7 w-7 text-brand" />
-      </div>
+    <div ref={ref} className="text-center">
       <p className="text-4xl md:text-5xl font-bold text-gray-900 mb-1 tabular-nums">{display}</p>
       <p className="text-sm text-gray-500 font-medium">{label}</p>
     </div>
@@ -267,11 +270,86 @@ function AnimatedSection({ children, className = '' }: { children: React.ReactNo
   );
 }
 
+type ArticleItem = {
+  slug: string;
+  title: string;
+  excerpt: string;
+  date: string;
+  author: string;
+  category: string;
+  readTime: string;
+};
+
+function ArticleFeed() {
+  const [articles, setArticles] = useState<ArticleItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/articles?limit=3')
+      .then((res) => res.json())
+      .then((data) => {
+        setArticles(data.articles || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (articles.length === 0) return null;
+
+  return (
+    <div>
+      <div className="grid md:grid-cols-3 gap-6">
+        {articles.map((article, i) => (
+          <AnimatedSection key={article.slug}>
+            <Link href={`/articles/${article.slug}`} className="group block bg-white border border-gray-100 rounded-2xl p-6 hover:border-brand/20 transition-all duration-300 hover:shadow-lg hover:shadow-brand/5 h-full">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-semibold text-brand bg-brand/5 px-2.5 py-1 rounded-full">
+                  {article.category}
+                </span>
+              </div>
+              <h3 className="text-base font-bold text-gray-900 mb-2 leading-snug group-hover:text-brand transition-colors line-clamp-2">
+                {article.title}
+              </h3>
+              <p className="text-sm text-gray-500 mb-4 line-clamp-2 leading-relaxed">
+                {article.excerpt}
+              </p>
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span className="flex items-center gap-1"><UserIcon className="h-3 w-3" /> {article.author}</span>
+                <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(article.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              </div>
+            </Link>
+          </AnimatedSection>
+        ))}
+      </div>
+      <AnimatedSection>
+        <div className="text-center mt-10">
+          <Link
+            href="/articles"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand-hover transition-colors"
+          >
+            View All Articles <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </AnimatedSection>
+    </div>
+  );
+}
+
 function HeroBackground() {
   const [current, setCurrent] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const total = heroImages.length;
 
   useEffect(() => {
+    setMounted(true);
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % total);
     }, 6000);
@@ -303,21 +381,23 @@ function HeroBackground() {
         {['Marina Bay · Singapore', 'Upper Hill · Nairobi', 'Victoria Island · Lagos', 'Sandton · Johannesburg', 'Cancún · Mexico', 'Construction · Urban Dev', 'Cavo Tagoo · Mykonos', 'Rodeo Drive · Beverly Hills', 'Chicago · Lake Michigan', 'Antigua · Tropical Beach', 'Business Class · Starlux', 'Melbourne · Australia', 'Financial District · Global', 'Metropolitan · Skyline', 'Downtown · Cityscape', 'Corporate · Architecture', 'Urban · Corridor', 'Glass · Office Tower'][current]}
       </div>
 
-      {/* Floating particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-white/15 rounded-full animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 8}s`,
-              animationDuration: `${6 + Math.random() * 8}s`,
-            }}
-          />
-        ))}
-      </div>
+      {/* Floating particles — client-only to avoid hydration mismatch from Math.random() */}
+      {mounted && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white/15 rounded-full animate-float"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 8}s`,
+                animationDuration: `${6 + Math.random() * 8}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -501,9 +581,6 @@ export default function LandingPage() {
             {features.map((feature, i) => (
               <AnimatedSection key={feature.title}>
                 <div className="group bg-gray-50 hover:bg-white border border-gray-100 hover:border-brand/20 rounded-2xl p-6 transition-all duration-300 hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-1 h-full">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand/10 to-brand/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <feature.icon className="h-6 w-6 text-brand" />
-                  </div>
                   <h3 className="text-base font-bold text-gray-900 mb-2">{feature.title}</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">{feature.desc}</p>
                 </div>
@@ -533,42 +610,14 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <AnimatedSection>
               <div className="space-y-8">
-                <div className="flex gap-6">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600/20 to-blue-600/5 flex items-center justify-center shrink-0">
-                    <Cloud className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Cloud Version</h3>
-                    <p className="text-gray-500 leading-relaxed">Access your business securely from anywhere. Real-time data, automatic backups, and team collaboration — all through your browser.</p>
-                    <ul className="mt-4 space-y-2">
-                      {['Access from any device', 'Real-time synchronization', 'Automatic cloud backups', 'Team collaboration'].map((item) => (
-                        <li key={item} className="flex items-center gap-2 text-sm text-gray-600">
-                          <CheckCircle className="h-4 w-4 text-green-500 shrink-0" /> {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Cloud Version</h3>
+                  <p className="text-gray-500 leading-relaxed">Access your business securely from anywhere. Real-time data, automatic backups, and team collaboration — all through your browser.</p>
                 </div>
 
-                <div className="relative">
-                  <div className="absolute left-8 top-0 bottom-0 w-px bg-gradient-to-b from-blue-200 via-brand/20 to-brand-200" />
-                </div>
-
-                <div className="flex gap-6">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-600/20 to-amber-600/5 flex items-center justify-center shrink-0">
-                    <Monitor className="h-8 w-8 text-amber-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Desktop Version</h3>
-                    <p className="text-gray-500 leading-relaxed">Continue working even without internet. Full offline functionality with automatic synchronization when you reconnect.</p>
-                    <ul className="mt-4 space-y-2">
-                      {['Works offline completely', 'Full feature parity with cloud', 'Automatic sync on reconnect', 'Windows & macOS support'].map((item) => (
-                        <li key={item} className="flex items-center gap-2 text-sm text-gray-600">
-                          <CheckCircle className="h-4 w-4 text-green-500 shrink-0" /> {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Desktop Version</h3>
+                  <p className="text-gray-500 leading-relaxed">Continue working even without internet. Full offline functionality with automatic synchronization when you reconnect.</p>
                 </div>
               </div>
             </AnimatedSection>
@@ -586,14 +635,7 @@ export default function LandingPage() {
                         <p className="text-xs text-white/50">Cloud Sync Active</p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                        <Cloud className="h-4 w-4 text-blue-400" />
-                      </div>
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                        <Monitor className="h-4 w-4 text-amber-400" />
-                      </div>
-                    </div>
+
                   </div>
 
                   <div className="space-y-4">
@@ -621,21 +663,13 @@ export default function LandingPage() {
                     </div>
 
                     <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                      <div className="flex items-center gap-3">
-                        <RefreshCw className="h-5 w-5 text-green-400" />
-                        <div>
-                          <p className="text-sm font-medium text-white">Last Sync: Just now</p>
-                          <p className="text-xs text-white/40">Cloud and desktop are in perfect sync</p>
-                        </div>
-                      </div>
+                      <p className="text-sm font-medium text-white">Last Sync: Just now</p>
+                      <p className="text-xs text-white/40">Cloud and desktop are in perfect sync</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Decorative arrows */}
-                <div className="absolute -top-4 -left-4 w-8 h-8 bg-brand rounded-full flex items-center justify-center shadow-lg shadow-brand/30">
-                  <RefreshCw className="h-4 w-4 text-white" />
-                </div>
+
               </div>
             </AnimatedSection>
           </div>
@@ -699,9 +733,6 @@ export default function LandingPage() {
             {industries.map((industry, i) => (
               <AnimatedSection key={industry.name}>
                 <div className="group bg-gray-50 hover:bg-white border border-gray-100 hover:border-brand/20 rounded-2xl p-5 transition-all duration-300 hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-1">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand/10 to-brand/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
-                    <industry.icon className="h-5 w-5 text-brand" />
-                  </div>
                   <h3 className="text-sm font-bold text-gray-900 mb-1">{industry.name}</h3>
                   <p className="text-xs text-gray-400 leading-relaxed">{industry.desc}</p>
                 </div>
@@ -731,10 +762,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {benefits.map((benefit, i) => (
               <AnimatedSection key={benefit.title}>
-                <div className="text-center group">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand/10 to-brand/5 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300">
-                    <benefit.icon className="h-7 w-7 text-brand" />
-                  </div>
+                <div className="text-center">
                   <h3 className="text-sm font-bold text-gray-900 mb-1">{benefit.title}</h3>
                   <p className="text-xs text-gray-400 leading-relaxed">{benefit.desc}</p>
                 </div>
@@ -768,8 +796,8 @@ export default function LandingPage() {
                 <div className="bg-gradient-to-b from-gray-100 to-white rounded-2xl p-6 border border-gray-200 hover:border-brand/20 transition-all duration-300 hover:shadow-xl">
                   <div className="relative mx-auto w-[160px] aspect-[9/19]">
                     <Image
-                      src="https://images.unsplash.com/photo-1695639509828-d4260075e370?w=400&q=80"
-                      alt="iPhone 15 Pro Max"
+                      src="/images/mockups/iphone.png"
+                      alt="iPhone with Apple Logo"
                       fill
                       className="object-contain drop-shadow-xl"
                       sizes="160px"
@@ -785,8 +813,8 @@ export default function LandingPage() {
                 <div className="bg-gradient-to-b from-gray-100 to-white rounded-2xl p-6 border border-gray-200 hover:border-brand/20 transition-all duration-300 hover:shadow-xl">
                   <div className="relative mx-auto w-[200px] aspect-[3/4]">
                     <Image
-                      src="https://images.unsplash.com/photo-1589159881123-c1f6f048ded0?w=500&q=80"
-                      alt="iPad Pro with Magic Keyboard"
+                      src="/images/mockups/ipad.png"
+                      alt="iPad Apple Logo Wallpaper"
                       fill
                       className="object-contain drop-shadow-xl"
                       sizes="200px"
@@ -802,8 +830,8 @@ export default function LandingPage() {
                 <div className="bg-gradient-to-b from-gray-100 to-white rounded-2xl p-6 border border-gray-200 hover:border-brand/20 transition-all duration-300 hover:shadow-xl">
                   <div className="relative mx-auto w-full max-w-[380px] aspect-[16/10]">
                     <Image
-                      src="https://images.unsplash.com/photo-1559163479-98365644374a?w=700&q=80"
-                      alt="MacBook Pro"
+                      src="/images/mockups/macbook.jpg"
+                      alt="MacBook Air M1 Gold"
                       fill
                       className="object-contain drop-shadow-xl"
                       sizes="380px"
@@ -848,7 +876,6 @@ export default function LandingPage() {
                       ))}
                     </div>
                   </div>
-                  <Quote className="h-8 w-8 text-brand/15 mb-3" />
                   <p className="text-sm text-gray-600 leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
                   <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
                     <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-sm font-bold text-gray-800`}>
@@ -886,19 +913,16 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { icon: Lock, title: 'Encrypted Data', desc: 'AES-256-GCM encryption at rest and TLS 1.3 in transit.' },
-              { icon: Server, title: 'Automatic Backup', desc: 'Daily encrypted backups with point-in-time recovery.' },
-              { icon: Shield, title: 'Access Control', desc: 'Role-based permissions with granular feature access.' },
-              { icon: Cloud, title: 'Secure Cloud', desc: 'ISO 27001 certified data centers with 24/7 monitoring.' },
-              { icon: HardDrive, title: 'Offline Protection', desc: 'Local data encrypted on device. Never compromised.' },
-              { icon: Lock, title: 'License Security', desc: 'One license per computer with hardware binding.' },
-              { icon: RefreshCw, title: 'Regular Updates', desc: 'Continuous security patches and feature updates.' },
-              { icon: Award, title: 'Compliance Ready', desc: 'KRA, tax compliance, and audit trail support.' },
+              { title: 'Encrypted Data', desc: 'AES-256-GCM encryption at rest and TLS 1.3 in transit.' },
+              { title: 'Automatic Backup', desc: 'Daily encrypted backups with point-in-time recovery.' },
+              { title: 'Access Control', desc: 'Role-based permissions with granular feature access.' },
+              { title: 'Secure Cloud', desc: 'ISO 27001 certified data centers with 24/7 monitoring.' },
+              { title: 'Offline Protection', desc: 'Local data encrypted on device. Never compromised.' },
+              { title: 'License Security', desc: 'One license per computer with hardware binding.' },
+              { title: 'Regular Updates', desc: 'Continuous security patches and feature updates.' },
+              { title: 'Compliance Ready', desc: 'KRA, tax compliance, and audit trail support.' },
             ].map((item) => (
               <div key={item.title} className="group bg-gray-50 hover:bg-white border border-gray-100 hover:border-brand/20 rounded-2xl p-6 transition-all duration-300 hover:shadow-lg hover:shadow-brand/5">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600/20 to-green-600/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <item.icon className="h-6 w-6 text-green-600" />
-                </div>
                 <h3 className="text-sm font-bold text-gray-900 mb-1">{item.title}</h3>
                 <p className="text-xs text-gray-400 leading-relaxed">{item.desc}</p>
               </div>
@@ -940,15 +964,15 @@ export default function LandingPage() {
                   <div className="p-8">
                     <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h3>
                     <p className="text-sm text-gray-500 mb-6">{plan.desc}</p>
-                    <div className="flex items-baseline mb-6">
-                      <span className="text-4xl font-bold text-gray-900">KES</span>
+                    <div className="flex items-baseline mb-2">
+                      <span className="text-4xl font-bold text-gray-900">$</span>
                       <span className="text-5xl font-bold text-gray-900 ml-1">{plan.price}</span>
                       <span className="text-sm text-gray-400 ml-1">{plan.period}</span>
                     </div>
+                    <p className="text-xs text-gray-400 mb-6">${plan.annualPrice}/yr (save ~18%)</p>
                     <ul className="space-y-3 mb-8">
                       {plan.features.map((f) => (
                         <li key={f} className="flex items-start gap-3 text-sm text-gray-600">
-                          <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
                           {f}
                         </li>
                       ))}
@@ -976,6 +1000,25 @@ export default function LandingPage() {
               </p>
             </div>
           </AnimatedSection>
+        </div>
+      </section>
+
+      {/* ─── INSIGHTS & ARTICLES ─── */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection>
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <div className="inline-flex items-center gap-2 bg-brand/5 border border-brand/10 rounded-full px-4 py-1.5 mb-6">
+                <span className="text-xs font-semibold text-brand">Latest insights</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight">Insights & Articles</h2>
+              <p className="text-lg text-gray-500 leading-relaxed">
+                Tips, guides, and best practices for accounting, payroll, tax compliance, and growing your business.
+              </p>
+            </div>
+          </AnimatedSection>
+
+          <ArticleFeed />
         </div>
       </section>
 
@@ -1022,10 +1065,10 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-white/40 mt-10">
-              <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-400" /> Free 14-day trial</div>
-              <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-400" /> No credit card</div>
-              <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-400" /> Free onboarding</div>
-              <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-400" /> Cancel anytime</div>
+              <span>Free 14-day trial</span>
+              <span>No credit card</span>
+              <span>Free onboarding</span>
+              <span>Cancel anytime</span>
             </div>
           </AnimatedSection>
         </div>
@@ -1034,6 +1077,22 @@ export default function LandingPage() {
       {/* ─── FAQ ─── */}
       <section className="py-24 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'FAQPage',
+                mainEntity: [
+                  { '@type': 'Question', name: 'How does the cloud and desktop sync work?', acceptedAnswer: { '@type': 'Answer', text: 'BiasharaLedger automatically synchronizes your data between cloud and desktop whenever an internet connection is available. You can work offline on the desktop app, and all changes will sync automatically when you reconnect.' } },
+                  { '@type': 'Question', name: 'Can I use BiasharaLedger without internet?', acceptedAnswer: { '@type': 'Answer', text: 'Yes! Our desktop application works fully offline. You can manage inventory, process sales, generate invoices, and run reports without any internet connection. When you reconnect, everything syncs automatically.' } },
+                  { '@type': 'Question', name: 'What industries does BiasharaLedger support?', acceptedAnswer: { '@type': 'Answer', text: 'We support 12+ industries including retail shops, supermarkets, hardware stores, pharmacies, restaurants, wholesalers, manufacturers, bookshops, electronics stores, fashion stores, agribusiness, and distributors.' } },
+                  { '@type': 'Question', name: 'Is my data secure?', acceptedAnswer: { '@type': 'Answer', text: 'Absolutely. We use AES-256-GCM encryption for data at rest and TLS 1.3 for data in transit. We perform daily encrypted backups, offer role-based access controls, and maintain strict security protocols.' } },
+                  { '@type': 'Question', name: 'Can I try before buying?', acceptedAnswer: { '@type': 'Answer', text: 'Yes! We offer a 14-day free trial with full access to all features. No credit card required. You can explore the cloud version, download the desktop app, and see if BiasharaLedger is right for your business.' } },
+                ],
+              }),
+            }}
+          />
           <AnimatedSection>
             <div className="text-center mb-14">
               <div className="inline-flex items-center gap-2 bg-brand/5 border border-brand/10 rounded-full px-4 py-1.5 mb-6">

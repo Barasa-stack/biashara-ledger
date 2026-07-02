@@ -3,7 +3,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, FileText, Download, Search, Filter, Printer, XCircle } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';;
+import { getVatRate } from '@/lib/vat-rates';
+import { getCountryByCode } from '@/lib/countries';
 
 type Quotation = {
   id: string;
@@ -21,22 +25,25 @@ type Quotation = {
   status: string;
   issue_date: string;
   due_date: string;
+  customer_country?: string;
 };
 
 type Customer = {
   id: string;
   customer_name: string;
   email_address: string;
+  country: string;
 };
 
 const emptyForm = {
   quotation_number: '', customer_id: '', customer_name: '', description: '',
   quantity: 1, unit_price: 0, subtotal: 0, tax_vat: 0, discounts: 0,
   amount: 0, payment_terms: 'Net 30', status: 'draft', issue_date: '', due_date: '',
+  customer_country: '',
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired', 'overdue'];
 const PAYMENT_TERMS = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90'];
@@ -77,6 +84,7 @@ export default function QuotationsPage() {
   const exportColumns = [
     { key: 'quotation_number', label: 'Quotation#' },
     { key: 'customer_name', label: 'Customer' },
+    { key: 'customer_country', label: 'Country' },
     { key: 'amount', label: 'Amount' },
     { key: 'status', label: 'Status' },
     { key: 'issue_date', label: 'Issue Date' },
@@ -117,11 +125,25 @@ export default function QuotationsPage() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  const activeVatRate = useMemo(() => {
+    if (form.customer_country) return getVatRate(form.customer_country).rate;
+    return vatRate;
+  }, [form.customer_country, vatRate]);
+
+  const activeVatLabel = useMemo(() => {
+    if (form.customer_country) {
+      const r = getVatRate(form.customer_country);
+      return `VAT (${r.rate}%${r.rate > 0 ? '' : ' — No VAT'}${r.code !== 'XX' ? `, ${r.code}` : ''})`;
+    }
+    return `VAT (${vatRate}%)`;
+  }, [form.customer_country, vatRate]);
+
   const recalc = (f: typeof form) => {
     const qty = Number(f.quantity) || 0;
     const price = Number(f.unit_price) || 0;
     const subtotal = qty * price;
-    const vat = subtotal * (vatRate / 100);
+    const rate = f.customer_country ? getVatRate(f.customer_country).rate : vatRate;
+    const vat = subtotal * rate / 100;
     const disc = Number(f.discounts) || 0;
     const amount = subtotal + vat - disc;
     return { ...f, subtotal, tax_vat: vat, amount };
@@ -160,6 +182,7 @@ export default function QuotationsPage() {
       status: q.status,
       issue_date: q.issue_date?.split('T')[0] || '',
       due_date: q.due_date?.split('T')[0] || '',
+      customer_country: q.customer_country || '',
     }));
     setModalOpen(true);
   };
@@ -221,14 +244,14 @@ export default function QuotationsPage() {
         setToast({ type: 'success', message: 'Quotation updated' });
       }
     } catch (e: any) {
-      alert(e.message || 'Save failed');
+      toast(e.message || 'Save failed');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (q: Quotation) => {
-    if (!confirm(`Delete quotation "${q.quotation_number}"?`)) return;
+    if (!await confirm(`Delete quotation "${q.quotation_number}"?`)) return;
     try {
       const res = await fetch('/api/sales/quotations', {
         method: 'DELETE',
@@ -238,12 +261,12 @@ export default function QuotationsPage() {
       if (!res.ok) throw new Error('Delete failed');
       fetchQuotations();
     } catch (e: any) {
-      alert(e.message || 'Delete failed');
+      toast(e.message || 'Delete failed');
     }
   };
 
   const handleDecline = async (q: Quotation) => {
-    if (!confirm(`Mark quotation "${q.quotation_number}" as declined by customer?`)) return;
+    if (!await confirm(`Mark quotation "${q.quotation_number}" as declined by customer?`)) return;
     try {
       const res = await fetch('/api/sales/quotations', {
         method: 'PUT',
@@ -254,13 +277,16 @@ export default function QuotationsPage() {
       fetchQuotations();
       setToast({ type: 'success', message: `Quotation "${q.quotation_number}" marked as declined` });
     } catch (e: any) {
-      alert(e.message || 'Failed to decline quotation');
+      toast(e.message || 'Failed to decline quotation');
     }
   };
 
   const handlePrint = (q: Quotation) => {
     const w = window.open('', '_blank');
     if (!w) return;
+    const qVatRate = q.customer_country ? getVatRate(q.customer_country) : null;
+    const vatLabel = qVatRate ? `VAT (${qVatRate.rate}%)` : `VAT (${vatRate}%)`;
+    const buyerCountry = q.customer_country ? getCountryByCode(q.customer_country) : null;
     w.document.write(`
       <html>
         <head>
@@ -290,6 +316,7 @@ export default function QuotationsPage() {
           </div>
           <div class="details">
             <p><strong>Customer:</strong> ${q.customer_name || '—'}</p>
+            ${buyerCountry ? `<p><strong>Country:</strong> ${buyerCountry.flag} ${buyerCountry.name} (${buyerCountry.code})</p>` : ''}
             <p><strong>Issue Date:</strong> ${q.issue_date?.split('T')[0] || '—'}</p>
             <p><strong>Due Date:</strong> ${q.due_date?.split('T')[0] || '—'}</p>
             <p><strong>Payment Terms:</strong> ${q.payment_terms || '—'}</p>
@@ -302,16 +329,16 @@ export default function QuotationsPage() {
               <tr>
                 <td>${q.description || '—'}</td>
                 <td style="text-align:right">${q.quantity}</td>
-                <td style="text-align:right">${fmtKES(q.unit_price)}</td>
-                <td style="text-align:right">${fmtKES(q.subtotal)}</td>
+                <td style="text-align:right">${fmtUSD(q.unit_price)}</td>
+                <td style="text-align:right">${fmtUSD(q.subtotal)}</td>
               </tr>
             </tbody>
           </table>
           <div class="totals">
-            <div><span>Subtotal</span><span>${fmtKES(q.subtotal)}</span></div>
-            <div><span>VAT (${vatRate}%)</span><span>${fmtKES(q.tax_vat)}</span></div>
-            <div><span>Discounts</span><span>${fmtKES(q.discounts)}</span></div>
-            <div class="grand"><span>Total</span><span>${fmtKES(q.amount)}</span></div>
+            <div><span>Subtotal</span><span>${fmtUSD(q.subtotal)}</span></div>
+            <div><span>${vatLabel}</span><span>${fmtUSD(q.tax_vat)}</span></div>
+            <div><span>Discounts</span><span>${fmtUSD(q.discounts)}</span></div>
+            <div class="grand"><span>Total (incl. VAT)</span><span>${fmtUSD(q.amount)}</span></div>
           </div>
           <script>window.print();<\/script>
         </body>
@@ -459,7 +486,7 @@ export default function QuotationsPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredQuotations.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{q.quotation_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{q.customer_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(q.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(q.amount)}</td>
                     <td className="py-3 pr-4">{statusBadge(q.status)}</td>
                     <td className="py-3 pr-4 text-gray-700">{q.issue_date?.split('T')[0] || '—'}</td>
                     <td className="py-3 text-right">
@@ -502,13 +529,13 @@ export default function QuotationsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer *</label>
-                  <select
-                    value={form.customer_id}
-                    onChange={e => {
-                      const id = e.target.value;
-                      const c = customers.find(c => c.id === id);
-                      setForm(prev => recalc({ ...prev, customer_id: id, customer_name: c?.customer_name || '' }));
-                    }}
+                    <select
+                      value={form.customer_id}
+                      onChange={e => {
+                        const id = e.target.value;
+                        const c = customers.find(c => c.id === id);
+                        setForm(prev => recalc({ ...prev, customer_id: id, customer_name: c?.customer_name || '', customer_country: c?.country || '' }));
+                      }}
                     className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
                   >
                     <option value="">Select customer</option>
@@ -535,21 +562,31 @@ export default function QuotationsPage() {
               <Field label="Item/Service Description" value={form.description} onChange={set('description')} textarea />
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <Field label="Quantity" value={String(form.quantity)} onChange={set('quantity')} type="number" />
-                <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
+                <Field label="Unit Price (USD)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">VAT (KES) @ {vatRate}%</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{activeVatLabel}</label>
                   <input type="number" value={String(Math.round(form.tax_vat * 100) / 100)} readOnly className="w-full border border-border bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-600 cursor-not-allowed" />
                 </div>
-                <Field label="Discounts (KES)" value={String(form.discounts)} onChange={set('discounts')} type="number" />
+                <Field label="Discounts (USD)" value={String(form.discounts)} onChange={set('discounts')} type="number" />
               </div>
-              <div className="bg-surface rounded-lg p-4 border border-border grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">Subtotal:</span>
-                  <span className="ml-2 font-medium text-gray-800">{fmtKES(form.subtotal)}</span>
+              <div className="bg-surface rounded-lg p-4 border border-border space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-medium text-gray-800">{fmtUSD(form.subtotal)}</span>
                 </div>
-                <div>
-                  <span className="text-gray-500">Total Amount:</span>
-                  <span className="ml-2 font-bold text-brand">{fmtKES(form.amount)}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">{activeVatLabel}</span>
+                  <span className="font-medium text-gray-800">{fmtUSD(form.tax_vat)}</span>
+                </div>
+                {form.discounts > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Discounts</span>
+                    <span className="font-medium text-red-500">-{fmtUSD(form.discounts)}</span>
+                  </div>
+                )}
+                <div className="border-t border-border pt-2 flex justify-between items-center">
+                  <span className="text-gray-700 font-semibold">Total Amount</span>
+                  <span className="font-bold text-brand text-base">{fmtUSD(form.amount)}</span>
                 </div>
               </div>
             </div>
@@ -578,6 +615,7 @@ export default function QuotationsPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

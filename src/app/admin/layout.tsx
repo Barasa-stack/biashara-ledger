@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [notifications] = useState([
     { id: 1, text: 'New client registered: Acme Corp', time: '2m ago', type: 'info', link: '/admin/clients' },
     { id: 2, text: 'License BL-2026-A1B2 expiring in 3 days', time: '15m ago', type: 'warning', link: '/admin/licenses' },
-    { id: 3, text: 'Payment received: KES 3,000 from John Doe', time: '1h ago', type: 'success', link: '/admin/licenses' },
+    { id: 3, text: 'Payment received: $3,000 from John Doe', time: '1h ago', type: 'success', link: '/admin/licenses' },
   ]);
 
   const quickRef = useRef<HTMLDivElement>(null);
@@ -57,28 +57,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    const isLoginPage = pathname === '/admin/login';
-    if (isLoginPage) {
+    if (pathname === '/admin/login') {
       setChecking(false);
       return;
     }
-    fetch('/api/auth/me')
+
+    let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) { fetch('/api/auth/signout', { method: 'POST' }).finally(() => { window.location.href = '/admin/login'; }); }
+    }, 15000);
+
+    fetch('/api/auth/me', { cache: 'no-store' })
       .then(r => {
+        if (cancelled) return null;
         if (r.status === 401 || r.status === 403) throw new Error('Unauthorized');
         return r.json();
       })
       .then(data => {
+        if (cancelled || !data) return;
         if (data?.user?.role === 'super_admin') {
           setAuthorized(true);
+          clearTimeout(timeoutId);
+          setChecking(false);
         } else {
           throw new Error('Not super_admin');
         }
       })
       .catch(() => {
-        router.push('/admin/login');
-      })
-      .finally(() => setChecking(false));
-  }, [pathname, router]);
+        if (!cancelled) fetch('/api/auth/signout', { method: 'POST' }).finally(() => { window.location.href = '/admin/login'; });
+      });
+
+    return () => { cancelled = true; clearTimeout(timeoutId); };
+  }, [pathname]);
 
   const isLoginPage = pathname === '/admin/login';
 
@@ -101,7 +111,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!authorized) {
-    return null;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-gray-400">
+          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span className="text-sm">Redirecting to login...</span>
+        </div>
+      </div>
+    );
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -227,7 +247,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       return (
                         <button
                           key={action.action}
-                          onClick={() => { setShowQuickActions(false); }}
+                          onClick={() => { setShowQuickActions(false); router.push(`/admin?action=${action.action}`); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           <Icon size={16} className="text-gray-400" />
@@ -287,7 +307,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {/* Logout */}
               <button
                 onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST' });
+                  await fetch('/api/auth/signout', { method: 'POST' });
                   router.push('/admin/login');
                 }}
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

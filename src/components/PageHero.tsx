@@ -20,18 +20,18 @@ interface PageHeroProps {
 }
 
 export const defaultCityImages: CityImage[] = [
-  { url: 'https://images.unsplash.com/photo-1574227492706-f65b24c3688a?w=1920&q=80', label: 'Marina Bay · Singapore' },
-  { url: 'https://images.unsplash.com/photo-1693464550496-8a6b114585b8?w=1920&q=80', label: 'Upper Hill · Nairobi' },
-  { url: 'https://images.unsplash.com/photo-1749058388308-744fdc8991ed?w=1920&q=80', label: 'Victoria Island · Lagos' },
-  { url: 'https://images.unsplash.com/photo-1573422565615-e3d0b3c0d7c3?w=1920&q=80', label: 'Sandton · Johannesburg' },
-  { url: 'https://images.unsplash.com/photo-1514395462725-fb4566210144?w=1920&q=80', label: 'Melbourne · Australia' },
-  { url: 'https://images.unsplash.com/photo-1680198276344-3e820e68c825?w=1920&q=80', label: 'Cancún Beach Resort · Mexico' },
-  { url: 'https://images.unsplash.com/photo-1771868453049-b7b4a4680b5c?w=1920&q=80', label: 'Construction Site · Urban Development' },
-  { url: 'https://images.unsplash.com/photo-X0zbDrDtXAw?w=1920&q=80', label: 'Cavo Tagoo · Mykonos' },
-  { url: 'https://images.unsplash.com/photo-SkTAXVu4UfU?w=1920&q=80', label: 'Rodeo Drive · Beverly Hills' },
-  { url: 'https://images.unsplash.com/photo-1765246312031-87e7a216a543?w=1920&q=80', label: 'Chicago Skyline · Lake Michigan' },
-  { url: 'https://images.unsplash.com/photo-1746208440749-b25fcc19e025?w=1920&q=80', label: 'Antigua · Tropical Beach' },
-  { url: 'https://images.unsplash.com/photo-1706921255467-4236b197b530?w=1920&q=80', label: 'Business Class · Starlux A350' },
+  { url: '/images/hero/hero-1574227492706-f65b24c3688a.jpg', label: 'Marina Bay · Singapore' },
+  { url: '/images/hero/hero-1693464550496-8a6b114585b8.jpg', label: 'Upper Hill · Nairobi' },
+  { url: '/images/hero/hero-1749058388308-744fdc8991ed.jpg', label: 'Victoria Island · Lagos' },
+  { url: '/images/hero/hero-skyscraper-glass-modern.jpg', label: 'Sandton · Johannesburg' },
+  { url: '/images/hero/hero-1514395462725-fb4566210144.jpg', label: 'Melbourne · Australia' },
+  { url: '/images/hero/hero-skyscraper-sunset.jpg', label: 'Cancún Beach Resort · Mexico' },
+  { url: '/images/hero/hero-1771868453049-b7b4a4680b5c.jpg', label: 'Construction Site · Urban Development' },
+  { url: '/images/hero/hero-skyscraper-hongkong.jpg', label: 'Cavo Tagoo · Mykonos' },
+  { url: '/images/hero/hero-skyscraper-kualalumpur.jpg', label: 'Rodeo Drive · Beverly Hills' },
+  { url: '/images/hero/hero-1765246312031-87e7a216a543.jpg', label: 'Chicago Skyline · Lake Michigan' },
+  { url: '/images/hero/hero-skyscraper-singapore.jpg', label: 'Antigua · Tropical Beach' },
+  { url: '/images/hero/hero-skyscraper-dubai.jpg', label: 'Business Class · Starlux A350' },
 ];
 
 export default function PageHero({
@@ -45,8 +45,23 @@ export default function PageHero({
   badgeWithoutTrust = false,
 }: PageHeroProps) {
   const [current, setCurrent] = useState(0);
+  const [particles, setParticles] = useState<ReactNode[]>([]);
 
   useEffect(() => {
+    setParticles(
+      Array.from({ length: 20 }).map((_, i) => (
+        <div
+          key={i}
+          className="absolute w-1 h-1 bg-white/15 rounded-full animate-float"
+          style={{
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            animationDelay: `${Math.random() * 8}s`,
+            animationDuration: `${6 + Math.random() * 8}s`,
+          }}
+        />
+      ))
+    );
     const timer = setInterval(() => {
       setCurrent(prev => (prev + 1) % images.length);
     }, 6000);
@@ -77,18 +92,7 @@ export default function PageHero({
       </div>
 
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-white/15 rounded-full animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 8}s`,
-              animationDuration: `${6 + Math.random() * 8}s`,
-            }}
-          />
-        ))}
+        {particles}
       </div>
 
       <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-32">
@@ -116,7 +120,7 @@ export default function PageHero({
           {title}
         </h1>
         {subtitle && (
-          <p className="text-lg text-white/60 max-w-2xl mx-auto mb-10">
+          <p className="text-lg text-white max-w-2xl mx-auto mb-10">
             {subtitle}
           </p>
         )}

@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, FileX, Search, Download } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';;
 
 type DebitNote = {
   id: string;
@@ -23,8 +25,8 @@ const emptyForm = {
   date: new Date().toISOString().split('T')[0],
 };
 
-const fmtKES = (n: number | string | null | undefined) =>
-  `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmtUSD = (n: number | string | null | undefined) =>
+  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function DebitNotesPage() {
   const [notes, setNotes] = useState<DebitNote[]>([]);
@@ -69,7 +71,7 @@ export default function DebitNotesPage() {
   const exportColumns = [
     { key: 'note_number', label: 'Note#' },
     { key: 'supplier', label: 'Supplier' },
-    { key: 'amount', label: 'Amount (KES)' },
+    { key: 'amount', label: 'Amount (USD)' },
     { key: 'reason', label: 'Reason' },
     { key: 'date', label: 'Date' },
   ];
@@ -109,14 +111,14 @@ export default function DebitNotesPage() {
       setShowModal(false);
       fetchNotes();
     } catch (e: any) {
-      alert(e.message || 'Error saving debit note');
+      toast(e.message || 'Error saving debit note');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (n: DebitNote) => {
-    if (!confirm(`Delete debit note "${n.note_number}"?`)) return;
+    if (!await confirm(`Delete debit note "${n.note_number}"?`)) return;
     try {
       const res = await fetch('/api/purchases/debit-notes', {
         method: 'DELETE',
@@ -126,7 +128,7 @@ export default function DebitNotesPage() {
       if (!res.ok) throw new Error('Failed to delete');
       fetchNotes();
     } catch (e: any) {
-      alert(e.message || 'Error deleting debit note');
+      toast(e.message || 'Error deleting debit note');
     }
   };
 
@@ -228,9 +230,9 @@ export default function DebitNotesPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredNotes.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{n.note_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{n.supplier || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(n.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(n.amount)}</td>
                     <td className="py-3 pr-4 text-gray-700 max-w-[200px] truncate">{n.reason || '—'}</td>
-                    <td className="py-3 pr-4 text-gray-700">{n.date ? new Date(n.date).toLocaleDateString('en-KE') : '—'}</td>
+                    <td className="py-3 pr-4 text-gray-700">{n.date ? new Date(n.date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 text-right">
                       <div className="inline-flex items-center gap-1">
                         <button onClick={() => openEdit(n)} className="p-1.5 text-gray-400 hover:text-brand hover:bg-brand/5 rounded transition-colors" title="Edit">
@@ -267,7 +269,7 @@ export default function DebitNotesPage() {
                 <Field label="Supplier" value={form.supplier} onChange={set('supplier')} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
                 <Field label="Date" value={form.date} onChange={set('date')} type="date" />
               </div>
               <Field label="Reason" value={form.reason} onChange={set('reason')} />
@@ -295,6 +297,7 @@ export default function DebitNotesPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

@@ -20,15 +20,15 @@ export async function POST(request: Request) {
     }
 
     const user = await get('SELECT * FROM users WHERE id = $1', [session.user_id]) as any;
-    if (!user || !verifyPassword(currentPassword, user.password_hash)) {
+    if (!user || !(await verifyPassword(currentPassword, user.password_hash))) {
       return NextResponse.json({ error: 'Current password is incorrect' }, { status: 401 });
     }
 
-    const passwordHash = hashPassword(newPassword);
+    const passwordHash = await hashPassword(newPassword);
     await run('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, session.user_id]);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Password change failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Password change failed' }, { status: 500 });
   }
 }

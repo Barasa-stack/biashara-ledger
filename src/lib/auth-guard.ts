@@ -1,4 +1,4 @@
-import { query, get, run, withTenantContext } from './db';
+import { query, get, run, adminGet, withTenantContext } from './db';
 import { getSessionFromCookies } from './auth-server';
 
 const GRACE_PERIOD_DAYS = 3;
@@ -8,7 +8,7 @@ const EXPIRY_WARNING_DAYS = 7;
 export async function logSubscriptionEvent(userId: string, eventType: string, description: string, metadata: Record<string, any> = {}, tenantId?: string) {
   await run(
     'INSERT INTO subscription_events (tenant_id, user_id, event_type, description, metadata) VALUES ($1, $2, $3, $4, $5)',
-    [tenantId || '', userId, eventType, description, JSON.stringify(metadata)]
+    [tenantId || null, userId, eventType, description, JSON.stringify(metadata)]
   );
 }
 
@@ -44,7 +44,7 @@ export async function requireSubscription() {
     throw new AuthError('Your subscription has expired. Renew within the grace period to restore access.', 'SUBSCRIPTION_EXPIRED');
   }
 
-  if (session.subscription_status !== 'active') {
+  if (session.subscription_status !== 'active' && session.subscription_status !== 'trial') {
     throw new AuthError('Your subscription is not active. Please renew.', 'SUBSCRIPTION_INACTIVE');
   }
 
@@ -66,13 +66,13 @@ export async function requireSubscription() {
 
 export async function requireRole(...allowedRoles: string[]) {
   const { session } = await requireSubscription();
-  const user = await get<{ role: string }>('SELECT role FROM users WHERE id = $1', [session.user_id]);
-  const role = user?.role || 'admin';
-  if (role === 'admin') return { session, role };
-  if (!allowedRoles.includes(role)) {
+  const user = await adminGet<{ role: string }>('SELECT role FROM users WHERE id = $1', [session.user_id]);
+  const effectiveRole = user?.role || 'admin';
+  if (effectiveRole === 'admin') return { session, role: effectiveRole };
+  if (!allowedRoles.includes(effectiveRole)) {
     throw new AuthError('You do not have permission to access this resource', 'FORBIDDEN');
   }
-  return { session, role };
+  return { session, role: effectiveRole };
 }
 
 export async function hasPermission(role: string, permission: string): Promise<boolean> {
@@ -100,8 +100,9 @@ export async function getSubscriptionStatus(userId: string) {
   const user = await get(
     'SELECT id, email, subscription_plan, subscription_status, subscription_expiry, role, grace_period_end FROM users WHERE id = $1',
     [userId]
-  ) as any;
+  );
   if (!user) return null;
+  const u = user as any;
 
   const expiry = user.subscription_expiry ? new Date(user.subscription_expiry) : null;
   const now = new Date();
@@ -112,11 +113,11 @@ export async function getSubscriptionStatus(userId: string) {
   const events = await getSubscriptionEvents(userId, 10);
 
   return {
-    ...user,
+    ...u,
     daysUntilExpiry,
     inGracePeriod,
     isExpiringSoon: daysUntilExpiry !== null && daysUntilExpiry <= EXPIRY_WARNING_DAYS && daysUntilExpiry > 0,
-    gracePeriodEnd: user.grace_period_end,
+    gracePeriodEnd: u.grace_period_end,
     billingHistory: billing,
     recentEvents: events,
   };
@@ -153,9 +154,9 @@ export async function activateSubscription(userId: string, planName: string, dur
 
 function getPlanPrice(planName: string): number {
   const prices: Record<string, number> = {
-    Basic: 1500,
-    Standard: 3000,
-    Premium: 5000,
+    Basic: 5,
+    Standard: 10,
+    Premium: 15,
   };
   return prices[planName] || 0;
 }

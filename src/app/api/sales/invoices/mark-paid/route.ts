@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         `INSERT INTO payments (tenant_id, invoice_id, customer_id, customer_name, amount, payment_date, payment_method, notes)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [session.tenant_id, invoice.id, invoice.customer_id, invoice.customer_name, paidAmount, today, payment_method,
-         payment_type === 'partial' ? `Partial payment of KES ${paidAmount.toLocaleString('en-KE')}. Remaining: KES ${remaining.toLocaleString('en-KE')}` : 'Auto-recorded from Mark as Paid']
+         payment_type === 'partial' ? `Partial payment of $${paidAmount.toLocaleString('en-US')}. Remaining: $${remaining.toLocaleString('en-US')}` : 'Auto-recorded from Mark as Paid']
       );
 
       await run('UPDATE sales_invoices SET status=$1 WHERE id=$2', [newStatus, invoice.id]);
@@ -94,8 +94,8 @@ export async function POST(request: Request) {
                 <p style="font-size:15px;color:#333;">Dear ${invoice.customer_name || 'Valued Customer'},</p>
                 <p style="font-size:14px;color:#444;line-height:1.6;">
                   ${payment_type === 'partial'
-                    ? `We have received your partial payment of <strong>KES ${paidAmount.toLocaleString('en-KE', {minimumFractionDigits: 2})}</strong> for invoice <strong>${invoice.invoice_number}</strong>. Your remaining balance is <strong>KES ${remaining.toLocaleString('en-KE', {minimumFractionDigits: 2})}</strong>.`
-                    : `We have received your full payment of <strong>KES ${paidAmount.toLocaleString('en-KE', {minimumFractionDigits: 2})}</strong> for invoice <strong>${invoice.invoice_number}</strong>. Your invoice has been settled in full.`}
+                    ? `We have received your partial payment of <strong>$${paidAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong> for invoice <strong>${invoice.invoice_number}</strong>. Your remaining balance is <strong>$${remaining.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>.`
+                    : `We have received your full payment of <strong>$${paidAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong> for invoice <strong>${invoice.invoice_number}</strong>. Your invoice has been settled in full.`}
                 </p>
                 <p style="font-size:14px;color:#444;line-height:1.6;">Thank you for your business and prompt payment. We truly appreciate your trust.</p>
                 <p style="font-size:14px;color:#444;line-height:1.6;">A receipt is attached to this email for your records.</p>
@@ -134,7 +134,11 @@ export async function POST(request: Request) {
       emailSent,
       emailError,
     });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (e: any) {
+    if (e?.message === 'Unauthorized' || !e?.message) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

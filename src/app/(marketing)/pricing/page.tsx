@@ -2,14 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle } from 'lucide-react';
-import PageHero, { defaultCityImages } from '@/components/PageHero';
+import { ArrowRight } from 'lucide-react';
+import PageHero from '@/components/PageHero';
+import type { CityImage } from '@/components/PageHero';
+
+const pricingImages: CityImage[] = [
+  { url: '/images/hero/hero-skyscraper-shanghai.jpg', label: 'Shanghai Financial District' },
+];
 
 const monthly = [
   {
     name: 'Basic',
-    price: '1,500',
-    annualPrice: '15,000',
+    price: '5',
+    annualPrice: '49',
     period: 'month',
     desc: 'Essential accounting for solopreneurs and small shops.',
     features: [
@@ -25,8 +30,8 @@ const monthly = [
   },
   {
     name: 'Standard',
-    price: '3,000',
-    annualPrice: '30,000',
+    price: '10',
+    annualPrice: '99',
     period: 'month',
     desc: 'Growing businesses with teams and payroll needs.',
     features: [
@@ -43,8 +48,8 @@ const monthly = [
   },
   {
     name: 'Premium',
-    price: '5,000',
-    annualPrice: '50,000',
+    price: '15',
+    annualPrice: '149',
     period: 'month',
     desc: 'Full access for established businesses.',
     features: [
@@ -65,7 +70,7 @@ const monthly = [
 const faqs = [
   { q: 'Can I switch plans anytime?', a: 'Yes. You can upgrade or downgrade your plan at any time. Changes take effect immediately.' },
   { q: 'Is there a free trial?', a: 'Yes. All plans come with a 14-day free trial. No credit card required.' },
-  { q: 'What payment methods do you accept?', a: 'We accept M-Pesa and international credit/debit cards.' },
+  { q: 'What payment methods do you accept?', a: 'We accept all major credit/debit cards, PayPal, and bank transfers.' },
   { q: 'Can I cancel my subscription?', a: 'Yes. You can cancel anytime. Your data remains accessible for the remainder of the billing period.' },
   { q: 'Is my data secure?', a: 'Absolutely. All data is encrypted at rest using AES-256-GCM. We use secure PostgreSQL databases with regular backups.' },
   { q: 'Do you offer discounts for annual billing?', a: 'Yes. Annual plans save you up to 33% compared to monthly billing.' },
@@ -77,15 +82,15 @@ export default function PricingPage() {
   return (
     <div>
       <PageHero
-        images={defaultCityImages}
+        images={pricingImages}
         title={
           <>
             Plans for Every
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand via-red-300 to-orange-200">Business Size</span>
+            <span className="text-white">Business Size</span>
           </>
         }
-        subtitle="Start free and upgrade as you grow. All prices in Kenyan Shillings."
+        subtitle="Start free and upgrade as you grow. All prices in US Dollars."
         badge="Simple Pricing"
         badgeWithoutTrust
       >
@@ -103,14 +108,14 @@ export default function PricingPage() {
         </div>
       </PageHero>
 
-      <section className="py-16 bg-surface">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {monthly.map((plan) => {
               const displayPrice = annual ? plan.annualPrice : plan.price;
               const periodLabel = annual ? 'year' : 'month';
               return (
-                <div key={plan.name} className={`relative bg-white border-2 rounded-xl p-6 ${plan.popular ? 'border-brand md:-mt-4' : 'border-border'}`}>
+                <div key={plan.name} className={`relative bg-white/5 backdrop-blur-sm border-2 rounded-xl p-6 ${plan.popular ? 'border-brand md:-mt-4' : 'border-white/10'}`}>
                   {plan.popular && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
                       Most Popular
@@ -121,26 +126,25 @@ export default function PricingPage() {
                       Save 17%
                     </div>
                   )}
-                  <h3 className="text-lg font-bold text-[#000000]">{plan.name}</h3>
-                  <p className="text-sm text-[#000000]/60 mt-1">{plan.desc}</p>
+                  <h3 className="text-lg font-bold text-white">{plan.name}</h3>
+                  <p className="text-sm text-white/60 mt-1">{plan.desc}</p>
                   <div className="mt-4">
-                    <span className="text-3xl font-bold text-[#000000]">KES {displayPrice}</span>
-                    <span className="text-sm text-[#000000]/60 ml-1">/{periodLabel}</span>
+                    <span className="text-3xl font-bold text-white">${displayPrice}</span>
+                    <span className="text-sm text-white/60 ml-1">/{periodLabel}</span>
                     {annual && (
-                      <p className="text-xs text-green-600 mt-1">KES {plan.price}/month billed annually</p>
+                      <p className="text-xs text-green-400 mt-1">${plan.price}/month billed annually</p>
                     )}
                   </div>
                   <div className="mt-4 space-y-2">
                     {plan.features.map((f) => (
-                      <div key={f} className="flex items-center gap-2 text-sm text-[#000000]">
-                        <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                      <div key={f} className="flex items-center gap-2 text-sm text-white/80">
                         {f}
                       </div>
                     ))}
                   </div>
                   <Link
                     href="/sign-up"
-                    className={`mt-6 w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${plan.popular ? 'bg-brand hover:bg-brand-hover text-white' : 'bg-surface hover:bg-brand/10 text-[#000000] border border-border'}`}
+                    className={`mt-6 w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${plan.popular ? 'bg-brand hover:bg-brand-hover text-white' : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'}`}
                   >
                     Get Started <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -153,14 +157,14 @@ export default function PricingPage() {
 
       <section className="py-16">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-[#000000] text-center mb-10">Frequently Asked Questions</h2>
+          <h2 className="text-3xl font-bold text-white text-center mb-10">Frequently Asked Questions</h2>
           <div className="space-y-4">
             {faqs.map((faq) => (
-              <details key={faq.q} className="border border-border rounded-xl overflow-hidden">
-                <summary className="px-5 py-4 text-sm font-semibold text-[#000000] cursor-pointer hover:bg-surface transition-colors">
+              <details key={faq.q} className="border border-white/10 rounded-xl overflow-hidden bg-white/5 backdrop-blur-sm">
+                <summary className="px-5 py-4 text-sm font-semibold text-white cursor-pointer hover:bg-white/5 transition-colors">
                   {faq.q}
                 </summary>
-                <div className="px-5 py-4 text-sm text-[#000000]/60 border-t border-border">
+                <div className="px-5 py-4 text-sm text-white/60 border-t border-white/10">
                   {faq.a}
                 </div>
               </details>
@@ -169,10 +173,10 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="py-16 bg-surface text-center">
+      <section className="py-16 text-center">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-[#000000] mb-4">Still have questions?</h2>
-          <p className="text-lg text-[#000000]/60 mb-8">Our team is here to help you choose the right plan.</p>
+          <h2 className="text-3xl font-bold text-white mb-4">Still have questions?</h2>
+          <p className="text-lg text-white/60 mb-8">Our team is here to help you choose the right plan.</p>
           <Link
             href="/sign-up"
             className="bg-brand hover:bg-brand-hover text-white px-8 py-3.5 rounded-lg text-base font-semibold transition-colors inline-flex items-center gap-2"

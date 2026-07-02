@@ -10,8 +10,12 @@ export async function GET() {
       return await query('SELECT * FROM debit_notes ORDER BY created_at DESC');
     });
     return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (e: any) {
+    if (e?.message === 'Unauthorized' || !e?.message) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -30,8 +34,12 @@ export async function PUT(request: Request) {
       );
     });
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (e: any) {
+    if (e?.message === 'Unauthorized' || !e?.message) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -44,7 +52,11 @@ export async function DELETE(request: Request) {
       await run('DELETE FROM debit_notes WHERE id=$1', [id]);
     });
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (e: any) {
+    if (e?.message === 'Unauthorized' || !e?.message) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

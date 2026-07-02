@@ -1,40 +1,21 @@
-export function validateEmail(email: unknown): email is string {
-  return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-export function validatePassword(password: unknown): { valid: boolean; error?: string } {
-  if (typeof password !== 'string' || password.length < 8) {
-    return { valid: false, error: 'Password must be at least 8 characters' };
+export function validateBody(body: any, rules: Record<string, { type: string; required?: boolean; min?: number }>): string[] {
+  const errors: string[] = [];
+  for (const [field, rule] of Object.entries(rules)) {
+    const val = body?.[field];
+    if (rule.required && (val === undefined || val === null || val === '')) {
+      errors.push(`${field} is required`);
+      continue;
+    }
+    if (val === undefined || val === null) continue;
+    if (rule.type === 'number' && isNaN(Number(val))) {
+      errors.push(`${field} must be a number`);
+    }
+    if (rule.type === 'string' && typeof val !== 'string') {
+      errors.push(`${field} must be a string`);
+    }
+    if (rule.min !== undefined && rule.type === 'number' && Number(val) < rule.min) {
+      errors.push(`${field} must be at least ${rule.min}`);
+    }
   }
-  if (!/[A-Z]/.test(password)) {
-    return { valid: false, error: 'Password must contain an uppercase letter' };
-  }
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, error: 'Password must contain a number' };
-  }
-  return { valid: true };
-}
-
-export function validateRequired(value: unknown, name: string): { valid: boolean; error?: string } {
-  if (value === undefined || value === null || value === '') {
-    return { valid: false, error: `${name} is required` };
-  }
-  return { valid: true };
-}
-
-export function validateString(value: unknown, name: string, maxLength = 500): { valid: boolean; error?: string } {
-  if (typeof value !== 'string') {
-    return { valid: false, error: `${name} must be a string` };
-  }
-  if (value.length > maxLength) {
-    return { valid: false, error: `${name} must be at most ${maxLength} characters` };
-  }
-  return { valid: true };
-}
-
-export function validateNumber(value: unknown, name: string): { valid: boolean; error?: string } {
-  if (typeof value !== 'number' || isNaN(value)) {
-    return { valid: false, error: `${name} must be a number` };
-  }
-  return { valid: true };
+  return errors;
 }

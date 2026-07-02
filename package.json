@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "electron:dev": "NODE_ENV=development electron electron/main.cjs",
     "electron:build": "npm run build && electron-builder build --mac --x64 --arm64",
     "dist:win": "electron-builder build --win --x64",
@@ -28,7 +29,7 @@
     "check-services": "node scripts/test-api.js",
     "migrate-data": "node --import tsx scripts/migrate-data.ts",
     "verify:tenant-isolation": "node --import tsx scripts/verify-tenant-isolation.ts",
-    "build:webpack": "next build --webpack",
+    "build:webpack": "next build",
     "test:all": "node scripts/check-env.js && node scripts/test-api.js",
     "verify-deployment": "node scripts/verify-deployment.js",
     "postinstall": "node -e \"try{require('electron-rebuild')}catch(e){}\""
@@ -38,7 +39,6 @@
     "@niledatabase/nextjs": "^5.3.1",
     "@niledatabase/server": "^5.3.1",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^11.0.0",
     "dotenv": "^17.4.2",
     "electron-updater": "^6.3.0",
     "jose": "^6.2.3",
@@ -72,6 +72,9 @@
     "tsx": "^4.22.4",
     "typescript": "^5.7.0",
     "wait-on": "^9.0.10"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.0.0"
   },
   "allowScripts": {
     "better-sqlite3": true

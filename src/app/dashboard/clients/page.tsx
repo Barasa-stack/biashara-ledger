@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, Building2, Search, Download } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';;
 
 type Client = {
   id: string;
@@ -34,7 +36,7 @@ const emptyForm = {
   notes: '',
 };
 
-const fmt = (n: number) => `KES ${Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const fmt = (n: number) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const CATEGORIES = ['Raw Materials', 'Packaging', 'Services', 'Transport', 'Equipment', 'Technology', 'Consulting', 'Other'];
 const PAYMENT_TERMS = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90'];
@@ -131,14 +133,14 @@ export default function ClientsPage() {
       setShowModal(false);
       fetchClients();
     } catch (e: any) {
-      alert(e.message || 'Error saving supplier');
+      toast(e.message || 'Error saving supplier');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (c: Client) => {
-    if (!confirm(`Delete supplier "${c.supplier_name}"?`)) return;
+    if (!await confirm(`Delete supplier "${c.supplier_name}"?`)) return;
     try {
       const res = await fetch('/api/clients', {
         method: 'DELETE',
@@ -148,7 +150,7 @@ export default function ClientsPage() {
       if (!res.ok) throw new Error('Failed to delete');
       fetchClients();
     } catch (e: any) {
-      alert(e.message || 'Error deleting supplier');
+      toast(e.message || 'Error deleting supplier');
     }
   };
 
@@ -343,6 +345,7 @@ export default function ClientsPage() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

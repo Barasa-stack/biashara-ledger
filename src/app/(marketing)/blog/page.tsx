@@ -1,6 +1,11 @@
 import Link from 'next/link';
 import { ArrowRight, Calendar, Clock, User } from 'lucide-react';
-import PageHero, { defaultCityImages } from '@/components/PageHero';
+import PageHero from '@/components/PageHero';
+import type { CityImage } from '@/components/PageHero';
+
+const blogImages: CityImage[] = [
+  { url: '/images/hero/hero-skyscraper-sunset.jpg', label: 'City Skyline Sunset' },
+];
 
 const posts = [
   {
@@ -63,12 +68,12 @@ export default function BlogPage() {
   return (
     <div>
       <PageHero
-        images={defaultCityImages}
+        images={blogImages}
         title={
           <>
             Insights for
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand via-red-300 to-orange-200">Kenyan Business Owners</span>
+            <span className="text-white">Kenyan Business Owners</span>
           </>
         }
         subtitle="Tips, guides, and best practices for accounting, payroll, tax compliance, and growing your business."
@@ -76,21 +81,21 @@ export default function BlogPage() {
         badgeWithoutTrust
       />
 
-      <section className="py-16 bg-surface">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts.map((post) => (
-              <article key={post.slug} className="bg-white border border-border rounded-xl overflow-hidden hover:border-brand/30 transition-colors">
-                <div className="h-40 bg-gradient-to-br from-brand/10 to-brand/5 flex items-center justify-center">
+              <article key={post.slug} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden hover:border-brand/30 transition-colors">
+                <div className="h-40 bg-gradient-to-br from-brand/20 to-brand/5 flex items-center justify-center">
                   <span className="text-4xl">📊</span>
                 </div>
                 <div className="p-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-medium text-brand bg-brand/5 px-2 py-0.5 rounded-full">{post.category}</span>
+                    <span className="text-xs font-medium text-brand bg-brand/20 px-2 py-0.5 rounded-full">{post.category}</span>
                   </div>
-                  <h3 className="text-base font-semibold text-[#000000] mb-2 leading-snug">{post.title}</h3>
-                  <p className="text-sm text-[#000000]/60 mb-4 line-clamp-2">{post.excerpt}</p>
-                  <div className="flex items-center gap-3 text-xs text-[#000000]/50">
+                  <h3 className="text-base font-semibold text-white mb-2 leading-snug">{post.title}</h3>
+                  <p className="text-sm text-white/60 mb-4 line-clamp-2">{post.excerpt}</p>
+                  <div className="flex items-center gap-3 text-xs text-white/50">
                     <span className="flex items-center gap-1"><User className="h-3 w-3" /> {post.author}</span>
                     <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {post.date}</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {post.readTime}</span>
@@ -104,8 +109,8 @@ export default function BlogPage() {
 
       <section className="py-16 text-center">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-[#000000] mb-4">Want more insights?</h2>
-          <p className="text-lg text-[#000000]/60 mb-8">Subscribe to our newsletter for weekly tips and updates.</p>
+          <h2 className="text-3xl font-bold text-white mb-4">Want more insights?</h2>
+          <p className="text-lg text-white/60 mb-8">Subscribe to our newsletter for weekly tips and updates.</p>
           <div className="flex items-center justify-center gap-3 max-w-md mx-auto">
             <input
               type="email"
@@ -116,7 +121,7 @@ export default function BlogPage() {
               Subscribe
             </button>
           </div>
-          <p className="text-xs text-[#000000]/50 mt-3">No spam. Unsubscribe anytime.</p>
+          <p className="text-xs text-white/50 mt-3">No spam. Unsubscribe anytime.</p>
         </div>
       </section>
     </div>

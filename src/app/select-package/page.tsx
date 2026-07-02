@@ -7,22 +7,22 @@ import { Check, ArrowRight, Sparkles } from 'lucide-react';
 const plans = [
   {
     name: 'Basic',
-    price: '1,500',
+    price: '5',
     period: '/month',
-    features: ['Invoicing & Quotations', 'Expense Tracking', 'Customer Management', 'Basic Reports', 'Up to 50 transactions/month'],
+    features: ['Double-entry bookkeeping', 'Invoicing & quotations', 'Profit & Loss report', 'Balance Sheet', 'Trial Balance', 'Expense tracking'],
   },
   {
     name: 'Standard',
-    price: '3,000',
+    price: '10',
     period: '/month',
     popular: true,
-    features: ['Everything in Basic', 'HR & Payroll', 'Inventory Management', 'Advanced Reports', 'Unlimited transactions', 'Multi-user access'],
+    features: ['Everything in Basic', 'HR & Payroll management', 'General Ledger', 'Inventory management', 'Multi-user access (up to 5)', 'Cash flow statements'],
   },
   {
     name: 'Premium',
-    price: '5,000',
+    price: '15',
     period: '/month',
-    features: ['Everything in Standard', 'All Financial Reports', 'Priority Support', 'API Access', 'Custom Integrations', 'Dedicated Account Manager'],
+    features: ['Unlimited users', 'Everything in Standard', 'API access', 'Multi-branch support', 'Budget vs actual reports', "Owner's equity statements"],
   },
 ];
 
@@ -70,7 +70,7 @@ export default function SelectPackagePage() {
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-[#000000] mb-1">{plan.name}</h3>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-[#000000]">KES {plan.price}</span>
+                  <span className="text-3xl font-bold text-[#000000]">${plan.price}</span>
                   <span className="text-sm text-[#555555]">{plan.period}</span>
                 </div>
               </div>

@@ -38,7 +38,11 @@ export async function GET(request: Request) {
       return { number, seq: effectiveSeq };
     });
     return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (e: any) {
+    if (e?.message === 'Unauthorized' || !e?.message) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

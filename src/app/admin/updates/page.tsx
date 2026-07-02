@@ -44,8 +44,12 @@ export default function UpdatesPage() {
         body: JSON.stringify({ version, changes, isMandatory }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setLatest(data.update || data);
+        const refresh = await fetch('/api/admin/update');
+        if (refresh.ok) {
+          const data = await refresh.json();
+          setLatest(data);
+          setVersionHistory(data.history || []);
+        }
         setVersion('');
         setChanges('');
         setIsMandatory(false);

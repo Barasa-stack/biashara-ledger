@@ -36,13 +36,43 @@ export default function SettingsPage() {
   const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>({
     smtp_host: 'smtp.gmail.com',
     smtp_port: '587',
-    smtp_user: 'evanromanoff@gmail.com',
+    smtp_user: '',
     smtp_pass: '',
     company_name: 'BiasharaLedger',
   });
   const [smtpLoading, setSmtpLoading] = useState(false);
   const [smtpError, setSmtpError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'security') {
+      fetch('/api/admin/settings/security')
+        .then(r => r.ok ? r.json() : { enabled: false })
+        .then(d => setTwoFactorEnabled(d.enabled))
+        .catch(() => {});
+    }
+  }, [activeTab]);
+
+  const toggle2FA = async () => {
+    setTwoFactorLoading(true);
+    try {
+      const res = await fetch('/api/admin/settings/security', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !twoFactorEnabled }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTwoFactorEnabled(data.enabled);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
 
   const loadSmtpSettings = useCallback(async () => {
     setSmtpLoading(true);
@@ -55,7 +85,7 @@ export default function SettingsPage() {
         setSmtpSettings({
           smtp_host: data.settings.smtp_host || 'smtp.gmail.com',
           smtp_port: data.settings.smtp_port || '587',
-          smtp_user: data.settings.smtp_user || 'evanromanoff@gmail.com',
+          smtp_user: data.settings.smtp_user || '',
           smtp_pass: data.settings.smtp_pass || '',
           company_name: data.settings.company_name || 'BiasharaLedger',
         });
@@ -123,7 +153,7 @@ export default function SettingsPage() {
           <hr className="my-2 border-gray-100" />
           <button
             onClick={async () => {
-              await fetch('/api/auth/logout', { method: 'POST' });
+              await fetch('/api/auth/signout', { method: 'POST' });
               router.push('/admin/login');
             }}
             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -167,7 +197,7 @@ export default function SettingsPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Default Currency</label>
                 <select className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand">
-                  <option>KES - Kenyan Shilling</option>
+                  <option>USD - US Dollar</option>
                   <option>USD - US Dollar</option>
                   <option>TZS - Tanzanian Shilling</option>
                   <option>UGX - Ugandan Shilling</option>
@@ -268,7 +298,7 @@ export default function SettingsPage() {
                   type="text"
                   value={smtpSettings.smtp_user}
                   onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_user: e.target.value }))}
-                  placeholder="evanromanoff@gmail.com"
+                  placeholder="smtp@example.com"
                   className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>
@@ -303,18 +333,18 @@ export default function SettingsPage() {
                   <p className="text-xs text-gray-500 mt-0.5">Add an extra layer of security to your admin account</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
+                  <input type="checkbox" className="sr-only peer" checked={twoFactorEnabled} onChange={toggle2FA} disabled={twoFactorLoading} />
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
                 </label>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Session Duration</label>
-                <select className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand">
-                  <option>1 hour</option>
-                  <option>4 hours</option>
-                  <option>8 hours</option>
-                  <option selected>24 hours</option>
-                  <option>7 days</option>
+                <select defaultValue="24 hours" className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand">
+                  <option value="1 hour">1 hour</option>
+                  <option value="4 hours">4 hours</option>
+                  <option value="8 hours">8 hours</option>
+                  <option value="24 hours">24 hours</option>
+                  <option value="7 days">7 days</option>
                 </select>
               </div>
               <div>
@@ -330,7 +360,7 @@ export default function SettingsPage() {
                 <div key={plan} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
                     <p className="text-sm font-medium text-gray-900">{plan}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{plan === 'Basic' ? 'KES 1,500/mo' : plan === 'Standard' ? 'KES 3,000/mo' : 'KES 5,000/mo'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{plan === 'Basic' ? '$5/mo' : plan === 'Standard' ? '$10/mo' : '$15/mo'}</p>
                   </div>
                   <button className="text-sm text-brand hover:text-brand font-medium">Edit</button>
                 </div>

@@ -9,6 +9,7 @@ type User = {
   firstName?: string;
   lastName?: string;
   phone: string;
+  country?: string;
   subscriptionPlan: string;
   subscriptionStatus: string;
   subscriptionExpiry?: string;
@@ -23,7 +24,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string, phone: string, firstName?: string, lastName?: string, otp?: string) => Promise<{ success: boolean; error?: string; requiresPackageSelection?: boolean }>;
+  signUp: (email: string, password: string, phone: string, firstName?: string, lastName?: string, otp?: string, selectedPackage?: string, country?: string) => Promise<{ success: boolean; error?: string; requiresPackageSelection?: boolean }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateProfile: (data: { firstName?: string; lastName?: string; email?: string; phone?: string }) => Promise<void>;
@@ -99,12 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [router]);
 
-  const signUp = useCallback(async (email: string, password: string, phone: string, firstName?: string, lastName?: string, otp?: string): Promise<{ success: boolean; error?: string; requiresPackageSelection?: boolean }> => {
+  const signUp = useCallback(async (email: string, password: string, phone: string, firstName?: string, lastName?: string, otp?: string, selectedPackage?: string, country?: string): Promise<{ success: boolean; error?: string; requiresPackageSelection?: boolean }> => {
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, phone, firstName, lastName, otp }),
+        body: JSON.stringify({ email, password, phone, firstName, lastName, otp, selectedPackage, country }),
       });
       const data = await res.json();
       if (res.ok) {

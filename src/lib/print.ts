@@ -37,6 +37,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
   const taxVat = item.tax_vat ?? 0;
   const discounts = item.discounts ?? 0;
   const total = item.amount ?? 0;
+  const customerCountry = item.customer_country || '';
 
   const initials = companyName
     .split(' ')
@@ -45,8 +46,8 @@ export function buildHtml(type: string, item: any, s?: any): string {
     .map((w: string) => w[0].toUpperCase())
     .join('');
 
-  const kes = (v: number) => `KES ${Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
-  const num = (v: number) => Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2 });
+  const kes = (v: number) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  const num = (v: number) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
   let lineItems: any[];
   try {
@@ -249,6 +250,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
       <div class="label">Bill To</div>
       <div class="name">${customerName || 'N/A'}</div>
       ${customerAddress ? `<div class="addr">${customerAddress}</div>` : ''}
+      ${customerCountry ? `<div class="addr" style="margin-top:2px;font-size:11px;color:#df1c1c;font-weight:600">${customerCountry}</div>` : ''}
     </div>
   </div>
 
@@ -313,7 +315,7 @@ export function buildReceiptHtml(
   const isPartial = payment.payment_type === 'partial';
   const today = payment.payment_date || new Date().toISOString().split('T')[0];
   const receiptNumber = `RCP-${String(invoice.id).padStart(4, '0')}-${today.replace(/-/g, '')}`;
-  const kes = (v: number) => `KES ${Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+  const kes = (v: number) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
   return `<!DOCTYPE html>
 <html lang="en">

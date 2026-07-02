@@ -26,6 +26,6 @@ export async function GET() {
       license: licenseData || null,
     });
   } catch (err: any) {
-    return NextResponse.json({ valid: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ valid: false, error: 'License check failed' }, { status: 500 });
   }
 }

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     purpose = (purpose || 'signup').trim().toLowerCase();
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    const rl = checkRateLimit(`send-otp:${email}:${ip}`, 3, 60 * 1000);
+    const rl = await checkRateLimit(`send-otp:${email}:${ip}`, 3, 60 * 1000);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 });
     }
@@ -35,15 +35,22 @@ export async function POST(req: NextRequest) {
     );
 
     const result = await sendOTPEmail(email, code);
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    // Always include devCode in non-production for easy testing
+    if (isDev) {
+      return NextResponse.json({
+        success: true,
+        message: result.sent
+          ? `A 6-digit code has been sent to ${email}`
+          : `Demo code: ${code}`,
+        demoCode: code,
+        emailSent: result.sent,
+      });
+    }
+
+    // In production, fail hard if email wasn't sent
     if (!result.sent) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[DEV OTP] Code for ${email}: ${code}`);
-        return NextResponse.json({
-          success: true,
-          message: 'OTP sent (dev mode — check server logs)',
-          devCode: code,
-        });
-      }
       return NextResponse.json({
         success: false,
         error: 'Failed to send verification email. Please check your SMTP settings.',
@@ -52,7 +59,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'OTP sent successfully to email!',
+      message: `A 6-digit code has been sent to ${email}`,
+      emailSent: true,
     });
 
   } catch (error) {

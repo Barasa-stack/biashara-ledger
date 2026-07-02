@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
-import { get, run } from '@/lib/db';
+import crypto from 'crypto';
+import { adminGet, run } from '@/lib/db';
+import { checkRateLimit } from '@/lib/rate-limit';
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export async function POST(request: Request) {
   try {
@@ -8,17 +20,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and code are required' }, { status: 400 });
     }
 
-    const otpPurpose = purpose || 'signup';
-    const stored = await get(
-      "SELECT * FROM verification_codes WHERE email = $1 AND purpose = $2 AND used = 0 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1",
-      [email, otpPurpose]
-    ) as any;
-
-    if (!stored) {
-      return NextResponse.json({ error: 'No valid verification code found. Request a new one.' }, { status: 400 });
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const rl = await checkRateLimit(`verify-otp:${ip}:${email}`, 10, 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 });
     }
 
-    if (stored.code !== code) {
+    const otpPurpose = purpose || 'signup';
+    const stored = await adminGet(
+      "SELECT * FROM verification_codes WHERE email = $1 AND purpose = $2 AND used = 0 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1",
+      [email, otpPurpose]
+    );
+
+    if (!stored) {
+      return NextResponse.json({ error: 'Invalid or expired verification code' }, { status: 400 });
+    }
+
+    if (!timingSafeEqual(String(stored.code), String(code))) {
       return NextResponse.json({ error: 'Invalid verification code' }, { status: 400 });
     }
 
@@ -26,6 +44,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Verification failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
   }
 }
