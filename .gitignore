@@ -18,3 +18,4 @@ releases/
 .vercel
 .env*
 .aider*
+vpn-cli/
