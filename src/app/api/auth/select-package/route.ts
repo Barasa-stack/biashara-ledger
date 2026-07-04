@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { run } from '@/lib/db';
 import { requireSubscription } from '@/lib/auth-guard';
+import { normalizePlan } from '@/lib/feature-gate';
 
 const PLAN_CONFIG: Record<string, { days: number; amount: number }> = {
   Basic: { days: 30, amount: 5 },
@@ -17,7 +18,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Package name is required' }, { status: 400 });
     }
 
-    const config = PLAN_CONFIG[packageName as string];
+    const normalizedPlan = normalizePlan(packageName);
+    const config = PLAN_CONFIG[normalizedPlan];
     if (!config) {
       return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
     }
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
 
     await run(
       `UPDATE users SET subscription_plan = $1, subscription_status = 'active', subscription_expiry = $2 WHERE id = $3`,
-      [packageName, periodEnd, session.user_id]
+      [normalizedPlan, periodEnd, session.user_id]
     );
 
     await run(

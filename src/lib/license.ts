@@ -1,61 +1,19 @@
 import crypto from 'crypto';
-import { get, run, adminGet, adminRun, adminQuery } from './db';
+import { get, adminGet, adminRun, adminQuery } from './db';
 
-const SECRET = (() => {
-  const s = process.env.LICENSE_SECRET_KEY || process.env.ENCRYPTION_KEY;
-  if (!s) throw new Error('LICENSE_SECRET_KEY or ENCRYPTION_KEY environment variable is required');
-  return s;
-})();
 const TRIAL_DAYS = 14;
-const MAX_OFFLINE_DAYS = 7;
-
-export function generateLicenseKey(email: string, plan = 'standard'): string {
-  const timestamp = Date.now().toString(36).toUpperCase();
-  const random = crypto.randomBytes(4).toString('hex').toUpperCase();
-  const hmac = crypto.createHmac('sha256', SECRET);
-  hmac.update(email + timestamp + random + plan);
-  const hash = hmac.digest('hex').substring(0, 8).toUpperCase();
-  return `BL-${timestamp}-${random}-${hash}`;
-}
 
 export function validateLicenseKeyStructure(key: string): { valid: boolean; reason?: string } {
   try {
     const parts = key.split('-');
     if (parts.length !== 4) return { valid: false, reason: 'Invalid key format' };
     if (parts[0] !== 'BL') return { valid: false, reason: 'Invalid key prefix' };
-    if (parts[1].length < 4) return { valid: false, reason: 'Invalid timestamp' };
+    if (parts[1].length < 4) return { valid: false, reason: 'Invalid identifier segment' };
     if (parts[2].length < 4) return { valid: false, reason: 'Invalid random segment' };
     if (parts[3].length < 4) return { valid: false, reason: 'Invalid hash segment' };
     return { valid: true };
   } catch {
     return { valid: false, reason: 'Invalid key format' };
-  }
-}
-
-export function getHardwareFingerprint(): string {
-  try {
-    const os = require('os');
-    const { execSync } = require('child_process');
-    const comps = [os.cpus()[0]?.model || 'unknown', os.hostname(), os.platform(), os.arch()];
-    try {
-      const r = execSync('wmic bios get serialnumber 2>nul').toString().trim().split('\n').pop()?.trim();
-      if (r && r !== 'SerialNumber') comps.push(r);
-    } catch {}
-    try {
-      const r = execSync('wmic baseboard get serialnumber 2>nul').toString().trim().split('\n').pop()?.trim();
-      if (r && r !== 'SerialNumber') comps.push(r);
-    } catch {}
-    try {
-      const r = execSync('system_profiler SPHardwareDataType 2>/dev/null | grep "Serial Number" | awk \'{print $4}\'').toString().trim();
-      if (r) comps.push(r);
-    } catch {}
-    try {
-      const r = execSync('cat /sys/class/dmi/id/product_serial 2>/dev/null').toString().trim();
-      if (r && r !== '0') comps.push(r);
-    } catch {}
-    return crypto.createHash('sha256').update(comps.join('|')).digest('hex');
-  } catch {
-    return crypto.randomBytes(32).toString('hex');
   }
 }
 
@@ -76,7 +34,7 @@ export async function checkUserTrialStatus(userId: string): Promise<{
     license_status: string;
     subscription_status: string;
     subscription_expiry: string;
-  }>('SELECT trial_end_date, license_status, subscription_status, subscription_expiry FROM users WHERE tenant_id = current_tenant_id() AND id = $1', [userId]);
+  }>('SELECT trial_end_date, license_status, subscription_status, subscription_expiry FROM users WHERE id = $1', [userId]);
 
   if (!user) return { status: 'expired', message: 'User not found' };
 
@@ -99,36 +57,6 @@ export async function checkUserTrialStatus(userId: string): Promise<{
   }
 
   return { status: 'expired', message: 'Trial expired. Please activate a license key.' };
-}
-
-export async function storeLicenseKey(licenseKey: string, email: string, plan: string, userId: string) {
-  const expiry = new Date();
-  expiry.setFullYear(expiry.getFullYear() + 1);
-  await run(
-    `INSERT INTO license_keys (license_key, email, license_type, status, expires_at, user_id)
-     VALUES ($1, $2, $3, 'active', $4, $5)`,
-    [licenseKey, email, plan, expiry.toISOString(), userId]
-  );
-}
-
-export async function activateLicenseForUser(licenseKey: string, email: string, hardwareFingerprint: string) {
-  const lic = await get<{ id: string; user_id: string; status: string; expires_at: string }>(
-    'SELECT * FROM license_keys WHERE license_key = $1 AND email = $2',
-    [licenseKey, email]
-  );
-  if (!lic) return { success: false, error: 'License key not found or email mismatch' };
-  if (lic.status === 'used') return { success: false, error: 'License key already used' };
-  if (lic.expires_at && new Date(lic.expires_at) < new Date()) return { success: false, error: 'License key expired' };
-
-  await run(
-    `UPDATE license_keys SET status = 'used', activated_at = CURRENT_TIMESTAMP, hardware_fingerprint = $1 WHERE id = $2`,
-    [hardwareFingerprint, lic.id]
-  );
-  await run(
-    `UPDATE users SET license_key = $1, license_status = 'active', trial_used = true WHERE id = $2`,
-    [licenseKey, lic.user_id]
-  );
-  return { success: true, message: 'License activated successfully' };
 }
 
 export async function logLicenseActivation(params: {
@@ -167,16 +95,6 @@ export function generateTempPassword(length = 14): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
   return Array.from(array, b => chars[b % chars.length]).join('');
-}
-
-export function generateLicenseKeyNew(email: string, plan = 'standard'): string {
-  const year = new Date().getFullYear();
-  const uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 12).toUpperCase();
-  const secret = process.env.LICENSE_SECRET || process.env.ENCRYPTION_KEY || 'default-secret';
-  const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(email + uuid + plan + year);
-  const signature = hmac.digest('hex').substring(0, 8).toUpperCase();
-  return `BL-${year}-${uuid}-${signature}`;
 }
 
 export async function checkLicenseExpiryStatus(clientId: string): Promise<{
@@ -263,16 +181,35 @@ export async function logEmailSent(params: {
   );
 }
 
+function getReminderColumn(daysUntilExpiry: number) {
+  if (daysUntilExpiry === 30) return 'reminder_sent_30d';
+  if (daysUntilExpiry === 7) return 'reminder_sent_7d';
+  return 'reminder_sent_1d';
+}
+
+function getExpiryRangeCondition(daysUntilExpiry: number) {
+  if (daysUntilExpiry === 30) {
+    return "l.expires_at > CURRENT_TIMESTAMP + interval '7 days' AND l.expires_at <= CURRENT_TIMESTAMP + interval '30 days'";
+  }
+  if (daysUntilExpiry === 7) {
+    return "l.expires_at > CURRENT_TIMESTAMP + interval '1 days' AND l.expires_at <= CURRENT_TIMESTAMP + interval '7 days'";
+  }
+  return "l.expires_at > CURRENT_TIMESTAMP AND l.expires_at <= CURRENT_TIMESTAMP + interval '1 days'";
+}
+
 export async function getExpiringLicenses(daysUntilExpiry: number) {
+  const reminderColumn = getReminderColumn(daysUntilExpiry);
+  const rangeCondition = getExpiryRangeCondition(daysUntilExpiry);
+
   return adminQuery(
     `SELECT l.*, c.company_name, c.email
      FROM admin_license_keys l
      JOIN admin_clients c ON l.client_id = c.id
      WHERE l.is_active = true
-     AND l.expires_at BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP + $1::interval
-     AND l.expires_at > CURRENT_TIMESTAMP
+       AND ${rangeCondition}
+       AND l.${reminderColumn} = false
      ORDER BY l.expires_at ASC`,
-    [`${daysUntilExpiry} days`]
+    []
   );
 }
 

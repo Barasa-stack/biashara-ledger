@@ -117,9 +117,13 @@ export default function CustomersPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.error || `Save failed (${res.status})`);
+      }
       setModalOpen(false);
       fetchCustomers();
     } catch (e: any) {

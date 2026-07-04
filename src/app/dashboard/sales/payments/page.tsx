@@ -70,7 +70,7 @@ export default function PaymentsPage() {
   );
 
   const statusBadge = () => (
-    <span className="inline-block text-xs font-medium bg-green-100 text-green-700 px-2 py-0.5 rounded">Completed</span>
+    <span className="inline-block text-xs font-medium bg-red-100 text-red-700 px-2 py-0.5 rounded">Completed</span>
   );
 
   if (error) {

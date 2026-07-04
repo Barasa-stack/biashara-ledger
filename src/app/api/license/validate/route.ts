@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { get, run } from '@/lib/db';
+import { adminGet, adminRun } from '@/lib/db';
+import { normalizePlan } from '@/lib/feature-gate';
 
 function daysRemaining(expiryDate: string | Date | null): number {
   if (!expiryDate) return 365;
@@ -13,28 +14,52 @@ export async function POST(request: Request) {
     const { licenseKey, hardwareFingerprint } = await request.json();
     if (!licenseKey) return NextResponse.json({ valid: false, reason: 'License key required' });
 
-    const license = await get('SELECT * FROM licenses WHERE license_key = $1', [licenseKey]) as any;
+    const license = await adminGet<{
+      id: string;
+      license_key: string;
+      plan: string;
+      is_active: boolean;
+      is_used: boolean;
+      expires_at: string;
+      company_name: string;
+      email: string;
+    }>(
+      `SELECT l.*, c.company_name, c.email
+       FROM admin_license_keys l
+       JOIN admin_clients c ON l.client_id = c.id
+       WHERE LOWER(l.license_key) = LOWER($1)`,
+      [licenseKey]
+    );
+
     if (!license) return NextResponse.json({ valid: false, reason: 'Invalid license key' });
 
-    if (license.revoked) return NextResponse.json({ valid: false, reason: 'License revoked' });
+    if (!license.is_active) return NextResponse.json({ valid: false, reason: 'License revoked' });
 
-    if (license.expiry_date && new Date(license.expiry_date) < new Date()) {
+    if (license.expires_at && new Date(license.expires_at) < new Date()) {
       return NextResponse.json({ valid: false, reason: 'License expired' });
     }
 
-    if (license.activated && hardwareFingerprint && license.hardware_fingerprint !== hardwareFingerprint) {
-      return NextResponse.json({ valid: false, reason: 'Hardware mismatch' });
+    if (hardwareFingerprint) {
+      await adminRun(
+        `UPDATE admin_license_keys SET last_validated = NOW(), last_seen = NOW() WHERE id = $1`,
+        [license.id]
+      );
     }
 
-    await run('UPDATE licenses SET last_validated = NOW(), last_seen = NOW() WHERE id = $1', [license.id]);
+    const plan = normalizePlan(license.plan);
+    const featureList = plan === 'Premium'
+      ? ['all']
+      : plan === 'Standard'
+      ? ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance', 'hrPayroll', 'generalLedger', 'expenseReport', 'inventory']
+      : ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance'];
 
     return NextResponse.json({
       valid: true,
-      type: license.type,
-      status: license.status,
-      expiryDate: license.expiry_date,
-      daysRemaining: daysRemaining(license.expiry_date),
-      features: license.features || [],
+      type: plan,
+      status: license.is_active ? 'active' : 'revoked',
+      expiryDate: license.expires_at,
+      daysRemaining: daysRemaining(license.expires_at),
+      features: featureList,
     });
   } catch (e: any) {
     return NextResponse.json({ valid: false, reason: e.message || 'Validation error' }, { status: 500 });

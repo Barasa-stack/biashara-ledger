@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, BookOpen, Search, Download, CheckCircle, XCircle } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 import { COA_TYPES } from '@/lib/currencies';
 
 type Account = {
@@ -35,7 +35,7 @@ const typeColor = (t: string) => {
     ASSET: 'bg-blue-100 text-blue-700',
     LIABILITY: 'bg-orange-100 text-orange-700',
     EQUITY: 'bg-purple-100 text-purple-700',
-    REVENUE: 'bg-green-100 text-green-700',
+    REVENUE: 'bg-red-100 text-red-700',
     EXPENSE: 'bg-red-100 text-red-700',
   };
   return map[t] || 'bg-gray-100 text-gray-700';
@@ -53,6 +53,8 @@ export default function ChartOfAccountsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchAccounts = () => {
     setLoading(true);
@@ -276,7 +278,7 @@ export default function ChartOfAccountsPage() {
                         onClick={() => toggleStatus(a)}
                         className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded transition-colors ${
                           a.status === 'active'
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                         }`}
                         title={`Click to ${a.status === 'active' ? 'deactivate' : 'activate'}`}

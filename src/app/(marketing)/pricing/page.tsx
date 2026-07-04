@@ -1,187 +1,255 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import PageHero from '@/components/PageHero';
 import type { CityImage } from '@/components/PageHero';
+import { useEffect } from 'react';
 
 const pricingImages: CityImage[] = [
-  { url: '/images/hero/hero-skyscraper-shanghai.jpg', label: 'Shanghai Financial District' },
+  { url: '/images/hero/hero-skyscraper-glass-modern.jpg', label: 'Simple Pricing' },
 ];
 
-const monthly = [
+const PLANS = [
   {
-    name: 'Basic',
-    price: '5',
-    annualPrice: '49',
-    period: 'month',
-    desc: 'Essential accounting for solopreneurs and small shops.',
+    id: 'starter',
+    name: 'Starter',
+    price: '$29',
+    period: '/month',
+    description: 'Perfect for small businesses just getting started.',
     features: [
-      'Double-entry bookkeeping',
-      'Invoicing & quotations',
-      'Profit & Loss report',
-      'Balance Sheet',
-      'Trial Balance',
-      'Expense tracking',
-      'Customer & supplier management',
+      'Up to 5 users',
+      'Basic inventory management',
+      'Sales & invoicing',
       'Email support',
+      '1 GB storage',
     ],
+    cta: 'Get Started',
+    popular: false,
   },
   {
-    name: 'Standard',
-    price: '10',
-    annualPrice: '99',
-    period: 'month',
-    desc: 'Growing businesses with teams and payroll needs.',
+    id: 'professional',
+    name: 'Professional',
+    price: '$79',
+    period: '/month',
+    description: 'For growing businesses that need more power.',
     features: [
-      'Everything in Basic',
-      'HR & Payroll management',
-      'General Ledger',
-      'Inventory management',
-      'Multi-user access (up to 5)',
-      'Cash flow statements',
-      'Receivables & payables aging',
-      'Priority email & chat support',
+      'Up to 25 users',
+      'Advanced inventory management',
+      'Sales & invoicing',
+      'Accounting & reporting',
+      'Priority support',
+      '10 GB storage',
+      'API access',
     ],
+    cta: 'Get Started',
     popular: true,
   },
   {
-    name: 'Premium',
-    price: '15',
-    annualPrice: '149',
-    period: 'month',
-    desc: 'Full access for established businesses.',
+    id: 'enterprise',
+    name: 'Enterprise',
+    price: 'Custom',
+    period: '',
+    description: 'For large organizations with complex needs.',
     features: [
-      'Everything in Standard',
       'Unlimited users',
-      'API access',
-      'Multi-branch support',
-      'Budget vs actual reports',
-      "Owner's equity statements",
-      'Tax reports',
-      'Audit trail',
-      'Dedicated account manager',
-      'Phone & priority support',
+      'Full platform access',
+      'Custom integrations',
+      'Dedicated support',
+      'Unlimited storage',
+      'Advanced security',
+      'SLA guarantee',
     ],
+    cta: 'Contact Sales',
+    popular: false,
   },
 ];
 
-const faqs = [
-  { q: 'Can I switch plans anytime?', a: 'Yes. You can upgrade or downgrade your plan at any time. Changes take effect immediately.' },
-  { q: 'Is there a free trial?', a: 'Yes. All plans come with a 14-day free trial. No credit card required.' },
-  { q: 'What payment methods do you accept?', a: 'We accept all major credit/debit cards, PayPal, and bank transfers.' },
-  { q: 'Can I cancel my subscription?', a: 'Yes. You can cancel anytime. Your data remains accessible for the remainder of the billing period.' },
-  { q: 'Is my data secure?', a: 'Absolutely. All data is encrypted at rest using AES-256-GCM. We use secure PostgreSQL databases with regular backups.' },
-  { q: 'Do you offer discounts for annual billing?', a: 'Yes. Annual plans save you up to 33% compared to monthly billing.' },
-];
-
 export default function PricingPage() {
-  const [annual, setAnnual] = useState(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+    );
+
+    document.querySelectorAll('.animate-on-scroll').forEach((el) => {
+      observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div>
+      <style jsx>{`
+        .animate-on-scroll {
+          opacity: 0;
+          transform: translateY(30px);
+          transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .animate-on-scroll.visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        
+        .stagger-children > * {
+          opacity: 0;
+          transform: translateY(20px);
+          transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .stagger-children.visible > *:nth-child(1) { transition-delay: 0.1s; opacity: 1; transform: translateY(0); }
+        .stagger-children.visible > *:nth-child(2) { transition-delay: 0.2s; opacity: 1; transform: translateY(0); }
+        .stagger-children.visible > *:nth-child(3) { transition-delay: 0.3s; opacity: 1; transform: translateY(0); }
+        
+        .pricing-card {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+          background: white;
+          border: 1px solid #e5e7eb;
+        }
+        
+        .pricing-card:hover {
+          transform: translateY(10px);
+          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        }
+        
+        .pricing-card.popular {
+          border: 2px solid #your-brand-color;
+          position: relative;
+        }
+        
+        .pricing-card.popular::before {
+          content: 'Most Popular';
+          position: absolute;
+          top: -12px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, #your-brand-color, #ff6b6b);
+          color: white;
+          padding: 4px 16px;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+        
+        .gradient-text-shine {
+          background: linear-gradient(90deg, #your-brand-color, #ff6b6b, #feca57, #your-brand-color);
+          background-size: 300% 100%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradient-shine 4s ease-in-out infinite;
+        }
+        
+        @keyframes gradient-shine {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        
+        .floating-text {
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(10px); }
+          100% { transform: translateY(0px); }
+        }
+        
+        .cta-button {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .cta-button:hover {
+          transform: scale(1.05);
+          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+        }
+        
+        .cta-button:active {
+          transform: scale(0.95);
+        }
+      `}</style>
+
       <PageHero
         images={pricingImages}
         title={
-          <>
-            Plans for Every
+          <div className="floating-text">
+            Simple
             <br />
-            <span className="text-white">Business Size</span>
-          </>
-        }
-        subtitle="Start free and upgrade as you grow. All prices in US Dollars."
-        badge="Simple Pricing"
-        badgeWithoutTrust
-      >
-        <div className="flex items-center justify-center gap-3">
-          <span className={`text-sm font-medium ${!annual ? 'text-white' : 'text-white/50'}`}>Monthly</span>
-          <button
-            onClick={() => setAnnual(!annual)}
-            className={`relative w-12 h-6 rounded-full transition-colors ${annual ? 'bg-brand' : 'bg-white/30'}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${annual ? 'translate-x-6' : ''}`} />
-          </button>
-          <span className={`text-sm font-medium ${annual ? 'text-white' : 'text-white/50'}`}>
-            Annual <span className="text-green-400 font-semibold">Save 17%</span>
-          </span>
-        </div>
-      </PageHero>
-
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {monthly.map((plan) => {
-              const displayPrice = annual ? plan.annualPrice : plan.price;
-              const periodLabel = annual ? 'year' : 'month';
-              return (
-                <div key={plan.name} className={`relative bg-white/5 backdrop-blur-sm border-2 rounded-xl p-6 ${plan.popular ? 'border-brand md:-mt-4' : 'border-white/10'}`}>
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
-                      Most Popular
-                    </div>
-                  )}
-                  {annual && (
-                    <div className="absolute -top-3 right-3 bg-green-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                      Save 17%
-                    </div>
-                  )}
-                  <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                  <p className="text-sm text-white/60 mt-1">{plan.desc}</p>
-                  <div className="mt-4">
-                    <span className="text-3xl font-bold text-white">${displayPrice}</span>
-                    <span className="text-sm text-white/60 ml-1">/{periodLabel}</span>
-                    {annual && (
-                      <p className="text-xs text-green-400 mt-1">${plan.price}/month billed annually</p>
-                    )}
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    {plan.features.map((f) => (
-                      <div key={f} className="flex items-center gap-2 text-sm text-white/80">
-                        {f}
-                      </div>
-                    ))}
-                  </div>
-                  <Link
-                    href="/sign-up"
-                    className={`mt-6 w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${plan.popular ? 'bg-brand hover:bg-brand-hover text-white' : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'}`}
-                  >
-                    Get Started <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              );
-            })}
+            <span className="gradient-text-shine">Pricing</span>
+            <br />
+            for Every Business
           </div>
-        </div>
-      </section>
+        }
+        subtitle="Choose the plan that fits your business needs. All plans include a 14-day free trial."
+        badge="Pricing"
+        badgeWithoutTrust
+      />
 
-      <section className="py-16">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-white text-center mb-10">Frequently Asked Questions</h2>
-          <div className="space-y-4">
-            {faqs.map((faq) => (
-              <details key={faq.q} className="border border-white/10 rounded-xl overflow-hidden bg-white/5 backdrop-blur-sm">
-                <summary className="px-5 py-4 text-sm font-semibold text-white cursor-pointer hover:bg-white/5 transition-colors">
-                  {faq.q}
-                </summary>
-                <div className="px-5 py-4 text-sm text-white/60 border-t border-white/10">
-                  {faq.a}
+      {/* ─── PRICING PLANS ─── */}
+      <section className="py-20 bg-gray-50" aria-labelledby="pricing-heading">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children animate-on-scroll">
+            {PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                className={`pricing-card rounded-xl p-8 ${plan.popular ? 'popular' : ''}`}
+              >
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                <div className="mb-4">
+                  <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
+                  {plan.period && (
+                    <span className="text-gray-500 text-sm">{plan.period}</span>
+                  )}
                 </div>
-              </details>
+                <p className="text-sm text-gray-600 mb-6">{plan.description}</p>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
+                      <Check className="h-5 w-5 text-brand flex-shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={plan.id === 'enterprise' ? '/contact' : '/sign-up'}
+                  className={`w-full text-center px-6 py-3 rounded-xl font-semibold transition-all inline-block ${
+                    plan.popular
+                      ? 'bg-brand hover:bg-brand-hover text-white hover:shadow-lg hover:shadow-brand/25'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-16 text-center">
+      {/* ─── CTA ─── */}
+      <section className="py-20 text-center bg-white" aria-labelledby="cta-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-white mb-4">Still have questions?</h2>
-          <p className="text-lg text-white/60 mb-8">Our team is here to help you choose the right plan.</p>
+          <h2 id="cta-heading" className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight animate-on-scroll">
+            Not sure which plan is right for you?
+          </h2>
+          <p className="text-lg text-gray-500 mb-8 animate-on-scroll">
+            Contact our sales team for a personalized consultation.
+          </p>
           <Link
-            href="/sign-up"
-            className="bg-brand hover:bg-brand-hover text-white px-8 py-3.5 rounded-lg text-base font-semibold transition-colors inline-flex items-center gap-2"
+            href="/contact"
+            className="bg-brand hover:bg-brand-hover text-white px-8 py-3.5 rounded-xl text-base font-semibold transition-all hover:shadow-lg hover:shadow-brand/25 inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 cta-button"
           >
-            Start Free Trial <ArrowRight className="h-4 w-4" />
+            Contact Sales <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
       </section>

@@ -245,7 +245,7 @@ export default function ImportModal({ title, fields, apiEndpoint, existingEmails
           {step === 'preview' && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                   <CheckCircle className="h-4 w-4" /> {validCount} valid
                 </div>
                 {errorCount > 0 && (
@@ -307,10 +307,10 @@ export default function ImportModal({ title, fields, apiEndpoint, existingEmails
             <div className="space-y-4 text-center py-4">
               {result.errors === 0 ? (
                 <div className="flex flex-col items-center gap-2">
-                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle className="h-8 w-8 text-green-600" />
+                  <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+                    <CheckCircle className="h-8 w-8 text-red-600" />
                   </div>
-                  <p className="text-lg font-bold text-green-700">Import Complete</p>
+                  <p className="text-lg font-bold text-red-700">Import Complete</p>
                   <p className="text-sm text-gray-600">{result.imported} record(s) imported successfully.</p>
                 </div>
               ) : (

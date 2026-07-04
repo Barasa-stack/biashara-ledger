@@ -59,7 +59,7 @@ export default function InvoicesPage() {
   const [saving, setSaving] = useState(false);
   const { toast: showToast } = useToast();
   const { confirm, dialog } = useConfirm();
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+  const [pageToast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
   const [companyName, setCompanyName] = useState('');
   const [vatRate, setVatRate] = useState(0);
   const [dateFrom, setDateFrom] = useState('');
@@ -115,11 +115,11 @@ export default function InvoicesPage() {
   const exportFileName = `invoices-${new Date().toISOString().split('T')[0]}`;
 
   useEffect(() => {
-    if (toast) {
+    if (pageToast) {
       const t = setTimeout(() => setToast(null), 5000);
       return () => clearTimeout(t);
     }
-  }, [toast]);
+  }, [pageToast]);
 
   const fetchInvoices = () => {
     setLoading(true);
@@ -231,7 +231,10 @@ export default function InvoicesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.error || 'Save failed');
+      }
       setModalOpen(false);
       fetchInvoices();
 
@@ -336,7 +339,7 @@ export default function InvoicesPage() {
       const receiptMsg = result.emailSent ? '. Receipt emailed to customer.' : result.emailError ? `. Receipt email failed: ${result.emailError}` : '';
       setToast({ message: paidLabel + receiptMsg, type: result.emailError ? 'warning' : 'success' });
     } catch (e: any) {
-      toast(e.message || 'Failed to mark as paid');
+      showToast(e.message || 'Failed to mark as paid');
     } finally {
       setProcessingPayment(false);
     }
@@ -354,7 +357,7 @@ export default function InvoicesPage() {
       fetchInvoices();
       setToast({ message: `Invoice "${inv.invoice_number}" marked as declined`, type: 'success' });
     } catch (e: any) {
-      toast(e.message || 'Failed to decline invoice');
+      showToast(e.message || 'Failed to decline invoice');
     }
   };
 
@@ -429,7 +432,7 @@ export default function InvoicesPage() {
       draft: 'bg-gray-100 text-gray-600',
       sent: 'bg-blue-100 text-blue-700',
       unpaid: 'bg-gray-100 text-gray-600',
-      paid: 'bg-green-100 text-green-700',
+      paid: 'bg-red-100 text-red-700',
       partially_paid: 'bg-yellow-100 text-yellow-700',
       overdue: 'bg-red-100 text-red-700',
       declined: 'bg-red-100 text-red-700',
@@ -601,7 +604,7 @@ export default function InvoicesPage() {
                         {(inv.status === 'unpaid' || inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'partially_paid') && (
                           <button
                             onClick={() => handleMarkPaid(inv)}
-                            className="p-1.5 rounded-md text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                            className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                             title="Mark as Paid"
                           >
                             <CheckCircle className="h-4 w-4" />
@@ -647,11 +650,11 @@ export default function InvoicesPage() {
         )}
       </div>
 
-      {toast && (
+      {pageToast && (
         <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${
-          toast.type === 'success' ? 'bg-green-600' : toast.type === 'warning' ? 'bg-amber-500' : 'bg-red-600'
+          pageToast.type === 'success' ? 'bg-red-600' : pageToast.type === 'warning' ? 'bg-amber-500' : 'bg-red-600'
         }`}>
-          <span>{toast.message}</span>
+          <span>{pageToast.message}</span>
           <button onClick={() => setToast(null)} className="text-white/80 hover:text-white">
             <X className="h-3.5 w-3.5" />
           </button>
@@ -684,7 +687,7 @@ export default function InvoicesPage() {
                       value={form.customer_id}
                       onChange={e => {
                         const id = e.target.value;
-                        const c = customers.find(c => c.id === id);
+                        const c = customers.find(c => String(c.id) === id);
                         setForm(prev => recalc({ ...prev, customer_id: id, customer_name: c?.customer_name || '', customer_country: c?.country || '' }));
                       }}
                     className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
@@ -772,7 +775,7 @@ export default function InvoicesPage() {
       {paymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in zoom-in-95">
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-center">
+            <div className="bg-gradient-to-r from-red-500 to-red-600 p-6 text-center">
               <div className="w-14 h-14 rounded-full bg-white/20 mx-auto flex items-center justify-center mb-3">
                 <CheckCircle className="h-8 w-8 text-white" />
               </div>
@@ -790,26 +793,26 @@ export default function InvoicesPage() {
               </div>
 
               <div className="space-y-3 pt-2">
-                <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-green-50 has-[:checked]:bg-green-50 has-[:checked]:border-green-400">
+                <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-red-50 has-[:checked]:bg-red-50 has-[:checked]:border-red-400">
                   <input
                     type="radio"
                     name="paymentType"
                     checked={paymentModal.paymentType === 'full'}
                     onChange={() => setPaymentModal({ ...paymentModal, paymentType: 'full', partialAmount: String(paymentModal.invoice.amount) })}
-                    className="accent-green-600 w-4 h-4"
+                    className="accent-red-600 w-4 h-4"
                   />
                   <div>
                     <span className="text-sm font-medium text-gray-800">Full Payment</span>
                     <p className="text-xs text-gray-500">Pay the full invoice amount</p>
                   </div>
                 </label>
-                <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-green-50 has-[:checked]:bg-green-50 has-[:checked]:border-green-400">
+                <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-red-50 has-[:checked]:bg-red-50 has-[:checked]:border-red-400">
                   <input
                     type="radio"
                     name="paymentType"
                     checked={paymentModal.paymentType === 'partial'}
                     onChange={() => setPaymentModal({ ...paymentModal, paymentType: 'partial', partialAmount: String(paymentModal.invoice.amount) })}
-                    className="accent-green-600 w-4 h-4"
+                    className="accent-red-600 w-4 h-4"
                   />
                   <div className="flex-1">
                     <span className="text-sm font-medium text-gray-800">Partial Payment</span>
@@ -828,7 +831,7 @@ export default function InvoicesPage() {
                         max={paymentModal.invoice.amount}
                         min={0}
                         step="0.01"
-                        className="w-full border border-gray-200 rounded-lg pl-12 pr-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400"
+                        className="w-full border border-gray-200 rounded-lg pl-12 pr-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400"
                       />
                     </div>
                     {Number(paymentModal.partialAmount) < paymentModal.invoice.amount && Number(paymentModal.partialAmount) > 0 && (
@@ -851,7 +854,7 @@ export default function InvoicesPage() {
               <button
                 onClick={handleConfirmPayment}
                 disabled={processingPayment || (paymentModal.paymentType === 'partial' && (!Number(paymentModal.partialAmount) || Number(paymentModal.partialAmount) <= 0))}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
               >
                 {processingPayment ? (
                   <>

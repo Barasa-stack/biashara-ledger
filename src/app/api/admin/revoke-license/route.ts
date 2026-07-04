@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { adminRun } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
+import { logAdminAction } from '@/lib/admin-audit';
 
 export async function POST(request: Request) {
-  const { error } = await adminGuard();
+  const { error, session } = await adminGuard();
   if (error) return error;
 
   try {
@@ -16,6 +17,15 @@ export async function POST(request: Request) {
       'UPDATE admin_license_keys SET is_active = false, is_used = false WHERE license_key = $1',
       [licenseKey]
     );
+
+    logAdminAction({
+      adminId: session?.user_id,
+      adminEmail: session?.email,
+      action: 'License Revoked',
+      entityType: 'license',
+      entityId: licenseKey,
+      details: `License ${licenseKey} revoked`,
+    });
 
     return NextResponse.json({ success: true, message: 'License revoked successfully' });
   } catch (err: any) {

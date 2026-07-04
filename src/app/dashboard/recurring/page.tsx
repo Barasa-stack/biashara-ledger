@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, RotateCcw, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 
 type RecurringTemplate = {
   id: string;
@@ -45,6 +45,8 @@ export default function RecurringPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchTemplates = () => {
     setLoading(true);
@@ -262,7 +264,7 @@ export default function RecurringPage() {
                         onClick={() => handleToggleActive(t)}
                         className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded transition-colors ${
                           t.active
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                         }`}
                       >

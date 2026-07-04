@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Bell, CheckCheck, Mail, Smartphone, BellRing, Search } from 'lucide-react';
+import { useConfirm } from '@/components/ConfirmDialog';
+import { useToast } from '@/components/Toast';
 
 type Notification = {
   id: string;
@@ -50,6 +52,8 @@ export default function NotificationsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchNotifications = () => {
     setLoading(true);

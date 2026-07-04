@@ -158,7 +158,7 @@ export const testimonials = [
     industry: 'Pharmacy',
     rating: 5,
     initials: 'AH',
-    color: 'from-emerald-600/30 to-emerald-600/10',
+    color: 'from-emerald-600/30 to-red-600/10',
   },
 ];
 

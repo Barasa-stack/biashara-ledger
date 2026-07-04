@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, Building2, Search, Download, TrendingDown, Ban } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 import { ASSET_TYPES, DEPRECIATION_METHODS } from '@/lib/currencies';
 
 type FixedAsset = {
@@ -52,6 +52,8 @@ export default function FixedAssetsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchAssets = () => {
     setLoading(true);
@@ -175,7 +177,7 @@ export default function FixedAssetsPage() {
   const exportFileName = `fixed-assets-${new Date().toISOString().split('T')[0]}`;
 
   const statusBadge = (s: string) => {
-    const cls = s === 'active' ? 'bg-green-100 text-green-700' :
+    const cls = s === 'active' ? 'bg-red-100 text-red-700' :
                s === 'disposed' ? 'bg-red-100 text-red-700' :
                'bg-yellow-100 text-yellow-700';
     return (

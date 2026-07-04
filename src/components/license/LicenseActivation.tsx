@@ -69,11 +69,11 @@ export default function LicenseActivation({ onActivated, onSkip }: ActivationPro
         <div className="p-6 space-y-5">
           {step === 'success' && licenseInfo ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 text-green-600 bg-green-50 rounded-lg p-4">
+              <div className="flex items-center gap-3 text-red-600 bg-red-50 rounded-lg p-4">
                 <CheckCircle className="h-6 w-6 shrink-0" />
                 <div>
                   <p className="font-semibold">License Activated!</p>
-                  <p className="text-sm text-green-700">{licenseInfo.licenseType} plan</p>
+                  <p className="text-sm text-red-700">{licenseInfo.licenseType} plan</p>
                 </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
@@ -81,7 +81,7 @@ export default function LicenseActivation({ onActivated, onSkip }: ActivationPro
                 <div className="flex justify-between"><span className="text-gray-500">Expiry</span><span className="font-medium">{licenseInfo.expiryDate ? new Date(licenseInfo.expiryDate).toLocaleDateString() : 'Lifetime'}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Features</span><span className="font-medium">{(licenseInfo.features || []).join(', ') || 'All'}</span></div>
               </div>
-              <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+              <div className="flex items-center justify-center gap-2 text-sm text-red-600">
                 <Loader className="h-4 w-4 animate-spin" />
                 Launching application...
               </div>

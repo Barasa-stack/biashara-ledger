@@ -3,7 +3,6 @@ import { get, run, withTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
 import { buildReceiptHtml } from '@/lib/print';
 import { createTransporter, getSmtpConfig } from '@/lib/email';
-import puppeteer from 'puppeteer';
 
 export async function POST(request: Request) {
   try {
@@ -69,6 +68,12 @@ export async function POST(request: Request) {
         if (transporter) {
           let pdfBuffer: Uint8Array | null = null;
           try {
+            let puppeteer: any;
+            try {
+              puppeteer = await import('puppeteer').then(m => m.default);
+            } catch {
+              return NextResponse.json({ error: 'PDF generation is not available' }, { status: 500 });
+            }
             const browser = await puppeteer.launch({
               headless: true,
               args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
@@ -87,7 +92,7 @@ export async function POST(request: Request) {
 
           const emailHtml = `
             <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:520px;margin:0 auto;">
-              <div style="background:#059669;padding:24px 30px;text-align:center;">
+              <div style="background:#dc2626;padding:24px 30px;text-align:center;">
                 <h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:0.5px;">${companyName}</h1>
               </div>
               <div style="padding:30px;background:#fff;">

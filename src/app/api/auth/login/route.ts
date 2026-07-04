@@ -6,16 +6,16 @@ import { adminGet, adminRun, adminQuery } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
+    const { email, password } = await req.json();
+
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    const rl = await checkRateLimit(`admin-login:${ip}`, 5, 60 * 1000);
+    const rl = await checkRateLimit(`admin-login:${email ?? 'unknown'}:${ip}`, 5, 60 * 1000);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: 'Too many login attempts. Try again later.' },
         { status: 429 }
       );
     }
-
-    const { email, password } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     response.cookies.set('bl_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/',
       maxAge: 7 * 24 * 60 * 60,
     });

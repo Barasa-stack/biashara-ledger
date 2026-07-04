@@ -273,9 +273,9 @@ export default function SettingsPage() {
           <Section icon={Key} title="License & Subscription" desc="Manage your license key and view trial status">
             {user && (
               <div className="space-y-3">
-                <div className={`p-3 rounded-lg border ${user.licenseStatus === 'active' ? 'bg-green-50 border-green-200' : user.trialDaysRemaining !== undefined && user.trialDaysRemaining > 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
+                <div className={`p-3 rounded-lg border ${user.licenseStatus === 'active' ? 'bg-red-50 border-red-200' : user.trialDaysRemaining !== undefined && user.trialDaysRemaining > 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
                   {user.licenseStatus === 'active' ? (
-                    <p className="text-sm text-green-700 font-medium">License Active</p>
+                    <p className="text-sm text-red-700 font-medium">License Active</p>
                   ) : user.trialDaysRemaining !== undefined && user.trialDaysRemaining > 0 ? (
                     <div>
                       <p className="text-sm text-blue-700 font-medium">Trial Active ({user.trialDaysRemaining} day{user.trialDaysRemaining !== 1 ? 's' : ''} remaining)</p>
@@ -317,7 +317,7 @@ export default function SettingsPage() {
                       <input type="text" value={licenseKey} onChange={e => setLicenseKey(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX" className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand font-mono" />
                     </div>
                     {licenseMsg && (
-                      <div className={`text-xs px-3 py-2 rounded-lg ${licenseMsg.includes('success') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                      <div className={`text-xs px-3 py-2 rounded-lg ${licenseMsg.includes('success') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
                         {licenseMsg}
                       </div>
                     )}
@@ -363,7 +363,7 @@ export default function SettingsPage() {
           </Section>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
-          {success && <p className="text-sm text-green-600">{success}</p>}
+          {success && <p className="text-sm text-red-600">{success}</p>}
 
           <button
             onClick={handleSave}

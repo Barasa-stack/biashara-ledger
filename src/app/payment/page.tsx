@@ -107,8 +107,8 @@ function PaymentContent() {
 
         {step === 'success' ? (
           <div className="bg-white rounded-xl border border-border p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="h-8 w-8 text-green-600" />
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="h-8 w-8 text-red-600" />
             </div>
             <h2 className="text-xl font-bold text-[#000000] mb-2">Payment Successful!</h2>
             <p className="text-[#555555] mb-2">
@@ -135,7 +135,7 @@ function PaymentContent() {
               <ul className="space-y-2">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-[#000000]">
-                    <Check className="h-4 w-4 text-green-600 shrink-0" />
+                    <Check className="h-4 w-4 text-red-600 shrink-0" />
                     {f}
                   </li>
                 ))}

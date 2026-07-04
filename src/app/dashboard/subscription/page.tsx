@@ -83,7 +83,7 @@ export default function SubscriptionPage() {
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
                 <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  data.status === 'active' ? 'bg-green-100 text-green-700' :
+                  data.status === 'active' ? 'bg-red-100 text-red-700' :
                   data.status === 'trial' ? 'bg-blue-100 text-blue-700' :
                   data.status === 'expired' ? 'bg-red-100 text-red-700' :
                   'bg-gray-100 text-gray-700'
@@ -99,7 +99,7 @@ export default function SubscriptionPage() {
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Days Remaining</p>
-                <p className={`text-lg font-semibold ${data.daysRemaining > 30 ? 'text-green-600' : data.daysRemaining > 7 ? 'text-yellow-600' : 'text-red-600'}`}>
+                <p className={`text-lg font-semibold ${data.daysRemaining > 30 ? 'text-red-600' : data.daysRemaining > 7 ? 'text-yellow-600' : 'text-red-600'}`}>
                   {data.daysRemaining > 0 ? `${data.daysRemaining} days` : 'Expired'}
                 </p>
               </div>
@@ -142,7 +142,7 @@ export default function SubscriptionPage() {
                     <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmt(r.amount)}</td>
                     <td className="py-3 text-right">
                       <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        r.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                        r.status === 'paid' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                       }`}>
                         {r.status}
                       </span>

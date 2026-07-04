@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus, X, CheckSquare, Search, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 
 type Workflow = {
   id: string;
@@ -58,6 +58,8 @@ export default function ApprovalsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchWorkflows = () => {
     setLoading(true);
@@ -271,7 +273,7 @@ export default function ApprovalsPage() {
                         <td className="py-3 pr-4 text-right font-medium text-gray-800">${Number(w.trigger_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                         <td className="py-3 pr-4 text-gray-700 capitalize">{w.approver_role.replace(/_/g, ' ')}</td>
                         <td className="py-3">
-                          <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${w.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${w.is_active ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
                             {w.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
@@ -346,7 +348,7 @@ export default function ApprovalsPage() {
                         <td className="py-3 pr-4 text-gray-700">{r.requestor}</td>
                         <td className="py-3 pr-4">
                           <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                            r.status === 'approved' ? 'bg-green-100 text-green-700' :
+                            r.status === 'approved' ? 'bg-red-100 text-red-700' :
                             r.status === 'rejected' ? 'bg-red-100 text-red-700' :
                             'bg-yellow-100 text-yellow-700'
                           }`}>
@@ -358,7 +360,7 @@ export default function ApprovalsPage() {
                             <div className="inline-flex items-center gap-1">
                               <button
                                 onClick={() => setActionRequest(r)}
-                                className="inline-flex items-center gap-1 bg-green-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-green-600 transition-colors"
+                                className="inline-flex items-center gap-1 bg-red-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-red-600 transition-colors"
                               >
                                 <CheckCircle className="h-3.5 w-3.5" />
                                 Approve
@@ -507,7 +509,7 @@ export default function ApprovalsPage() {
               <button
                 onClick={() => handleApprovalAction(actionRequest.id, 'approved')}
                 disabled={actionLoading}
-                className="inline-flex items-center gap-1.5 bg-green-500 text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 bg-red-500 text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {actionLoading ? (
                   <>

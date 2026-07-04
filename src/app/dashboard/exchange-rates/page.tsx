@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Trash2, X, Globe, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 import { currencies, formatCurrency } from '@/lib/currencies';
 
 type ExchangeRate = {
@@ -36,6 +36,8 @@ export default function ExchangeRatesPage() {
   const [form, setForm] = useState(emptyForm);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchRates = () => {
     setLoading(true);

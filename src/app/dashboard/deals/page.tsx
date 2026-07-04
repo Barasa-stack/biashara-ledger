@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, Search, Download, TrendingUp } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 import { PIPELINE_STAGES, formatCurrency } from '@/lib/currencies';
 
 type Deal = {
@@ -54,7 +54,7 @@ const STAGE_COLORS: Record<string, string> = {
   qualified: 'bg-blue-100 text-blue-700',
   proposal: 'bg-purple-100 text-purple-700',
   negotiation: 'bg-orange-100 text-orange-700',
-  closed_won: 'bg-green-100 text-green-700',
+  closed_won: 'bg-red-100 text-red-700',
   closed_lost: 'bg-red-100 text-red-700',
 };
 
@@ -71,6 +71,8 @@ export default function DealsPage() {
   const [stageFilter, setStageFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchDeals = () => {
     setLoading(true);
@@ -307,7 +309,7 @@ export default function DealsPage() {
                       <td className="py-3 pr-4 text-gray-700">{d.expected_close_date ? new Date(d.expected_close_date).toLocaleDateString('en-US') : '—'}</td>
                       <td className="py-3 pr-4">
                         <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                          d.status === 'won' ? 'bg-green-100 text-green-700' :
+                          d.status === 'won' ? 'bg-red-100 text-red-700' :
                           d.status === 'lost' ? 'bg-red-100 text-red-700' :
                           'bg-blue-100 text-blue-700'
                         }`}>

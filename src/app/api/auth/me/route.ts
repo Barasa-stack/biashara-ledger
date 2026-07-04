@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionFromCookies } from '@/lib/auth-server';
+import { normalizePlan } from '@/lib/feature-gate';
 
 export async function GET() {
   try {
@@ -15,6 +16,7 @@ export async function GET() {
     const trialDaysRemaining = expiry ? Math.ceil((expiry.getTime() - Date.now()) / 86400000) : 0;
     const licenseStatus = session.license_status || 'trial';
 
+    const effectiveStatus = session.license_status === 'active' ? 'active' : session.subscription_status;
     const response = NextResponse.json({
       user: {
         id: session.user_id,
@@ -25,8 +27,8 @@ export async function GET() {
         phone: session.phone,
         country: session.country,
         verified: session.verified,
-        subscriptionPlan: session.subscription_plan,
-        subscriptionStatus: session.subscription_status,
+        subscriptionPlan: normalizePlan(session.subscription_plan),
+        subscriptionStatus: effectiveStatus,
         subscriptionExpiry: session.subscription_expiry,
         trialEndDate: session.subscription_expiry,
         trialDaysRemaining,

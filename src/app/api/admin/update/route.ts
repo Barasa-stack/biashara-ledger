@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { adminRun, adminQuery } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
+import { logAdminAction } from '@/lib/admin-audit';
 
 export async function POST(request: Request) {
-  const { error } = await adminGuard();
+  const { error, session } = await adminGuard();
   if (error) return error;
 
   try {
@@ -23,6 +24,15 @@ export async function POST(request: Request) {
        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
       [version.trim(), changesPayload, releaseDate || new Date().toISOString()]
     );
+
+    logAdminAction({
+      adminId: session?.user_id,
+      adminEmail: session?.email,
+      action: 'Update Published',
+      entityType: 'update',
+      entityId: version,
+      details: `Software update v${version} published`,
+    });
 
     return NextResponse.json({
       success: true,

@@ -18,12 +18,41 @@ export async function ensureDbInitialized() {
 
   initPromise = (async () => {
     try {
-      logInfo('init', 'Starting database schema initialization...');
-      await initSchema();
-      logInfo('init', 'Schema initialization complete, creating indexes...');
+      logInfo('init', 'Checking database schema...');
+      
+      // Check if tables already exist before trying to create them
+      const { query } = await import('./db');
+      const result = await query(`
+        SELECT EXISTS (
+          SELECT 1 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'tenants'
+        );
+      `);
+      
+      const tablesExist = result.rows[0]?.exists || false;
+      
+      if (tablesExist) {
+        logInfo('init', 'Tables already exist, skipping schema creation');
+      } else {
+        logInfo('init', 'Creating database schema...');
+        await initSchema();
+        logInfo('init', 'Schema creation complete');
+      }
+      
+      logInfo('init', 'Creating indexes...');
     } catch (e: any) {
-      logError('init', 'Schema init failed (non-fatal):', e?.message || e);
+      // Log but don't treat as fatal - tables likely already exist
+      const msg = e?.message || String(e);
+      if (msg.includes('already exists') || msg.includes('relation') && msg.includes('already exists')) {
+        logInfo('init', 'Tables already exist, continuing...');
+      } else {
+        logError('init', 'Schema init warning (non-fatal):', msg);
+      }
     }
+    
+    // Always try to create indexes (they're safe to run multiple times)
     await Promise.all([
       createIndexSafe('CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON public.users(tenant_id)'),
       createIndexSafe('CREATE INDEX IF NOT EXISTS idx_sessions_tenant_id ON public.sessions(tenant_id)'),
@@ -53,6 +82,7 @@ export async function ensureDbInitialized() {
       createIndexSafe('CREATE INDEX IF NOT EXISTS idx_expenses_tenant_id ON public.expenses(tenant_id)'),
       createIndexSafe('CREATE INDEX IF NOT EXISTS idx_electron_activity_tenant_id ON public.electron_activity(tenant_id)'),
     ]);
+    
     initialized = true;
     logInfo('init', 'Database initialization complete');
   })();

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { adminQuery, adminGet, adminRun } from '@/lib/db';
 import { adminGuard, createClientDatabase } from '@/lib/admin';
+import { logAdminAction } from '@/lib/admin-audit';
 
 export async function GET() {
   try {
@@ -55,15 +56,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Company name and email required' }, { status: 400 });
     }
 
-    const existingAdmin = await adminGet('SELECT id FROM admin_clients WHERE email = $1', [email]);
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingAdmin = await adminGet('SELECT id FROM admin_clients WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
     if (existingAdmin) {
       return NextResponse.json({ error: 'A client with this email already exists in admin panel' }, { status: 409 });
     }
 
     const existingUser = await adminGet(
       `SELECT u.id, u.tenant_id, u.password_hash, t.name as company_name
-       FROM users u JOIN tenants t ON t.id = u.tenant_id WHERE u.email = $1`,
-      [email]
+       FROM users u JOIN tenants t ON t.id = u.tenant_id WHERE LOWER(u.email) = LOWER($1)`,
+      [normalizedEmail]
     );
 
     const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
@@ -94,6 +96,8 @@ export async function POST(request: Request) {
         ['MANUAL-' + Math.random().toString(36).substring(2, 14).toUpperCase(), client.id, expiresAt]
       );
 
+      logAdminAction({ action: 'Client Created', entityType: 'client', details: `Client ${company_name} (${email}) created` });
+
       return NextResponse.json({ success: true, client, activated: true });
     }
 
@@ -103,6 +107,7 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const client = await createClientDatabase(email, company_name, max_users || 5, 'premium', passwordHash);
+    logAdminAction({ action: 'Client Created', entityType: 'client', details: `Client ${company_name} (${email}) created with new database` });
     return NextResponse.json({ success: true, client });
   } catch (err: any) {
     console.error('Create client error:', err);

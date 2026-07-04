@@ -25,7 +25,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
   const bankCode = s.bank_code || '';
   const swiftCode = s.swift_code || '';
   const termsConds = s.terms_conditions || '';
-  const vatRate = s.vat_rate ?? 16;
+  const vatRate = item.vat_rate ?? s.vat_rate ?? 16;
 
   const docNumber = item.invoice_number || item.quotation_number || item.credit_note_number || `#${item.id}`;
   const isInvoice = type === 'Invoice';
@@ -327,34 +327,34 @@ export function buildReceiptHtml(
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; font-size: 13px; line-height: 1.6; background: #e8e4de; }
   .page { max-width: 210mm; margin: 16px auto; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
-  .top-bar { height: 4px; background: #059669; }
+  .top-bar { height: 4px; background: #dc2626; }
   .header { padding: 32px 40px 20px; text-align: center; border-bottom: 1px solid #d4cfc8; }
-  .header .icon { width: 56px; height: 56px; border-radius: 50%; background: #059669; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+  .header .icon { width: 56px; height: 56px; border-radius: 50%; background: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
   .header .icon svg { width: 28px; height: 28px; fill: none; stroke: #fff; stroke-width: 2.5; }
-  .header h1 { font-size: 22px; font-weight: 800; color: #059669; letter-spacing: 1px; }
+  .header h1 { font-size: 22px; font-weight: 800; color: #dc2626; letter-spacing: 1px; }
   .header .rcp { font-size: 13px; color: #666; margin-top: 4px; }
-  .header .status { display: inline-block; margin-top: 8px; padding: 4px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; border-radius: 20px; ${isPartial ? 'background: #fef3c7; color: #b45309;' : 'background: #d1fae5; color: #065f46;'} }
+  .header .status { display: inline-block; margin-top: 8px; padding: 4px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; border-radius: 20px; ${isPartial ? 'background: #fef3c7; color: #b45309;' : 'background: #d1fae5; color: #7f1d1d;'} }
   .section { padding: 20px 40px; }
-  .section-title { font-size: 10px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+  .section-title { font-size: 10px; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
   .info-grid { display: flex; justify-content: space-between; }
   .info-grid .col { width: 48%; }
   .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0eeeb; font-size: 12.5px; }
   .info-row .label { color: #666; }
   .info-row .value { font-weight: 600; color: #1a1a1a; }
-  .amount-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 20px; margin-top: 12px; }
+  .amount-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 16px 20px; margin-top: 12px; }
   .amount-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
   .amount-row .label { color: #555; }
   .amount-row .value { font-weight: 600; }
-  .amount-row.total { border-top: 2px solid #059669; margin-top: 6px; padding-top: 8px; font-size: 16px; }
+  .amount-row.total { border-top: 2px solid #dc2626; margin-top: 6px; padding-top: 8px; font-size: 16px; }
   .amount-row.total .label { font-weight: 700; color: #1a1a1a; }
-  .amount-row.total .value { font-size: 18px; color: #059669; font-weight: 800; }
+  .amount-row.total .value { font-size: 18px; color: #dc2626; font-weight: 800; }
   .amount-row.remaining { color: #b45309; }
   .amount-row.remaining .value { font-weight: 700; }
-  .thanks { padding: 24px 40px; text-align: center; background: #f0fdf4; border-top: 1px solid #bbf7d0; margin-top: 16px; }
-  .thanks h2 { font-size: 20px; color: #059669; font-weight: 700; font-style: italic; }
+  .thanks { padding: 24px 40px; text-align: center; background: #fef2f2; border-top: 1px solid #fecaca; margin-top: 16px; }
+  .thanks h2 { font-size: 20px; color: #dc2626; font-weight: 700; font-style: italic; }
   .thanks p { font-size: 13px; color: #555; margin-top: 6px; }
   .thanks .emoji { font-size: 28px; margin-bottom: 8px; }
-  .footer { padding: 12px 40px; display: flex; justify-content: space-between; align-items: center; background: #059669; }
+  .footer { padding: 12px 40px; display: flex; justify-content: space-between; align-items: center; background: #dc2626; }
   .footer span { color: rgba(255,255,255,0.85); font-size: 10px; }
   .footer .fname { color: #fff; font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; }
   .divider { border: none; border-top: 1px dashed #d4cfc8; margin: 12px 0; }
@@ -378,7 +378,7 @@ export function buildReceiptHtml(
     <div class="info-grid">
       <div class="col">
         <div class="section-title">Company</div>
-        ${logo ? `<img src="${logo}" style="max-height:40px;margin-bottom:6px;">` : `<div style="font-size:20px;font-weight:800;color:#059669;margin-bottom:2px;">${initials}</div>`}
+        ${logo ? `<img src="${logo}" style="max-height:40px;margin-bottom:6px;">` : `<div style="font-size:20px;font-weight:800;color:#dc2626;margin-bottom:2px;">${initials}</div>`}
         <div style="font-size:13px;font-weight:700;">${companyName}</div>
         ${address ? `<div style="font-size:11px;color:#666;">${address}</div>` : ''}
         ${location ? `<div style="font-size:11px;color:#666;">${location}${country ? `, ${country}` : ''}</div>` : ''}

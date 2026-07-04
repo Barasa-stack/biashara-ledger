@@ -5,7 +5,8 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, ClipboardList, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
+import { fetchWithAuth } from '@/lib/auth';
 
 type PO = {
   id: string;
@@ -59,6 +60,8 @@ export default function PurchaseOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchPOs = () => {
     setLoading(true);
@@ -71,7 +74,7 @@ export default function PurchaseOrdersPage() {
   };
 
   const fetchClients = () =>
-    fetch('/api/clients')
+    fetchWithAuth('/api/clients')
       .then(r => r.ok ? r.json() : [])
       .then(setClients)
       .catch(() => {});
@@ -274,7 +277,7 @@ export default function PurchaseOrdersPage() {
                     <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(po.amount)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                        po.status === 'Received' ? 'bg-green-100 text-green-700' :
+                        po.status === 'Received' ? 'bg-red-100 text-red-700' :
                         po.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
                         po.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
                         'bg-gray-100 text-gray-600'

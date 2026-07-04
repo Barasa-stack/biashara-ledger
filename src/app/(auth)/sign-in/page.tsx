@@ -137,7 +137,7 @@ export default function SignInPage() {
           <>
             <h2 className="text-sm font-semibold text-brand mb-5">Sign in to your account</h2>
 
-            {resetMsg && <p className="text-xs text-green-600 mb-4 bg-green-50 px-3 py-2 rounded-lg">{resetMsg}</p>}
+            {resetMsg && <p className="text-xs text-red-600 mb-4 bg-red-50 px-3 py-2 rounded-lg">{resetMsg}</p>}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -214,7 +214,7 @@ export default function SignInPage() {
 
             {resetStep === 'otp' && (
               <form onSubmit={handleVerifyOtp} className="space-y-4">
-                {resetMsg && <p className="text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg">{resetMsg}</p>}
+                {resetMsg && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{resetMsg}</p>}
                 <div>
                   <label className="block text-xs font-medium text-[#000000] mb-1">Enter Code</label>
                   <input
@@ -237,7 +237,7 @@ export default function SignInPage() {
 
             {resetStep === 'newpw' && (
               <form onSubmit={handleResetPassword} className="space-y-4">
-                <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+                <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">
                   <Check className="h-3.5 w-3.5 shrink-0" /> Code verified successfully
                 </div>
                 <div>

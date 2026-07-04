@@ -123,6 +123,8 @@ export function validateRows(
   const valid: ImportRow[] = [];
   const errors: ValidationError[] = [];
 
+  const fileSeenEmails = new Set<string>();
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const rowErrors: ValidationError[] = [];
@@ -142,8 +144,15 @@ export function validateRows(
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!emailRegex.test(value)) {
             rowErrors.push({ row: i + 2, field: field.label, message: `Invalid email format: "${value}"`, value });
-          } else if (existingEmails.has(value.toLowerCase())) {
-            rowErrors.push({ row: i + 2, field: field.label, message: `Duplicate email: "${value}"`, value });
+          } else {
+            const normalized = value.toLowerCase();
+            if (existingEmails.has(normalized)) {
+              rowErrors.push({ row: i + 2, field: field.label, message: `Duplicate email: "${value}"`, value });
+            } else if (fileSeenEmails.has(normalized)) {
+              rowErrors.push({ row: i + 2, field: field.label, message: `Duplicate email in file: "${value}"`, value });
+            } else {
+              fileSeenEmails.add(normalized);
+            }
           }
         }
         if (field.type === 'number') {

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { adminQuery, adminGet, adminRun, withoutTenantContext } from './db';
 import { getSessionFromCookies } from './auth-server';
+import { normalizePlan } from './feature-gate';
 import { NextResponse } from 'next/server';
 
 export async function adminGuard() {
@@ -46,7 +47,7 @@ export async function createClientDatabase(email: string, companyName: string, m
          subscription_expiry = EXCLUDED.subscription_expiry,
          license_status = EXCLUDED.license_status,
          password_hash = EXCLUDED.password_hash`,
-      [client.id, email, passwordHash, plan, expiresAt]
+      [client.id, email, passwordHash, normalizePlan(plan), expiresAt]
     );
 
     await adminRun(
@@ -101,9 +102,9 @@ export async function activateSelfRegisteredUser(userId: string, maxUsers = 5) {
     const licenseKey = generateLicenseKey(user.email);
 
     await adminRun(
-      `UPDATE users SET subscription_plan = 'premium', subscription_status = 'active', subscription_expiry = $1, license_status = 'active'
-       WHERE id = $2`,
-      [expiresAt, userId]
+      `UPDATE users SET subscription_plan = $1, subscription_status = 'active', subscription_expiry = $2, license_status = 'active'
+       WHERE id = $3`,
+      [normalizePlan('premium'), expiresAt, userId]
     );
 
     await adminRun(

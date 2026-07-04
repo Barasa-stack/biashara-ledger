@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { get, run, adminGet, adminRun } from './db';
+import { normalizePlan } from './feature-gate';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -28,16 +29,20 @@ export async function createSession(userId: string, tenantId: string): Promise<{
 }
 
 export async function getSession(token: string) {
-  return await adminGet(
-    `SELECT s.tenant_id, s.id as session_id, s.token, s.expires_at,
+  const session = await adminGet(
+    `SELECT COALESCE(u.tenant_id, s.tenant_id) as tenant_id, s.id as session_id, s.token, s.expires_at,
             u.id as user_id, u.email, u.first_name, u.last_name, u.phone, u.country,
             u.subscription_plan, u.subscription_status,
             u.verified, u.subscription_expiry,
             u.grace_period_end, u.last_reminder_sent, u.role, u.license_status
-     FROM sessions s JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id
-     WHERE s.token = $1 AND s.expires_at > NOW()`,
+     FROM sessions s
+     LEFT JOIN users u ON u.id = s.user_id
+     WHERE s.token = $1 AND s.expires_at > NOW()
+     LIMIT 1`,
     [token]
-  ) || null;
+  );
+
+  return session || null;
 }
 
 export async function deleteSession(token: string) {
@@ -61,10 +66,16 @@ export async function checkUserSubscription(user: {
   verified?: number;
   subscription_status?: string;
   subscription_expiry?: string;
+  license_status?: string;
 }): Promise<{ active: boolean; reason?: string }> {
   if (!user.verified) {
     return { active: false, reason: 'Email not verified' };
   }
+
+  if (user.license_status === 'active') {
+    return { active: true };
+  }
+
   if (user.subscription_expiry) {
     const expiry = new Date(user.subscription_expiry);
     if (expiry < new Date()) {
@@ -84,30 +95,31 @@ export async function checkUserSubscription(user: {
 export async function checkFeatureAccess(user: {
   subscription_plan?: string;
   role?: string;
-}): Promise<{ canAccess: (feature: string) => boolean; plan: string; role: string }> {
-  const plan = user.subscription_plan || 'trial';
+}): Promise<{ canAccess: (feature: string) => boolean; plan: string; role: string; allowedFeatures: string[] }> {
+  const plan = normalizePlan(user.subscription_plan);
   const role = user.role || 'employee';
 
   const rolePermissions = await getRolePermissions(role);
 
+  const allowedFeatures = rolePermissions.includes('all')
+    ? ['all']
+    : plan === 'trial'
+    ? []
+    : plan === 'Basic'
+    ? ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance']
+    : plan === 'Standard'
+    ? ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance', 'hrPayroll', 'generalLedger', 'expenseReport']
+    : ['all'];
+
   const featureAccess = (feature: string): boolean => {
     if (rolePermissions.includes('all')) return true;
     if (rolePermissions.includes(feature)) return true;
-
     if (plan === 'trial') return false;
-    if (plan === 'Basic') {
-      return ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance'].includes(feature);
-    }
-    if (plan === 'Standard') {
-      return ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance', 'hrPayroll', 'generalLedger', 'expenseReport'].includes(feature);
-    }
-    if (plan === 'Premium') {
-      return true;
-    }
-    return false;
+    if (allowedFeatures.includes('all')) return true;
+    return allowedFeatures.includes(feature);
   };
 
-  return { canAccess: featureAccess, plan, role };
+  return { canAccess: featureAccess, plan, role, allowedFeatures };
 }
 
 async function getRolePermissions(role: string): Promise<string[]> {

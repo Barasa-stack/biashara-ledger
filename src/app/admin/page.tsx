@@ -25,6 +25,20 @@ interface Activity {
   type: 'success' | 'warning' | 'info' | 'error';
 }
 
+function formatTimeAgo(dateStr: string) {
+  const now = Date.now();
+  const date = new Date(dateStr).getTime();
+  const diff = now - date;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
 function KPICard({ label, value, trend, icon, color }: KPICardData) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -121,7 +135,7 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
   useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
   return (
     <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-5 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
-      type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+      type === 'success' ? 'bg-red-600 text-white' : 'bg-red-600 text-white'
     }`}>
       {type === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
       {message}
@@ -144,6 +158,8 @@ function AdminDashboard() {
   const [clients, setClients] = useState<any[]>([]);
   const [licenses, setLicenses] = useState<any[]>([]);
   const [offlineSessions, setOfflineSessions] = useState<any[]>([]);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [activities, setActivities] = useState<any[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState<string | null>(null);
@@ -160,10 +176,11 @@ function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [c, l, o] = await Promise.all([
+      const [c, l, o, d] = await Promise.all([
         fetch('/api/admin/clients').then(r => r.ok ? r.json() : []),
         fetch('/api/admin/licenses').then(r => r.ok ? r.json() : []),
         fetch('/api/admin/offline-clients').then(r => r.ok ? r.json() : []),
+        fetch('/api/admin/dashboard').then(r => r.ok ? r.json() : null),
       ]);
       if (c?.error === 'Unauthorized' || l?.error === 'Unauthorized') {
         router.push('/admin/login');
@@ -172,6 +189,10 @@ function AdminDashboard() {
       setClients(Array.isArray(c) ? c : []);
       setLicenses(Array.isArray(l) ? l : []);
       setOfflineSessions(Array.isArray(o) ? o : []);
+      if (d) {
+        setDashboardData(d);
+        setActivities(d.activity || []);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -221,23 +242,12 @@ function AdminDashboard() {
   const pendingActivations = offlineSessions.filter((s: any) => s.session_status === 'pending');
   const offlineComputers = offlineSessions.filter((s: any) => s.online_status === 'offline');
 
-  const revenueToday = 12500;
-  const revenueMonth = 284500;
-  const revenueYear = 2450000;
-  const monthlyGrowth = 12.5;
-
-  const MOCK_ACTIVITIES: Activity[] = [
-    { id: 1, text: 'New client registered: Safari Inc.', time: '2 minutes ago', type: 'success' },
-    { id: 2, text: 'License BL-2026-X9K2 generated for John Doe', time: '15 minutes ago', type: 'info' },
-    { id: 3, text: 'Payment received: $5,000 from Acme Corp', time: '1 hour ago', type: 'success' },
-    { id: 4, text: 'License BL-2026-A1B2 expiring in 3 days', time: '2 hours ago', type: 'warning' },
-    { id: 5, text: 'Desktop activated: Windows 11 (MACHINE-001)', time: '3 hours ago', type: 'info' },
-    { id: 6, text: 'License revoked: BL-2026-ZZ99 (policy violation)', time: '5 hours ago', type: 'error' },
-    { id: 7, text: 'Subscription upgraded: Basic → Standard (Jane Co.)', time: '1 day ago', type: 'success' },
-    { id: 8, text: 'Software update v2.4.0 published', time: '1 day ago', type: 'info' },
-    { id: 9, text: 'Offline sync completed for TechVentures (12 records)', time: '2 days ago', type: 'info' },
-    { id: 10, text: 'License transferred: BL-2026-BB77 to new machine', time: '2 days ago', type: 'warning' },
-  ];
+  const revenueToday = dashboardData?.revenue?.today || 0;
+  const revenueMonth = dashboardData?.revenue?.month || 0;
+  const revenueYear = dashboardData?.revenue?.year || 0;
+  const monthlyGrowth = dashboardData?.revenue?.monthlyGrowth || 0;
+  const latestVersion = dashboardData?.latestVersion || '—';
+  const newThisWeek = dashboardData?.clients?.newThisWeek || 0;
 
   if (loading) {
     return (
@@ -336,8 +346,8 @@ function AdminDashboard() {
           <div className="mt-6 pt-4 border-t border-gray-100 grid grid-cols-3 gap-4">
             {[
               { label: 'Trial Users', value: trialClients.length },
-              { label: 'New This Week', value: 2 },
-              { label: 'Renewals', value: 5 },
+              { label: 'New This Week', value: newThisWeek },
+              { label: 'Renewals', value: dashboardData?.revenue?.billingMonth ? Math.round(dashboardData.revenue.billingMonth / 100) : 0 },
             ].map((s) => (
               <div key={s.label} className="text-center">
                 <p className="text-lg font-bold text-gray-900">{s.value}</p>
@@ -368,7 +378,7 @@ function AdminDashboard() {
           <div className="mt-6 pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Latest version</span>
-              <span className="font-semibold text-gray-900">v2.4.0</span>
+              <span className="font-semibold text-gray-900">{latestVersion ? `v${latestVersion}` : '—'}</span>
             </div>
           </div>
         </div>
@@ -386,7 +396,7 @@ function AdminDashboard() {
               { label: 'Desktop Installations', value: offlineSessions.length, icon: Monitor, color: 'text-gray-900' },
               { label: 'Connected PCs', value: connectedDesktops.length, icon: Wifi, color: 'text-brand' },
               { label: 'Offline PCs', value: offlineComputers.length, icon: WifiOff, color: 'text-orange-600' },
-              { label: 'Pending Sync', value: 2, icon: RefreshCw, color: 'text-blue-600' },
+              { label: 'Pending Activations', value: pendingActivations.length, icon: RefreshCw, color: 'text-blue-600' },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -408,9 +418,18 @@ function AdminDashboard() {
             <button className="text-xs text-brand hover:text-brand font-medium">View All</button>
           </div>
           <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
-            {MOCK_ACTIVITIES.map((a) => (
-              <ActivityItem key={a.id} activity={a} />
-            ))}
+            {activities.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-gray-400">No recent activity</div>
+            ) : (
+              activities.map((a: any, i: number) => (
+                <ActivityItem key={i} activity={{
+                  id: i,
+                  text: `${a.action}: ${a.entity || a.client_name || ''}`,
+                  time: a.created_at ? formatTimeAgo(a.created_at) : '',
+                  type: a.type === 'license_revoked' ? 'error' : a.type === 'license_expiring' ? 'warning' : 'info',
+                }} />
+              ))
+            )}
           </div>
         </div>
 
@@ -428,7 +447,7 @@ function AdminDashboard() {
           <div className="mt-6 pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Pending updates</span>
-              <span className="font-semibold text-orange-600">2 pending</span>
+              <span className="font-semibold text-orange-600">{dashboardData?.licenses?.expiringSoon || 0} expiring</span>
             </div>
           </div>
         </div>

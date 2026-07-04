@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { LicenseService } from '@/lib/services/license.service';
-import { getSessionFromCookies } from '@/lib/auth-server';
+import { adminGuard } from '@/lib/admin';
+import { logAdminAction } from '@/lib/admin-audit';
 
 export async function POST(req: Request) {
   try {
-    const session = await getSessionFromCookies();
-    if (!session || session.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const guard = await adminGuard();
+    if (guard.error) return guard.error;
+    const session = guard.session;
 
     const { clientId, plan = 'standard', durationMonths = 12 } = await req.json();
 
@@ -20,6 +20,15 @@ export async function POST(req: Request) {
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
+
+    logAdminAction({
+      adminId: session?.user_id,
+      adminEmail: session?.email,
+      action: 'License Generated',
+      entityType: 'license',
+      entityId: result.license_key,
+      details: `License ${result.license_key} generated for client ${clientId} (${plan})`,
+    });
 
     return NextResponse.json(result, {
       headers: {

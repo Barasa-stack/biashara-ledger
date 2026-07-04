@@ -30,8 +30,8 @@ export async function POST(req: Request) {
 
     const result = await LicenseService.generateLicenseFile(clientId, plan, durationMonths);
 
-    if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+    if (!result || 'error' in result) {
+      return NextResponse.json({ error: result?.error || 'License generation failed' }, { status: 400 });
     }
 
     return NextResponse.json({

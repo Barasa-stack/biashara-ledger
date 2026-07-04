@@ -44,23 +44,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let retries = 0;
     const maxRetries = 2;
+    const maxTotalTimeoutMs = 15000;
+    let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const totalTimeoutId = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[AuthProvider] Max total initialization timeout reached, forcing loading=false');
+        cancelled = true;
+        if (retryTimeoutId) clearTimeout(retryTimeoutId);
+        setLoading(false);
+      }
+    }, maxTotalTimeoutMs);
 
     function check() {
+      if (cancelled) return;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      const abortTimeoutId = setTimeout(() => {
+        if (!cancelled) controller.abort();
+      }, 4000);
+
       fetch('/api/auth/me', {
         signal: controller.signal,
         credentials: 'include',
       })
-        .then(r => r.json())
+        .then(r => {
+          if (cancelled) return null;
+          return r.json();
+        })
         .then(data => {
-          if (cancelled) return;
+          if (cancelled || !data) return;
           if (data.user) {
             setUser(data.user);
             setLoading(false);
           } else if (retries < maxRetries) {
             retries++;
-            setTimeout(check, 1000);
+            retryTimeoutId = setTimeout(check, 1000);
           } else {
             setLoading(false);
           }
@@ -69,16 +87,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (cancelled) return;
           if (retries < maxRetries) {
             retries++;
-            setTimeout(check, 1000);
+            retryTimeoutId = setTimeout(check, 1000);
           } else {
             setLoading(false);
           }
         })
-        .finally(() => clearTimeout(timeout));
+        .finally(() => clearTimeout(abortTimeoutId));
     }
 
     check();
-    return () => { cancelled = true; };
+
+    const refreshInterval = setInterval(() => {
+      if (!cancelled) {
+        fetch('/api/auth/me', { credentials: 'include' })
+          .then(r => r.json())
+          .then(data => {
+            if (!cancelled && data.user) {
+              setUser(data.user);
+            }
+          })
+          .catch(() => {});
+      }
+    }, 30000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(totalTimeoutId);
+      if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -90,12 +127,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setUser(data.user);
+        setUser(data.user || null);
+        setLoading(false);
         router.refresh();
         return { success: true };
       }
+      setLoading(false);
       return { success: false, error: data.error || 'Sign in failed' };
     } catch {
+      setLoading(false);
       return { success: false, error: 'Network error. Please try again.' };
     }
   }, [router]);
@@ -109,26 +149,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setUser(data.user);
+        setUser(data.user || null);
+        setLoading(false);
         router.refresh();
         return { success: true };
       }
+      setLoading(false);
       return { success: false, error: data.error || 'Sign up failed' };
     } catch {
+      setLoading(false);
       return { success: false, error: 'Network error. Please try again.' };
     }
   }, [router]);
 
   const refreshUser = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me');
-      const data = await res.json();
-      if (data.user) setUser(data.user);
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setUser(data.user);
+        }
+      }
     } catch {}
   }, []);
 
   const signOut = useCallback(async () => {
-    await fetch('/api/auth/signout', { method: 'POST' });
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' });
+    } catch {}
     setUser(null);
     if (typeof window !== 'undefined' && (window as any).electronAPI) {
       window.location.href = '/sign-in';

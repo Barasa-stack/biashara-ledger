@@ -130,8 +130,8 @@ export default function RenewPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#ffffff]">
         <div className="text-center max-w-sm mx-auto p-8">
-          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-            <Check className="h-8 w-8 text-green-600" />
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <Check className="h-8 w-8 text-red-600" />
           </div>
           <h1 className="text-xl font-bold text-[#000000] mb-2">Subscription Active!</h1>
           <p className="text-sm text-gray-600 mb-6">{selectedPlan} plan activated. You now have full access.</p>
@@ -352,7 +352,7 @@ export default function RenewPage() {
             <button
               onClick={handleConfirmPayment}
               disabled={busy}
-              className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
             >
               {busy ? <Loader className="h-4 w-4 animate-spin" /> : null}
               {busy ? 'Confirming...' : 'I Have Confirmed Payment'}

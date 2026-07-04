@@ -1,5 +1,6 @@
 import { query, get, run, adminGet, withTenantContext } from './db';
 import { getSessionFromCookies } from './auth-server';
+import { normalizePlan } from './feature-gate';
 
 const GRACE_PERIOD_DAYS = 3;
 const TRIAL_DAYS = 14;
@@ -30,6 +31,10 @@ export async function requireSubscription() {
   const expiry = session.subscription_expiry ? new Date(session.subscription_expiry) : null;
   const graceEnd = session.grace_period_end ? new Date(session.grace_period_end) : null;
   const now = new Date();
+
+  if (session.license_status === 'active') {
+    return { session, active: true, gracePeriod: false, expiresAt: session.subscription_expiry };
+  }
 
   if (expiry && expiry < now) {
     if (graceEnd && graceEnd > now) {
@@ -133,22 +138,23 @@ export async function createTrialSubscription(userId: string) {
 }
 
 export async function activateSubscription(userId: string, planName: string, durationDays: number, paymentMethod: string = 'mpesa', transactionId: string = '', tenantId: string = '') {
+  const normalizedPlan = normalizePlan(planName);
   const now = new Date();
   const periodStart = now.toISOString();
   const periodEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
   await run(
     'UPDATE users SET subscription_plan = $1, subscription_status = $2, subscription_expiry = $3, grace_period_end = NULL WHERE id = $4',
-    [planName, 'active', periodEnd, userId]
+    [normalizedPlan, 'active', periodEnd, userId]
   );
 
   await run(
     'INSERT INTO billing_history (tenant_id, user_id, amount, plan_name, payment_method, transaction_id, period_start, period_end) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-    [tenantId, userId, getPlanPrice(planName), planName, paymentMethod, transactionId, periodStart, periodEnd]
+    [tenantId, userId, getPlanPrice(normalizedPlan), normalizedPlan, paymentMethod, transactionId, periodStart, periodEnd]
   );
 
-  await logSubscriptionEvent(userId, 'subscription_activated', `${planName} plan activated`, {
-    plan: planName, durationDays, periodStart, periodEnd,
+  await logSubscriptionEvent(userId, 'subscription_activated', `${normalizedPlan} plan activated`, {
+    plan: normalizedPlan, durationDays, periodStart, periodEnd,
   }, tenantId);
 }
 

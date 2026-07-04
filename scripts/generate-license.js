@@ -1,6 +1,6 @@
 /**
  * License Key Generator for BiasharaLedger
- * Usage: node scripts/generate-license.js --type=standard --duration=365 --email=user@example.com
+ * Usage: node scripts/generate-license.js --email=user@example.com --plan=premium --years=1
  */
 const crypto = require('crypto');
 
@@ -10,48 +10,35 @@ const args = process.argv.slice(2).reduce((acc, arg) => {
   return acc;
 }, {});
 
-const TYPE = args.type || 'trial';
-const DURATION = parseInt(args.duration) || 14;
+const SECRET = process.env.LICENSE_SECRET || (() => { throw new Error('LICENSE_SECRET env var required'); })();
+const PLAN = args.plan || 'standard';
+const YEARS = parseInt(args.years) || 1;
 const EMAIL = args.email || '';
 const COUNT = parseInt(args.count) || 1;
 
-const LICENSE_TYPES = {
-  trial: { duration: 14, features: ['all'], price: 'Free' },
-  standard: { duration: 365, features: ['all'], price: '$49' },
-  premium: { duration: 99999, features: ['all', 'updates'], price: '$199' },
-  enterprise: { duration: 365, features: ['all', 'multi_user', 'support'], price: '$299/year' },
-};
-
-function generateKey() {
-  const segments = [];
-  for (let i = 0; i < 4; i++) {
-    segments.push(crypto.randomBytes(3).toString('hex').toUpperCase());
-  }
-  return segments.join('-');
-}
-
-function generateLicenseId() {
-  return 'BL-' + crypto.randomBytes(8).toString('hex').toUpperCase();
+function generateLicenseKey(email) {
+  const uuid = crypto.randomUUID();
+  const hmac = crypto.createHmac('sha256', SECRET);
+  hmac.update(email + uuid);
+  const signature = hmac.digest('hex').substring(0, 16);
+  const year = new Date().getFullYear();
+  return `BL-${year}-${uuid.substring(0, 8)}-${signature}`;
 }
 
 function generateSQL(count) {
-  const config = LICENSE_TYPES[TYPE] || LICENSE_TYPES.trial;
   const now = new Date();
-  const expiry = new Date(now.getTime() + config.duration * 24 * 60 * 60 * 1000);
+  const expiry = new Date(now.getTime() + YEARS * 365 * 24 * 60 * 60 * 1000);
 
-  console.log(`-- BiasharaLedger License Keys (${TYPE})`);
+  console.log(`-- BiasharaLedger Admin License Keys (${PLAN})`);
   console.log(`-- Generated: ${now.toISOString()}`);
   console.log(`-- Expiry: ${expiry.toISOString()}`);
   console.log(`-- Count: ${count}`);
   console.log();
 
   for (let i = 0; i < count; i++) {
-    const key = generateKey();
-    const lid = generateLicenseId();
-    const features = JSON.stringify(config.features);
-
-    console.log(`INSERT INTO licenses (license_key, license_id, type, status, expiry_date, features, allowed_installations) VALUES`);
-    console.log(`  ('${key}', '${lid}', '${TYPE}', 'active', '${expiry.toISOString()}', '${features}', 1);`);
+    const key = generateLicenseKey(EMAIL || `user${i}@example.com`);
+    console.log(`INSERT INTO admin_license_keys (license_key, plan, is_active, is_used, expires_at) VALUES`);
+    console.log(`  ('${key}', '${PLAN}', true, false, '${expiry.toISOString()}');`);
     console.log();
   }
 }

@@ -5,23 +5,33 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, FileText, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
+import { getVatRate } from '@/lib/vat-rates';
 
 type Invoice = {
   id: string;
   invoice_number: string;
   customer_id: string;
+  customer_city: string;
   customer_name: string;
   description: string;
   amount: number;
+  subtotal: number;
+  tax_vat: number;
+  vat_rate: number;
+  customer_country: string;
   payment_terms: string;
   issue_date: string;
+  unit_price: number;
+  quantity: number;
+  discounts: number;
 };
 
 type Customer = {
   id: string;
   customer_name: string;
   email_address: string;
+  country?: string;
 };
 
 type CreditNote = {
@@ -33,6 +43,11 @@ type CreditNote = {
   customer_email: string;
   description: string;
   amount: number;
+  subtotal: number;
+  tax_vat: number;
+  vat_rate: number;
+  discounts: number;
+  customer_country: string;
   reason: string;
   payment_terms: string;
   issue_date: string;
@@ -40,8 +55,9 @@ type CreditNote = {
 
 const emptyForm = {
   credit_note_number: '', invoice_id: '', customer_id: '', customer_name: '',
-  customer_email: '', description: '', amount: 0, reason: '',
-  payment_terms: '', issue_date: '',
+  customer_email: '', description: '', amount: 0, subtotal: 0, tax_vat: 0,
+  vat_rate: 0, discounts: 0, customer_country: '',
+  reason: '', payment_terms: '', issue_date: '',
 };
 
 const fmtUSD = (n: number | string | null | undefined) =>
@@ -61,6 +77,8 @@ export default function CreditNotesPage() {
   const [dateTo, setDateTo] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchNotes = () => {
     setLoading(true);
@@ -134,6 +152,7 @@ export default function CreditNotesPage() {
       customer_email: n.customer_email || '',
       description: n.description || '',
       amount: n.amount,
+      subtotal: n.subtotal || 0, tax_vat: n.tax_vat || 0, vat_rate: n.vat_rate || 0, discounts: n.discounts || 0, customer_country: n.customer_country || '',
       reason: n.reason || '',
       payment_terms: n.payment_terms || '',
       issue_date: n.issue_date?.split('T')[0] || '',
@@ -149,12 +168,14 @@ export default function CreditNotesPage() {
   const handleInvoiceSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const invoiceId = e.target.value;
     if (!invoiceId) {
-      setForm(prev => ({ ...prev, invoice_id: '', customer_id: '', customer_name: '', customer_email: '', description: '', amount: 0, payment_terms: '', issue_date: '' }));
+      setForm(prev => ({ ...prev, invoice_id: '', customer_id: '', customer_name: '', customer_email: '', description: '', amount: 0, subtotal: 0, tax_vat: 0, vat_rate: 0, discounts: 0, customer_country: '', payment_terms: '', issue_date: '' }));
       return;
     }
     const invoice = invoices.find(inv => inv.id === invoiceId);
     if (invoice) {
       const customer = customers.find(c => c.id === invoice.customer_id);
+      const countryCode = invoice.customer_country || customer?.country || '';
+      const vatInfo = getVatRate(countryCode);
       setForm(prev => ({
         ...prev,
         invoice_id: invoice.id,
@@ -163,6 +184,11 @@ export default function CreditNotesPage() {
         customer_email: customer?.email_address || '',
         description: invoice.description || '',
         amount: invoice.amount,
+        subtotal: invoice.subtotal || 0,
+        tax_vat: invoice.tax_vat || 0,
+        vat_rate: invoice.vat_rate || vatInfo.rate,
+        discounts: invoice.discounts || 0,
+        customer_country: countryCode,
         payment_terms: invoice.payment_terms || '',
         issue_date: invoice.issue_date?.split('T')[0] || '',
       }));
@@ -391,6 +417,16 @@ export default function CreditNotesPage() {
                 <Field label="Amount (USD)" value={String(form.amount)} onChange={set('amount')} type="number" required />
                 <Field label="Payment Terms" value={form.payment_terms} onChange={set('payment_terms')} />
               </div>
+              {(form.subtotal > 0 || form.tax_vat > 0) && (
+                <div className="bg-surface rounded-lg p-3 border border-border">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">VAT Breakdown</p>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div><span className="text-gray-500">Subtotal:</span> <span className="font-medium">{fmtUSD(form.subtotal)}</span></div>
+                    <div><span className="text-gray-500">{getVatRate(form.customer_country).label} ({form.vat_rate}%):</span> <span className="font-medium">{fmtUSD(form.tax_vat)}</span></div>
+                    <div><span className="text-gray-500">Total incl. VAT:</span> <span className="font-bold text-brand">{fmtUSD(Number(form.subtotal) + Number(form.tax_vat))}</span></div>
+                  </div>
+                </div>
+              )}
               <Field label="Item/Service Description" value={form.description} onChange={set('description')} textarea />
               <Field label="Reason for Credit Note" value={form.reason} onChange={set('reason')} textarea />
             </div>

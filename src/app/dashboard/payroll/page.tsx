@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, Users, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 
 type Employee = {
   id: string;
@@ -70,6 +70,8 @@ export default function PayrollPage() {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchEmployees = () => {
     setLoading(true);
@@ -295,7 +297,7 @@ export default function PayrollPage() {
                     <td className="py-3 pr-4 text-gray-700">{emp.job_title || '—'}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                        emp.status === 'Active' ? 'bg-green-100 text-green-700' :
+                        emp.status === 'Active' ? 'bg-red-100 text-red-700' :
                         emp.status === 'Inactive' ? 'bg-red-100 text-red-700' :
                         'bg-gray-100 text-gray-600'
                       }`}>

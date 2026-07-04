@@ -249,7 +249,7 @@ export default function SignUpPage() {
         <ul className="space-y-1">
           {pFeatures.slice(0, 3).map((f) => (
             <li key={f} className="flex items-start gap-1.5 text-[11px] text-[#000000]/70">
-              <Check className="h-3 w-3 text-green-600 mt-0.5 shrink-0" />
+              <Check className="h-3 w-3 text-red-600 mt-0.5 shrink-0" />
               {f}
             </li>
           ))}
@@ -440,7 +440,7 @@ export default function SignUpPage() {
             <h2 className="text-sm font-semibold text-brand mb-5">Verify Your Email</h2>
 
             {message && (
-              <p className="text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg mb-4">{message}</p>
+              <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg mb-4">{message}</p>
             )}
 
             {SHOW_OTP && devOtp && (

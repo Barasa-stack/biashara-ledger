@@ -146,7 +146,7 @@ async function injectSessionCookie(value, maxAge) {
       name: 'bl_session',
       value,
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/',
       expirationDate: Math.floor(Date.now() / 1000) + maxAge,
     });
@@ -170,11 +170,6 @@ async function navigateAndSetCookie(token, maxAge) {
     const verified = await verifySessionCookie();
     if (verified) {
       navigateToDashboard();
-      mainWindow.webContents.once('did-finish-load', () => {
-        mainWindow.webContents.executeJavaScript(
-          `document.cookie = 'bl_session=${token}; path=/; max-age=${maxAge}; samesite=lax;'; true`,
-        ).catch(() => {});
-      });
       return true;
     }
     return false;

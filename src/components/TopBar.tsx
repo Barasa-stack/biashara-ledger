@@ -251,7 +251,7 @@ export default function TopBar() {
           <div className="border-t border-dark-border pt-4 space-y-3">
             <p className="text-xs font-medium text-white/60 uppercase tracking-wide">Change Password</p>
 
-            {pwMsg && <p className="text-xs text-green-400 bg-green-400/10 px-3 py-2 rounded-lg">{pwMsg}</p>}
+            {pwMsg && <p className="text-xs text-red-400 bg-red-400/10 px-3 py-2 rounded-lg">{pwMsg}</p>}
             {pwError && <p className="text-xs text-brand bg-brand/10 px-3 py-2 rounded-lg">{pwError}</p>}
 
             {pwStep === 'current' && (
@@ -344,7 +344,7 @@ export default function TopBar() {
 
             {pwStep === 'newpw' && (
               <div>
-                <div className="flex items-center gap-2 text-xs text-green-400 bg-green-400/10 px-3 py-2 rounded-lg mb-3">
+                <div className="flex items-center gap-2 text-xs text-red-400 bg-red-400/10 px-3 py-2 rounded-lg mb-3">
                   <Check className="h-3.5 w-3.5 shrink-0" /> Code verified
                 </div>
                 <label className="block text-xs text-white/60 mb-1">New Password</label>

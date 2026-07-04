@@ -241,8 +241,11 @@ function ReportsContent() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/reports?from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}`);
-      if (!res.ok) throw new Error('Failed to load reports');
+      const res = await fetch(`/api/reports?from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}`, { credentials: 'include' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || body?.message || 'Failed to load reports');
+      }
       setData(await res.json());
     } catch (e: any) {
       setError(e.message || 'Something went wrong');
@@ -352,26 +355,26 @@ function ReportsContent() {
       {(activeType === 'all' || activeType === 'profit-loss') && (
         <Section icon={BarChart3} title="Profit & Loss Statement" subtitle="Accrual-based revenues, cost of sales, and net profit">
           <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Revenue</p>
-          <Row label="Gross Sales" value={fmt(d.grossSales)} color="text-green-700" />
+          <Row label="Gross Sales" value={fmt(d.grossSales)} color="text-red-700" />
           <Row label="Less: Sales Returns (Credit Notes)" value={`(${fmt(d.salesReturns)})`} color="text-red-500" />
           <Row label="Less: Discounts" value={`(${fmt(d.discounts)})`} color="text-red-500" />
           <Row label="Less: Allowances" value={`(${fmt(d.allowances)})`} color="text-red-500" />
           <div className="border-t border-border my-1" />
-          <Row label="Net Sales" value={fmt(d.netSales)} color="text-green-700" fontWeight="font-semibold" />
+          <Row label="Net Sales" value={fmt(d.netSales)} color="text-red-700" fontWeight="font-semibold" />
 
           <div className="mt-3">
             <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cost of Goods Sold</p>
             <Row label="Opening Inventory" value={fmt(d.openingInventory)} />
             <Row label="Add: Purchases (Cost of Sales)" value={fmt(d.purchases)} />
             <Row label="Add: Direct Costs" value={fmt(d.directCosts)} />
-            <Row label="Less: Debit Notes" value={`(${fmt(d.debitNotes)})`} color="text-green-600" />
-            <Row label="Less: Closing Inventory" value={`(${fmt(d.closingInventory)})`} color="text-green-600" />
+            <Row label="Less: Debit Notes" value={`(${fmt(d.debitNotes)})`} color="text-red-600" />
+            <Row label="Less: Closing Inventory" value={`(${fmt(d.closingInventory)})`} color="text-red-600" />
             <div className="border-t border-border my-1" />
             <Row label="Cost of Goods Sold" value={fmt(d.costOfGoodsSold)} color="text-red-600" fontWeight="font-semibold" />
           </div>
 
           <div className="border-t border-border my-2" />
-          <Row label="Gross Profit" value={fmt(d.grossProfit)} color={d.grossProfit >= 0 ? 'text-green-700' : 'text-red-700'} fontWeight="font-bold" />
+          <Row label="Gross Profit" value={fmt(d.grossProfit)} color={d.grossProfit >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
 
           <div className="mt-3">
             <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Operating Expenses</p>
@@ -384,22 +387,22 @@ function ReportsContent() {
           </div>
 
           <div className="border-t border-border my-2" />
-          <Row label="Operating Profit / (Loss)" value={fmt(d.operatingProfit)} color={d.operatingProfit >= 0 ? 'text-green-700' : 'text-red-700'} fontWeight="font-bold" />
+          <Row label="Operating Profit / (Loss)" value={fmt(d.operatingProfit)} color={d.operatingProfit >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
 
           <div className="mt-3">
             <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Other Income &amp; Expenses</p>
-            <Row label="Other Income" value={fmt(d.otherIncome)} color="text-green-600" />
+            <Row label="Other Income" value={fmt(d.otherIncome)} color="text-red-600" />
             <Row label="Other Expenses" value={`(${fmt(d.otherExpenses)})`} color="text-red-500" />
           </div>
 
           <div className="border-t border-border my-2" />
-          <Row label="Profit Before Tax" value={fmt(d.profitBeforeTax)} color={d.profitBeforeTax >= 0 ? 'text-green-700' : 'text-red-700'} fontWeight="font-bold" />
+          <Row label="Profit Before Tax" value={fmt(d.profitBeforeTax)} color={d.profitBeforeTax >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
           <Row label="Less: Tax" value={`(${fmt(d.taxes)})`} color="text-red-500" />
 
           <div className="border-t-2 border-double border-brand my-2" />
           <div className="flex justify-between text-sm font-bold pt-1">
             <span className="text-brand text-base">Net Profit / (Loss)</span>
-            <span className={`text-base ${d.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>{fmt(d.netProfit)}</span>
+            <span className={`text-base ${d.netProfit >= 0 ? 'text-red-700' : 'text-red-700'}`}>{fmt(d.netProfit)}</span>
           </div>
 
           {d.expenseByCategory.length > 0 && (
@@ -487,9 +490,9 @@ function ReportsContent() {
         <Section icon={Wallet} title="Cash Flow Statement" subtitle="Cash inflows and outflows from operating activities">
           <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Operating Activities</p>
           <p className="text-xs text-[#000000] italic mb-2">Inflows</p>
-          <Row label="Cash Received from Customers" value={fmt(d.cashOperatingInflow)} color="text-green-600" />
+          <Row label="Cash Received from Customers" value={fmt(d.cashOperatingInflow)} color="text-red-600" />
           <div className="border-t border-border my-1" />
-          <Row label="Total Operating Inflows" value={fmt(d.cashOperatingInflow)} color="text-green-700" />
+          <Row label="Total Operating Inflows" value={fmt(d.cashOperatingInflow)} color="text-red-700" />
           <div className="mt-3">
             <p className="text-xs text-[#000000] italic mb-2">Outflows</p>
             <Row label="Cash Paid to Suppliers (Purchases)" value={fmt(d.cashSupplierPayments)} color="text-red-600" />
@@ -499,7 +502,7 @@ function ReportsContent() {
             <Row label="Total Operating Outflows" value={fmt(d.cashOperatingOutflow)} color="text-red-700" />
           </div>
           <div className="border-t-2 border-double border-border my-2" />
-          <Row label="Net Cash from Operating Activities" value={fmt(d.netOperatingCashFlow)} color={d.netOperatingCashFlow >= 0 ? 'text-green-700' : 'text-red-700'} />
+          <Row label="Net Cash from Operating Activities" value={fmt(d.netOperatingCashFlow)} color={d.netOperatingCashFlow >= 0 ? 'text-red-700' : 'text-red-700'} />
           <div className="mt-3 pt-3 border-t border-border">
             <p className="text-xs text-[#000000] italic mb-1">Cash Flow from Investing Activities</p>
             <Row label="(No investing activity recorded)" value="—" />
@@ -512,7 +515,7 @@ function ReportsContent() {
           <div className="border-t-2 border-double border-brand my-2" />
           <div className="flex justify-between text-sm font-bold pt-1">
             <span className="text-brand">Net Increase / (Decrease) in Cash</span>
-            <span className={d.netOperatingCashFlow >= 0 ? 'text-green-700' : 'text-red-700'}>{fmt(d.netOperatingCashFlow)}</span>
+            <span className={d.netOperatingCashFlow >= 0 ? 'text-red-700' : 'text-red-700'}>{fmt(d.netOperatingCashFlow)}</span>
           </div>
           <ReportDownload title="Cash Flow Statement" data={[[
             { label: 'Cash Received from Customers', value: fmt(d.cashOperatingInflow) },
@@ -544,7 +547,7 @@ function ReportsContent() {
                   <td className="py-2 text-gray-400 w-8">{d.trialBalance.length - i}</td>
                   <td className="py-2 text-[#000000]">{r.account}</td>
                   <td className="py-2 text-right text-brand">{r.type === 'Debit' ? fmt(r.balance) : '—'}</td>
-                  <td className="py-2 text-right text-green-600">{r.type === 'Credit' ? fmt(r.balance) : '—'}</td>
+                  <td className="py-2 text-right text-red-600">{r.type === 'Credit' ? fmt(r.balance) : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -689,7 +692,7 @@ function ReportsContent() {
                   <td className="py-2 text-gray-400 w-8">{d.salesByCustomer.length - i}</td>
                   <td className="py-2 text-[#000000]">{r.company_name}</td>
                   <td className="py-2 text-right text-[#000000]">{r.count}</td>
-                  <td className="py-2 text-right font-medium text-green-600">{fmt(r.total)}</td>
+                  <td className="py-2 text-right font-medium text-red-600">{fmt(r.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -738,7 +741,7 @@ function ReportsContent() {
                   <td className="py-2 text-[#000000]">{r.category}</td>
                   <td className="py-2 text-right text-[#000000]">{fmt(r.budget)}</td>
                   <td className="py-2 text-right font-medium text-brand">{fmt(r.actual)}</td>
-                  <td className={`py-2 text-right font-medium ${r.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(r.variance)}</td>
+                  <td className={`py-2 text-right font-medium ${r.variance >= 0 ? 'text-red-600' : 'text-red-600'}`}>{fmt(r.variance)}</td>
                 </tr>
               ))}
             </tbody>
@@ -752,7 +755,7 @@ function ReportsContent() {
       {(activeType === 'all' || activeType === 'equity') && (
         <Section icon={PiggyBank} title="Equity / Owner's Report" subtitle="Retained earnings, capital, and withdrawals">
           <Row label="Retained Earnings (Lifetime)" value={fmt(d.equityReport.retainedEarnings)} />
-          <Row label="Current Period Profit" value={fmt(d.equityReport.currentPeriodProfit)} color={d.equityReport.currentPeriodProfit >= 0 ? 'text-green-700' : 'text-red-700'} />
+          <Row label="Current Period Profit" value={fmt(d.equityReport.currentPeriodProfit)} color={d.equityReport.currentPeriodProfit >= 0 ? 'text-red-700' : 'text-red-700'} />
           <Row label="Capital Contributions" value={fmt(d.equityReport.capitalContributions)} />
           <Row label="Owner Withdrawals" value={fmt(d.equityReport.withdrawals)} color="text-red-600" />
           <div className="border-t border-border my-2" />
@@ -772,9 +775,9 @@ function ReportsContent() {
         <Section icon={Landmark} title="Tax Report" subtitle="VAT, income tax, and statutory obligations">
           <p className="text-xs font-semibold text-[#000000] uppercase mb-2">VAT Summary</p>
           <Row label={`Taxable Sales (Output VAT at ${d.taxReport.vatRate ?? 16}%)`} value={fmt(d.taxReport.vatOutput)} color="text-brand" />
-          <Row label={`Taxable Purchases (Input VAT at ${d.taxReport.vatRate ?? 16}%)`} value={fmt(d.taxReport.vatInput)} color="text-green-600" />
+          <Row label={`Taxable Purchases (Input VAT at ${d.taxReport.vatRate ?? 16}%)`} value={fmt(d.taxReport.vatInput)} color="text-red-600" />
           <div className="border-t border-border my-2" />
-          <Row label="VAT Payable / (Refundable)" value={fmt(Math.abs(d.taxReport.vatPayable))} color={d.taxReport.vatPayable >= 0 ? 'text-brand' : 'text-green-600'} />
+          <Row label="VAT Payable / (Refundable)" value={fmt(Math.abs(d.taxReport.vatPayable))} color={d.taxReport.vatPayable >= 0 ? 'text-brand' : 'text-red-600'} />
 
           {d.taxReport.incomeTaxRate > 0 && (
             <>
@@ -784,7 +787,7 @@ function ReportsContent() {
                 <Row label={`Income Tax Rate`} value={`${d.taxReport.incomeTaxRate}%`} />
                 <Row label="Income Tax Provision" value={`(${fmt(d.taxReport.incomeTax)})`} color="text-red-500" />
                 <div className="border-t border-border my-2" />
-                <Row label="Net Profit After Tax" value={fmt(d.taxReport.netProfitAfterTax)} color={d.taxReport.netProfitAfterTax >= 0 ? 'text-green-700' : 'text-red-700'} fontWeight="font-bold" />
+                <Row label="Net Profit After Tax" value={fmt(d.taxReport.netProfitAfterTax)} color={d.taxReport.netProfitAfterTax >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
               </div>
             </>
           )}

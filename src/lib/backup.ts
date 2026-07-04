@@ -48,14 +48,14 @@ export async function createBackup(params: {
     const { encrypted, version } = encryptBackupData(params.data);
     const dataSize = Buffer.byteLength(encrypted, 'utf8');
 
-    const result = await adminRun(
+    const rows = await adminQuery<{ id: number }>(
       `INSERT INTO backups (license_key, data, file_size, version, created_at)
        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
        RETURNING id`,
       [params.licenseKey, encrypted, dataSize, params.version || version]
     );
 
-    return { success: true, backupId: result.rowCount > 0 && result.rows?.[0]?.id ? Number(result.rows[0].id) : undefined };
+    return { success: true, backupId: rows[0]?.id ? Number(rows[0].id) : undefined };
   } catch (err: any) {
     return { success: false, error: err.message };
   }

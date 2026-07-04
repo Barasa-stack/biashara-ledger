@@ -39,13 +39,6 @@ export function proxy(request: NextRequest) {
     if (!sessionCookie) {
       return NextResponse.redirect(new URL(DASHBOARD_LOGIN_PATH, request.url));
     }
-    const subCookie = request.cookies.get('bl_sub_status');
-    if (subCookie) {
-      const [, status] = subCookie.value.split(':');
-      if (status === 'expired' || status === 'cancelled') {
-        return NextResponse.redirect(new URL(RENEW_PATH, request.url));
-      }
-    }
   }
 
   if ((pathname.startsWith('/payment') || pathname.startsWith('/select-package')) && !sessionCookie) {

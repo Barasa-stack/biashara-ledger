@@ -24,7 +24,7 @@ export async function GET(request: Request) {
               l.is_active as license_is_active, l.expires_at as license_expires_at,
               l.activated_at, l.is_used
        FROM admin_clients c
-       LEFT JOIN users u ON u.email = c.email AND u.role = 'admin'
+       LEFT JOIN users u ON LOWER(u.email) = LOWER(c.email) AND u.role = 'admin'
        LEFT JOIN admin_license_keys l ON l.client_id = c.id
        WHERE c.email ILIKE $1
        ORDER BY c.created_at DESC

@@ -5,7 +5,9 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, FileText, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
+import { getVatRate } from '@/lib/vat-rates';
+import { fetchWithAuth } from '@/lib/auth';
 
 type Invoice = {
   id: string;
@@ -25,11 +27,14 @@ type Invoice = {
   issue_date: string;
   due_date: string;
   created_at: string;
+  client_country?: string;
+  vat_rate?: number;
 };
 
 type Client = {
   id: string;
   supplier_name: string;
+  country?: string;
 };
 
 const emptyForm = {
@@ -48,6 +53,8 @@ const emptyForm = {
   status: 'Draft',
   issue_date: new Date().toISOString().split('T')[0],
   due_date: '',
+  client_country: '',
+  vat_rate: 0,
 };
 
 const fmtUSD = (n: number | string | null | undefined) =>
@@ -61,6 +68,8 @@ export default function PurchaseInvoicesPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Invoice | null>(null);
@@ -82,7 +91,7 @@ export default function PurchaseInvoicesPage() {
   };
 
   const fetchClients = () =>
-    fetch('/api/clients')
+    fetchWithAuth('/api/clients')
       .then(r => r.ok ? r.json() : [])
       .then(setClients)
       .catch(() => {});
@@ -139,6 +148,8 @@ export default function PurchaseInvoicesPage() {
       status: inv.status,
       issue_date: inv.issue_date?.split('T')[0] || '',
       due_date: inv.due_date?.split('T')[0] || '',
+      client_country: inv.client_country || '',
+      vat_rate: inv.vat_rate || 0,
     });
     setShowModal(true);
   };
@@ -146,9 +157,10 @@ export default function PurchaseInvoicesPage() {
   const handleSubmit = async () => {
     setSaving(true);
     try {
-      const url = '/api/purchases/invoices';
+      const isCreate = !editing;
+      const url = isCreate ? '/api/purchases' : '/api/purchases/invoices';
       const method = editing ? 'PUT' : 'POST';
-      const body = editing ? { ...form, id: editing.id } : form;
+      const body = editing ? { ...form, id: editing.id } : { ...form, type: 'invoice' };
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -186,11 +198,12 @@ export default function PurchaseInvoicesPage() {
     const qty = Number(form.quantity) || 0;
     const price = Number(form.unit_price) || 0;
     const sub = qty * price;
-    const tax = Number(form.tax_vat) || 0;
+    const countryRate = form.client_country ? getVatRate(form.client_country).rate : 0;
+    const tax = Number(form.tax_vat) || (sub * countryRate / 100);
     const disc = Number(form.discounts) || 0;
     const amt = sub + tax - disc;
-    setForm(prev => ({ ...prev, subtotal: sub, amount: amt >= 0 ? amt : 0 }));
-  }, [form.quantity, form.unit_price, form.tax_vat, form.discounts]);
+    setForm(prev => ({ ...prev, subtotal: sub, tax_vat: tax, amount: amt >= 0 ? amt : 0 }));
+  }, [form.quantity, form.unit_price, form.client_country, form.discounts]);
 
   if (error) {
     return (
@@ -295,7 +308,7 @@ export default function PurchaseInvoicesPage() {
                     <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(inv.amount)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                        inv.status === 'Paid' ? 'bg-green-100 text-green-700' :
+                        inv.status === 'Paid' ? 'bg-red-100 text-red-700' :
                         inv.status === 'Overdue' ? 'bg-red-100 text-red-700' :
                         inv.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
                         inv.status === 'Sent' ? 'bg-yellow-100 text-yellow-700' :
@@ -349,7 +362,9 @@ export default function PurchaseInvoicesPage() {
                     onChange={e => {
                       const id = e.target.value;
                       const c = clients.find(cl => cl.id === id);
-                      setForm(p => ({ ...p, client_id: id, client_name: c?.supplier_name || '' }));
+                      const countryCode = c?.country || '';
+                      const vatInfo = getVatRate(countryCode);
+                      setForm(p => ({ ...p, client_id: id, client_name: c?.supplier_name || '', client_country: countryCode, vat_rate: vatInfo.rate }));
                     }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white"
                   >
@@ -358,6 +373,9 @@ export default function PurchaseInvoicesPage() {
                       <option key={c.id} value={c.id}>{c.supplier_name}</option>
                     ))}
                   </select>
+                  {form.client_country && (
+                    <p className="text-xs text-gray-500 mt-1">{getVatRate(form.client_country).label} rate: {getVatRate(form.client_country).rate}%</p>
+                  )}
                 </div>
                 <Field label="Client Name" value={form.client_name} onChange={set('client_name')} />
               </div>
@@ -368,7 +386,12 @@ export default function PurchaseInvoicesPage() {
                 <Field label="Subtotal (USD)" value={String(form.subtotal)} onChange={set('subtotal')} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Field label="Tax/VAT (USD)" value={String(form.tax_vat)} onChange={v => set('tax_vat')(Number(v) || 0)} type="number" />
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    {form.client_country ? `${getVatRate(form.client_country).label} (${getVatRate(form.client_country).rate}%)` : 'Tax/VAT'}
+                  </label>
+                  <input type="number" value={String(form.tax_vat)} readOnly className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 bg-gray-50 focus:outline-none" />
+                </div>
                 <Field label="Discounts (USD)" value={String(form.discounts)} onChange={v => set('discounts')(Number(v) || 0)} type="number" />
                 <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
               </div>

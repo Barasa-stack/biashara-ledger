@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     email = email.trim().toLowerCase();
 
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const rl = await checkRateLimit(`otp:${ip}`, 3, 60 * 1000);
+    const rl = await checkRateLimit(`otp:${email}:${ip}`, 3, 60 * 1000);
     if (!rl.allowed) {
       return NextResponse.json({ success: false, error: 'Too many requests. Try again later.' }, { status: 429 });
     }

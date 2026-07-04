@@ -5,7 +5,8 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, Building2, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
+import { fetchWithAuth } from '@/lib/auth';
 
 type Client = {
   id: string;
@@ -52,11 +53,13 @@ export default function ClientsPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchClients = () => {
     setLoading(true);
     setError('');
-    fetch('/api/clients')
+    fetchWithAuth('/api/clients')
       .then(r => r.ok ? r.json() : Promise.reject('Failed to load suppliers'))
       .then(data => setClients(data))
       .catch(e => setError(String(e)))
@@ -129,7 +132,10 @@ export default function ClientsPage() {
         body: JSON.stringify(body),
       });
 
-      if (!res.ok) throw new Error('Failed to save supplier');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.error || `Failed to save supplier (${res.status})`);
+      }
       setShowModal(false);
       fetchClients();
     } catch (e: any) {
@@ -142,7 +148,7 @@ export default function ClientsPage() {
   const handleDelete = async (c: Client) => {
     if (!await confirm(`Delete supplier "${c.supplier_name}"?`)) return;
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetchWithAuth('/api/clients', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: c.id }),

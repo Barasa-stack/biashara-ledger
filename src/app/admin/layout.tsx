@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -28,6 +28,20 @@ const QUICK_ACTIONS_DROPDOWN = [
   { label: 'Revoke License', icon: Shield, action: 'revoke-license' },
 ];
 
+function formatTimeAgo(dateStr: string) {
+  const now = Date.now();
+  const date = new Date(dateStr).getTime();
+  const diff = now - date;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -38,11 +52,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [showSearch, setShowSearch] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications] = useState([
-    { id: 1, text: 'New client registered: Acme Corp', time: '2m ago', type: 'info', link: '/admin/clients' },
-    { id: 2, text: 'License BL-2026-A1B2 expiring in 3 days', time: '15m ago', type: 'warning', link: '/admin/licenses' },
-    { id: 3, text: 'Payment received: $3,000 from John Doe', time: '1h ago', type: 'success', link: '/admin/licenses' },
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const markAllRead = async () => {
+    try {
+      await fetch('/api/admin/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_read' }),
+      });
+      fetchNotifications();
+    } catch {}
+  };
 
   const quickRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -266,28 +305,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
                 >
                   <Bell size={18} />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full ring-2 ring-white px-1">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
                 {showNotifications && (
                   <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                       <span className="text-sm font-semibold text-gray-900">Notifications</span>
-                      <button className="text-xs text-brand font-medium hover:text-brand-hover">Mark all read</button>
+                      <button onClick={markAllRead} className="text-xs text-brand font-medium hover:text-brand-hover">Mark all read</button>
                     </div>
                     <div className="py-1 max-h-64 overflow-y-auto">
-                      {notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          onClick={() => { setShowNotifications(false); router.push(n.link); }}
-                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                        >
-                          <p className="text-sm text-gray-700">{n.text}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{n.time}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="px-4 py-3 border-t border-gray-100 text-center">
-                      <button className="text-xs text-gray-500 hover:text-gray-700 font-medium">View all</button>
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-sm text-gray-400">No notifications yet</div>
+                      ) : (
+                        notifications.map((n: any) => (
+                          <div
+                            key={n.id}
+                            onClick={() => { setShowNotifications(false); if (n.link) router.push(n.link); }}
+                            className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${!n.is_read ? 'bg-brand-light/30' : ''}`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {!n.is_read && <span className="w-2 h-2 rounded-full bg-brand mt-1.5 flex-shrink-0" />}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm text-gray-700 truncate">{n.message}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {n.created_at ? formatTimeAgo(n.created_at) : ''}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}

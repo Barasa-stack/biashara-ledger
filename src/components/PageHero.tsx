@@ -98,7 +98,7 @@ export default function PageHero({
       <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-32">
         {showTrustBanner && (
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-5 py-2 mb-8">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
             <span className="text-sm font-medium text-white/80">
               <span className="text-brand">Trusted</span> by 12,500+ <span className="text-brand">businesses</span> across 47+ countries
             </span>

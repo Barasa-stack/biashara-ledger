@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Pencil, Trash2, X, DollarSign } from 'lucide-react';
+import { useConfirm } from '@/components/ConfirmDialog';
+import { useToast } from '@/components/Toast';
 
 type Salary = {
   id: string;
@@ -45,6 +47,8 @@ export default function SalariesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Salary | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchSalaries = () => {
     setLoading(true);
@@ -207,7 +211,7 @@ export default function SalariesPage() {
                     <td className="py-3 pr-4 text-gray-700">{s.pay_date ? new Date(s.pay_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                        s.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                        s.status === 'paid' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                       }`}>
                         {s.status === 'paid' ? 'Paid' : 'Pending'}
                       </span>

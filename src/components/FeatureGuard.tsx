@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import { Crown, ArrowRight } from 'lucide-react';
+import { normalizePlan } from '@/lib/feature-gate';
 
 const planFeatureMap: Record<string, string[]> = {
   Basic: ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance', 'invoicing', 'expenses', 'customers', 'suppliers'],
@@ -30,7 +31,7 @@ export default function FeatureGuard({ feature, children, fallback }: FeatureGua
 
   if (!user) return <>{children}</>;
 
-  const plan = user.subscriptionPlan || 'trial';
+  const plan = normalizePlan(user.subscriptionPlan);
   const allowedFeatures = planFeatureMap[plan] || [];
   const hasAccess = allowedFeatures.includes('all') || allowedFeatures.includes(feature);
 

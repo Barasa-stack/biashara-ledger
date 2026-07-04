@@ -21,7 +21,7 @@ export async function GET() {
       LEFT JOIN (SELECT license_key, COUNT(*) as activation_count FROM license_activations GROUP BY license_key) a ON l.license_key = a.license_key
       UNION ALL
       SELECT
-        NULL as id, c.license_key as license_key, c.id as client_id, NULL::varchar as plan, NULL::boolean as is_used, true as is_active,
+        NULL as id, c.license_key as license_key, c.id as client_id, COALESCE(c.plan, 'Standard') as plan, NULL::boolean as is_used, true as is_active,
         NULL as hardware_fingerprint,
         c.expires_at as activated_at, c.expires_at as expires_at, c.created_at as created_at,
         c.company_name, c.email, c.database_name,

@@ -12,7 +12,7 @@ import {
   Key, Webhook, Bell,
 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
-import { isFeatureAvailable } from '@/lib/feature-gate';
+import { isFeatureAvailable, normalizePlan } from '@/lib/feature-gate';
 import UpgradeModal from './UpgradeModal';
 
 const navItems = [
@@ -169,7 +169,7 @@ function Sidebar({ subscriptionPlan }: SidebarProps) {
   const searchParams = useSearchParams();
   const fullPath = pathname + (searchParams.toString() ? '?' + searchParams.toString() : '');
 
-  const plan = subscriptionPlan === 'Premium' ? 'Premium' : subscriptionPlan === 'Standard' ? 'Standard' : (subscriptionPlan === 'Basic' ? 'Basic' : 'Basic');
+  const plan = normalizePlan(subscriptionPlan);
 
   useEffect(() => {
     setExpandedMenus(

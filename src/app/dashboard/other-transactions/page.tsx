@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, ArrowRightLeft, Search, Download, TrendingUp, TrendingDown } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 
 type OtherTransaction = {
   id: string;
@@ -48,6 +48,8 @@ export default function OtherTransactionsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchTransactions = () => {
     setLoading(true);
@@ -140,7 +142,7 @@ export default function OtherTransactionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#000000]">Other Income &amp; Expenses</h1>
           <p className="text-sm text-[#000000]">
-            Income: <span className="text-green-600 font-medium">{fmtUSD(totalIncome)}</span> &middot;
+            Income: <span className="text-red-600 font-medium">{fmtUSD(totalIncome)}</span> &middot;
             Expenses: <span className="text-red-500 font-medium">{fmtUSD(totalExpenses)}</span>
           </p>
         </div>
@@ -194,13 +196,13 @@ export default function OtherTransactionsPage() {
                     <tr key={t.id} className="border-b border-border/50 text-[#000000]">
                       <td className="px-4 py-3 text-gray-500">{t.transaction_date}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${isIncome ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${isIncome ? 'bg-red-50 text-red-700' : 'bg-red-50 text-red-700'}`}>
                           <TypeIcon className="h-3 w-3" /> {isIncome ? 'Income' : 'Expense'}
                         </span>
                       </td>
                       <td className="px-4 py-3">{t.category || '—'}</td>
                       <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{t.description || '—'}</td>
-                      <td className={`px-4 py-3 text-right font-medium ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
+                      <td className={`px-4 py-3 text-right font-medium ${isIncome ? 'text-red-600' : 'text-red-500'}`}>
                         {isIncome ? '' : '('}{fmtUSD(t.amount)}{isIncome ? '' : ')'}
                       </td>
                       <td className="px-4 py-3 text-center">

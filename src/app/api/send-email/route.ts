@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
 import { adminGet, withTenantContext } from '@/lib/db';
 import { buildHtml } from '@/lib/print';
 import { createTransporter, getSmtpConfig } from '@/lib/email';
@@ -35,6 +34,12 @@ export async function POST(request: Request) {
     let pdfError: string | null = null;
     try {
       const fullHtml = buildHtml(isType, item, company);
+      let puppeteer: any;
+      try {
+        puppeteer = await import('puppeteer').then(m => m.default);
+      } catch {
+        return NextResponse.json({ error: 'PDF generation is not available' }, { status: 500 });
+      }
       const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],

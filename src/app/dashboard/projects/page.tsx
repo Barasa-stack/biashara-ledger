@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, Briefcase, Search, Download } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 
 type Project = {
   id: string;
@@ -44,7 +44,7 @@ const fmtUSD = (n: number | string | null | undefined) =>
 const STATUSES = ['active', 'completed', 'on_hold', 'cancelled'];
 
 const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
+  active: 'bg-red-100 text-red-700',
   completed: 'bg-blue-100 text-blue-700',
   on_hold: 'bg-yellow-100 text-yellow-700',
   cancelled: 'bg-red-100 text-red-700',
@@ -62,6 +62,8 @@ export default function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchProjects = () => {
     setLoading(true);
@@ -265,7 +267,7 @@ export default function ProjectsPage() {
                     <td className="py-3 pr-4 text-gray-700">{p.start_date ? new Date(p.start_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{p.end_date ? new Date(p.end_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(p.budget)}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-green-600">{fmtUSD(p.revenue)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-red-600">{fmtUSD(p.revenue)}</td>
                     <td className="py-3 pr-4 text-right font-medium text-red-600">{fmtUSD(p.expenses)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-700'}`}>

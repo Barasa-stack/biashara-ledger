@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query, get, run, insertReturning, withTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
 import { validateBody } from '@/lib/validate';
+import { getVatRate } from '@/lib/vat-rates';
 
 export async function GET() {
   try {
@@ -33,15 +34,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: errors.join(', ') }, { status: 400 });
     }
     const result = await withTenantContext(session.tenant_id!, async () => {
+      const countryCode = body.customer_country || '';
+      const vatRate = getVatRate(countryCode).rate;
+      const computedSubtotal = Number(body.subtotal) || (Number(body.quantity || 1) * Number(body.unit_price || 0));
+      const computedTaxVat = Number(body.tax_vat) || (computedSubtotal * vatRate / 100);
+      const computedAmount = Number(body.amount) || (computedSubtotal + computedTaxVat - (Number(body.discounts) || 0));
       return await insertReturning(
-        `INSERT INTO credit_notes (tenant_id, credit_note_number, invoice_id, customer_id, customer_name, customer_email, description, quantity, unit_price, subtotal, tax_vat, discounts, amount, reason, notes, payment_terms, issue_date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
+        `INSERT INTO credit_notes (tenant_id, credit_note_number, invoice_id, customer_id, customer_name, customer_email, description, quantity, unit_price, subtotal, tax_vat, discounts, amount, reason, notes, payment_terms, issue_date, customer_country, vat_rate)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
         [session.tenant_id, body.credit_note_number || '', body.invoice_id || null,
          body.customer_id || null, body.customer_name, body.customer_email || '',
          body.description || '', body.quantity || 1, body.unit_price || 0,
-         body.subtotal || 0, body.tax_vat || 0, body.discounts || 0,
-         body.amount, body.reason || '', body.notes || '',
-         body.payment_terms || 'Net 30', body.issue_date || '']
+         computedSubtotal, computedTaxVat, body.discounts || 0,
+         computedAmount, body.reason || '', body.notes || '',
+         body.payment_terms || 'Net 30', body.issue_date || '', countryCode, vatRate]
       );
     });
     return NextResponse.json({ id: result.id }, { status: 201 });
@@ -60,13 +66,19 @@ export async function PUT(request: Request) {
     if (!session) throw new Error('Unauthorized');
     const body = await request.json();
     await withTenantContext(session.tenant_id!, async () => {
+      const countryCode = body.customer_country || '';
+      const vatRate = getVatRate(countryCode).rate;
+      const computedSubtotal = Number(body.subtotal) || (Number(body.quantity || 1) * Number(body.unit_price || 0));
+      const computedTaxVat = Number(body.tax_vat) || (computedSubtotal * vatRate / 100);
+      const computedAmount = Number(body.amount) || (computedSubtotal + computedTaxVat - (Number(body.discounts) || 0));
       await run(
-        `UPDATE credit_notes SET credit_note_number=$1, invoice_id=$2, customer_id=$3, customer_name=$4, customer_email=$5, description=$6, quantity=$7, unit_price=$8, subtotal=$9, tax_vat=$10, discounts=$11, amount=$12, reason=$13, notes=$14, payment_terms=$15, issue_date=$16 WHERE id=$17`,
+        `UPDATE credit_notes SET credit_note_number=$1, invoice_id=$2, customer_id=$3, customer_name=$4, customer_email=$5, description=$6, quantity=$7, unit_price=$8, subtotal=$9, tax_vat=$10, discounts=$11, amount=$12, reason=$13, notes=$14, payment_terms=$15, issue_date=$16, customer_country=$17, vat_rate=$18 WHERE id=$19`,
         [body.credit_note_number || '', body.invoice_id, body.customer_id,
          body.customer_name, body.customer_email || '', body.description || '', body.quantity || 1,
-         body.unit_price || 0, body.subtotal || 0, body.tax_vat || 0,
-         body.discounts || 0, body.amount, body.reason || '',
-         body.notes || '', body.payment_terms || 'Net 30', body.issue_date, body.id]
+         body.unit_price || 0, computedSubtotal, computedTaxVat,
+         body.discounts || 0, computedAmount, body.reason || '',
+         body.notes || '', body.payment_terms || 'Net 30', body.issue_date,
+         countryCode, vatRate, body.id]
       );
     });
     return NextResponse.json({ success: true });

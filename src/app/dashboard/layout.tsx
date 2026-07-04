@@ -46,21 +46,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [licenseMsg, setLicenseMsg] = useState('');
   const [activating, setActivating] = useState(false);
 
-  useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.replace('/sign-in');
-      } else if (user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'cancelled') {
-        router.replace('/renew');
-      } else {
-        setReady(true);
-        if (user.licenseStatus === 'expired' || (user.licenseStatus === 'trial' && user.trialDaysRemaining !== undefined && user.trialDaysRemaining <= 0) || trialDaysLeft <= 0) {
-          setShowLicenseModal(true);
-        }
-      }
-    }
-  }, [user, loading, router]);
-
   const trialDaysLeft = user?.subscriptionExpiry
     ? Math.ceil((new Date(user.subscriptionExpiry).getTime() - Date.now()) / 86400000)
     : 0;
@@ -68,6 +53,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isTrialPeriod = (user?.subscriptionStatus === 'trial' || user?.subscriptionStatus === 'active') && !!user?.subscriptionExpiry && trialDaysLeft > 0;
   const showUpgradeBanner = user && planName !== 'Premium' && !isTrialPeriod;
   const showTrialBanner = isTrialPeriod && trialDaysLeft <= 3;
+
+  useEffect(() => {
+    let redirectCount = 0;
+    const maxRedirectAttempts = 1;
+
+    function hardRedirect(path: string) {
+      if (redirectCount >= maxRedirectAttempts) return;
+      redirectCount++;
+      window.location.href = path;
+    }
+
+    const safetyTimer = setTimeout(() => {
+      if (loading) {
+        hardRedirect('/login');
+      }
+    }, 25000);
+
+    if (!loading) {
+      clearTimeout(safetyTimer);
+      if (!user) {
+        hardRedirect('/login');
+      } else if (user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'cancelled') {
+        hardRedirect('/renew');
+      } else {
+        setReady(true);
+        if (user.subscriptionStatus !== 'active' && (user.licenseStatus === 'expired' || (user.licenseStatus === 'trial' && user.trialDaysRemaining !== undefined && user.trialDaysRemaining <= 0) || trialDaysLeft <= 0)) {
+          setShowLicenseModal(true);
+        }
+      }
+    }
+
+    return () => clearTimeout(safetyTimer);
+  }, [user, loading, router]);
 
   async function handleActivateLicense(e: React.FormEvent) {
     e.preventDefault();
@@ -85,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setLicenseMsg('License activated successfully!');
         setTimeout(() => {
           setShowLicenseModal(false);
-          window.location.reload();
+          router.push('/activation-success');
         }, 1200);
       } else {
         setLicenseMsg(data.error || 'Activation failed');
@@ -144,7 +162,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
 
               {licenseMsg && (
-                <div className={`text-xs px-3 py-2 rounded-lg ${licenseMsg.includes('success') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                <div className={`text-xs px-3 py-2 rounded-lg ${licenseMsg.includes('success') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
                   {licenseMsg}
                 </div>
               )}

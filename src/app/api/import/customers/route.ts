@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query, run, insertReturning, get, withTenantContext } from '@/lib/db';
+import { query, run, insertReturning, get, withTenantContext, transaction } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
 
 export async function POST(request: Request) {
@@ -25,6 +25,9 @@ export async function POST(request: Request) {
         existingEmails.add((r as any).email);
       }
 
+      const fileSeenEmails = new Set<string>();
+      const validRows: Array<Record<string, any>> = [];
+
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i] as Record<string, string>;
         const rowErrors: { row: number; field: string; message: string; value: string }[] = [];
@@ -49,10 +52,15 @@ export async function POST(request: Request) {
 
         if (email) {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          const normalizedEmail = email.toLowerCase();
           if (!emailRegex.test(email)) {
             rowErrors.push({ row: rowNum, field: 'Email', message: `Invalid email format: "${email}"`, value: email });
-          } else if (existingEmails.has(email.toLowerCase())) {
+          } else if (existingEmails.has(normalizedEmail)) {
             rowErrors.push({ row: rowNum, field: 'Email', message: `Duplicate email: "${email}"`, value: email });
+          } else if (fileSeenEmails.has(normalizedEmail)) {
+            rowErrors.push({ row: rowNum, field: 'Email', message: `Duplicate email in file: "${email}"`, value: email });
+          } else {
+            fileSeenEmails.add(normalizedEmail);
           }
         }
 
@@ -61,28 +69,56 @@ export async function POST(request: Request) {
           continue;
         }
 
+        validRows.push({
+          customer_name: customerName || companyName || 'Imported',
+          company_name: companyName || ' ',
+          contact_person: contactPerson || '',
+          email_address: email || '',
+          phone_number: phone || '',
+          billing_address: billingAddress || '',
+          shipping_address: shippingAddress || '',
+          tax_id: taxId || '',
+          country: country || '',
+          payment_terms: paymentTerms,
+          credit_limit: creditLimit,
+          notes: notes || '',
+        });
+      }
+
+      if (validRows.length > 0) {
         try {
-          const ins = await insertReturning<{ id: string }>(
-            `INSERT INTO customers (tenant_id, customer_name, company_name, contact_person, email_address, phone_number, billing_address, shipping_address, tax_id, country, payment_terms, credit_limit, notes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-            [session.tenant_id, customerName || companyName || 'Imported', companyName || ' ', contactPerson || '',
-             email || '', phone || '', billingAddress || '', shippingAddress || '', taxId || '',
-             country || '', paymentTerms, creditLimit, notes || '']
-          );
-          imported.push(ins.id);
-          if (email) existingEmails.add(email.toLowerCase());
+          await transaction(async (client) => {
+            for (const validRow of validRows) {
+              await client.query(
+                `INSERT INTO customers (tenant_id, customer_name, company_name, contact_person, email_address, phone_number, billing_address, shipping_address, tax_id, country, payment_terms, credit_limit, notes)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                [session.tenant_id, validRow.customer_name, validRow.company_name, validRow.contact_person,
+                 validRow.email_address, validRow.phone_number, validRow.billing_address, validRow.shipping_address,
+                 validRow.tax_id, validRow.country, validRow.payment_terms, validRow.credit_limit, validRow.notes]
+              );
+            }
+          });
+          imported.push(...Array(validRows.length).fill('imported'));
         } catch (dbErr: any) {
-          errors.push({ row: rowNum, field: 'Database', message: dbErr.message || 'Failed to insert row', value: JSON.stringify(row) });
+          errors.push({ row: 0, field: 'Database', message: dbErr.message || 'Failed to insert valid rows', value: '' });
         }
       }
 
-      // Log the import to audit_log
-      await run(
-        `INSERT INTO audit_log (tenant_id, user_id, entity_type, imported_count, errors_count, error_details, file_name)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [session.tenant_id, session.user_id || session.tenant_id!, 'customers', imported.length, errors.length,
-         JSON.stringify(errors), file_name || '']
-      );
+      if (imported.length > 0) {
+        await run(
+          `INSERT INTO audit_log (tenant_id, user_id, entity_type, imported_count, errors_count, error_details, file_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [session.tenant_id, session.user_id || session.tenant_id!, 'customers', imported.length, errors.length,
+           JSON.stringify(errors), file_name || '']
+        );
+      } else {
+        await run(
+          `INSERT INTO audit_log (tenant_id, user_id, entity_type, imported_count, errors_count, error_details, file_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [session.tenant_id, session.user_id || session.tenant_id!, 'customers', 0, errors.length,
+           JSON.stringify(errors), file_name || '']
+        );
+      }
 
       return {
         imported: imported.length,

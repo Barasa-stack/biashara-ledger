@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { get } from '@/lib/db';
 import { checkUserTrialStatus } from '@/lib/license';
 import { getSessionFromCookies } from '@/lib/auth-server';
+import { normalizePlan } from '@/lib/feature-gate';
 
 export async function GET() {
   try {
@@ -16,14 +17,17 @@ export async function GET() {
     const licenseData = await get(
       'SELECT license_key, license_status, subscription_plan, subscription_status, subscription_expiry FROM users WHERE id = $1',
       [user.user_id || user.id]
-    );
+    ) as any;
 
     return NextResponse.json({
       valid: trialStatus.status !== 'expired',
       status: trialStatus.status,
       message: trialStatus.message,
       daysRemaining: trialStatus.daysRemaining || 0,
-      license: licenseData || null,
+      license: licenseData ? {
+        ...licenseData,
+        subscription_plan: normalizePlan(licenseData.subscription_plan),
+      } : null,
     });
   } catch (err: any) {
     return NextResponse.json({ valid: false, error: 'License check failed' }, { status: 500 });

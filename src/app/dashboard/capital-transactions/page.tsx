@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Trash2, X, Banknote, Search, Download, TrendingUp, TrendingDown } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 
 type CapitalTransaction = {
   id: string;
@@ -43,6 +43,8 @@ export default function CapitalTransactionsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchTransactions = () => {
     setLoading(true);
@@ -117,9 +119,9 @@ export default function CapitalTransactionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#000000]">Capital Transactions</h1>
           <p className="text-sm text-[#000000]">
-            Contributions: <span className="text-green-600 font-medium">{fmtUSD(totalInjections)}</span> &middot;
+            Contributions: <span className="text-red-600 font-medium">{fmtUSD(totalInjections)}</span> &middot;
             Withdrawals: <span className="text-red-500 font-medium">{fmtUSD(totalWithdrawals)}</span> &middot;
-            Net: <span className={netEquity >= 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>{fmtUSD(netEquity)}</span>
+            Net: <span className={netEquity >= 0 ? 'text-red-600 font-medium' : 'text-red-500 font-medium'}>{fmtUSD(netEquity)}</span>
           </p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium hover:bg-brand/90 transition-colors">
@@ -172,13 +174,13 @@ export default function CapitalTransactionsPage() {
                     <tr key={t.id} className="border-b border-border/50 text-[#000000]">
                       <td className="px-4 py-3 text-gray-500">{t.transaction_date}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${isInjection ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${isInjection ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
                           <TypeIcon className="h-3 w-3" /> {isInjection ? 'Contribution' : 'Withdrawal'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-500 max-w-[250px] truncate">{t.description || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{t.reference || '—'}</td>
-                      <td className={`px-4 py-3 text-right font-medium ${isInjection ? 'text-green-600' : 'text-red-500'}`}>
+                      <td className={`px-4 py-3 text-right font-medium ${isInjection ? 'text-red-600' : 'text-red-500'}`}>
                         {isInjection ? '' : '('}{fmtUSD(t.amount)}{isInjection ? '' : ')'}
                       </td>
                       <td className="px-4 py-3 text-center">

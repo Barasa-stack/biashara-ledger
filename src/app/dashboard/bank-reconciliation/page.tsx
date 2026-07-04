@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, X, Landmark, Search, Download, RefreshCw } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 import { formatCurrency } from '@/lib/currencies';
 
 type BankAccount = {
@@ -51,6 +51,8 @@ export default function BankReconciliationPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const accountMap = useMemo(() => {
     const m = new Map<string, BankAccount>();
@@ -263,14 +265,14 @@ export default function BankReconciliationPage() {
                       <td className="py-3 pr-4 text-gray-700">{r.period}</td>
                       <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(r.statement_balance)}</td>
                       <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(r.system_balance)}</td>
-                      <td className={`py-3 pr-4 text-right font-medium ${r.difference === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <td className={`py-3 pr-4 text-right font-medium ${r.difference === 0 ? 'text-red-600' : 'text-red-600'}`}>
                         {fmtUSD(r.difference)}
                       </td>
                       <td className="py-3 pr-4 text-center text-gray-700">{r.matched_count}</td>
                       <td className="py-3 pr-4 text-center text-gray-700">{r.unmatched_count}</td>
                       <td className="py-3">
                         <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                          r.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          r.status === 'completed' ? 'bg-red-100 text-red-700' :
                           r.status === 'failed' ? 'bg-red-100 text-red-700' :
                           r.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
                           'bg-yellow-100 text-yellow-700'

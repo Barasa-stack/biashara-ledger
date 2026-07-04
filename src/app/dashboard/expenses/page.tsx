@@ -285,7 +285,7 @@ export default function ExpensesPage() {
                     <td className="py-3 pr-4 text-gray-700">{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                        exp.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        exp.status === 'approved' ? 'bg-red-100 text-red-700' :
                         exp.status === 'rejected' ? 'bg-red-100 text-red-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>

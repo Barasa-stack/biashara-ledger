@@ -302,9 +302,9 @@ export async function sendWelcomeEmailNewClient(params: {
           <p style="font-size: 13px; color: #92400e; margin: 0;"><strong>Important:</strong> Please log in using the temporary password above. You will be required to change your password on first login.</p>
         </div>
 
-        <div style="background: #f0fdf4; border: 2px dashed #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <div style="background: #fef2f2; border: 2px dashed #ef4444; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
           <p style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Your License Details</p>
-          <p style="font-size: 20px; font-weight: 700; color: #166534; letter-spacing: 2px; font-family: monospace; margin: 8px 0;">${params.licenseKey}</p>
+          <p style="font-size: 20px; font-weight: 700; color: #991b1b; letter-spacing: 2px; font-family: monospace; margin: 8px 0;">${params.licenseKey}</p>
           <table style="width: auto; margin: 12px auto 0; font-size: 13px;">
             <tr><td style="color: #6b7280; padding: 2px 8px;">Plan:</td><td style="padding: 2px 8px; font-weight: 600;">${params.plan.charAt(0).toUpperCase() + params.plan.slice(1)}</td></tr>
             <tr><td style="color: #6b7280; padding: 2px 8px;">Expires:</td><td style="padding: 2px 8px; font-weight: 600;">${new Date(params.expiresAt).toLocaleDateString()}</td></tr>
@@ -354,7 +354,7 @@ export async function sendLicenseActivatedEmail(params: {
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+      <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
         <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 700;">License Activated!</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">Your subscription is now active</p>
       </div>
@@ -362,12 +362,12 @@ export async function sendLicenseActivatedEmail(params: {
         <p style="font-size: 16px; color: #111827; margin: 0 0 16px;">Dear ${params.name || 'Valued Customer'},</p>
         <p style="font-size: 14px; color: #374151; line-height: 1.6;">Great news! Your BiasharaLedger license has been successfully activated. You can now enjoy uninterrupted access to all features of your ${params.plan.charAt(0).toUpperCase() + params.plan.slice(1)} plan.</p>
 
-        <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
           <p style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">License Details</p>
-          <p style="font-size: 20px; font-weight: 700; color: #166534; letter-spacing: 2px; font-family: monospace; margin: 8px 0;">${params.licenseKey}</p>
+          <p style="font-size: 20px; font-weight: 700; color: #991b1b; letter-spacing: 2px; font-family: monospace; margin: 8px 0;">${params.licenseKey}</p>
           <table style="width: auto; margin: 12px auto 0; font-size: 13px;">
             <tr><td style="color: #6b7280; padding: 2px 8px;">Plan:</td><td style="padding: 2px 8px; font-weight: 600;">${params.plan.charAt(0).toUpperCase() + params.plan.slice(1)}</td></tr>
-            <tr><td style="color: #6b7280; padding: 2px 8px;">Status:</td><td style="padding: 2px 8px; font-weight: 600; color: #22c55e;">Active</td></tr>
+            <tr><td style="color: #6b7280; padding: 2px 8px;">Status:</td><td style="padding: 2px 8px; font-weight: 600; color: #ef4444;">Active</td></tr>
             <tr><td style="color: #6b7280; padding: 2px 8px;">Expires:</td><td style="padding: 2px 8px; font-weight: 600;">${new Date(params.expiresAt).toLocaleDateString()}</td></tr>
           </table>
         </div>
@@ -488,7 +488,7 @@ export async function sendLicenseExtendedEmail(params: {
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+      <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
         <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 700;">License Extended!</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">Your subscription has been extended</p>
       </div>
@@ -496,12 +496,12 @@ export async function sendLicenseExtendedEmail(params: {
         <p style="font-size: 16px; color: #111827; margin: 0 0 16px;">Dear ${params.name || 'Valued Customer'},</p>
         <p style="font-size: 14px; color: #374151; line-height: 1.6;">Great news! Your BiasharaLedger license has been successfully extended by <strong>${params.additionalMonths} month${params.additionalMonths === 1 ? '' : 's'}</strong>.</p>
 
-        <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
           <p style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Updated License Details</p>
-          <p style="font-size: 18px; font-weight: 700; color: #166534; letter-spacing: 2px; font-family: monospace; margin: 8px 0;">${params.licenseKey}</p>
+          <p style="font-size: 18px; font-weight: 700; color: #991b1b; letter-spacing: 2px; font-family: monospace; margin: 8px 0;">${params.licenseKey}</p>
           <table style="width: auto; margin: 12px auto 0; font-size: 13px;">
             <tr><td style="color: #6b7280; padding: 2px 8px;">Plan:</td><td style="padding: 2px 8px; font-weight: 600;">${params.plan.charAt(0).toUpperCase() + params.plan.slice(1)}</td></tr>
-            <tr><td style="color: #6b7280; padding: 2px 8px;">Status:</td><td style="padding: 2px 8px; font-weight: 600; color: #22c55e;">Active</td></tr>
+            <tr><td style="color: #6b7280; padding: 2px 8px;">Status:</td><td style="padding: 2px 8px; font-weight: 600; color: #ef4444;">Active</td></tr>
             <tr><td style="color: #6b7280; padding: 2px 8px;">New Expires:</td><td style="padding: 2px 8px; font-weight: 600;">${new Date(params.newExpiresAt).toLocaleDateString()}</td></tr>
           </table>
         </div>

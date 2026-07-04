@@ -77,7 +77,7 @@ export default function SelectPackagePage() {
               <ul className="space-y-3 mb-8 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-[#000000]">
-                    <Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                    <Check className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                     {f}
                   </li>
                 ))}

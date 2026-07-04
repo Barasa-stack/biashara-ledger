@@ -570,11 +570,49 @@ export async function initSchema() {
       last_sync TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS public.license_history (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      client_id UUID REFERENCES public.admin_clients(id) ON DELETE SET NULL,
+      license_id UUID,
+      action VARCHAR(50) NOT NULL,
+      old_plan_tier VARCHAR(50),
+      new_plan_tier VARCHAR(50),
+      old_expires_at TIMESTAMPTZ,
+      new_expires_at TIMESTAMPTZ,
+      performed_by UUID,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
+
+  // Ensure all business tables have tenant_id column (for local PostgreSQL without Nile)
+  async function addTenantIdCol(table: string) {
+    try {
+      await exec(`ALTER TABLE public.${table} ADD COLUMN IF NOT EXISTS tenant_id TEXT`);
+    } catch { /* table may not exist yet — will be retried later */ }
+  }
+  const tenantTables = [
+    'customers', 'clients', 'quotations', 'sales_invoices', 'payments',
+    'credit_notes', 'purchase_orders', 'purchase_invoices', 'supplier_payments',
+    'debit_notes', 'expenses', 'deals', 'projects',
+    'other_transactions', 'capital_transactions', 'company_settings',
+  ];
+  for (const tbl of tenantTables) {
+    await addTenantIdCol(tbl);
+  }
 
   await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS country TEXT DEFAULT ''`);
   await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
   await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS client_country TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS client_country TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS country TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
 
   // ═══════════════════════════════════════════════
   // INVENTORY MODULE
@@ -666,6 +704,10 @@ export async function initSchema() {
   `);
 
   // Income tax fields on company_settings
+  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_30d BOOLEAN DEFAULT FALSE`);
+  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_7d BOOLEAN DEFAULT FALSE`);
+  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_1d BOOLEAN DEFAULT FALSE`);
+
   await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS income_tax_rate REAL DEFAULT 0`);
   await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS tax_filing_frequency TEXT DEFAULT 'monthly'`);
 
@@ -984,6 +1026,108 @@ export async function initSchema() {
   `);
 
   // ═══════════════════════════════════════════════
+  // ADMIN SETTINGS (key-value for admin panel config)
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.admin_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // ADMIN SUBSCRIPTION PLANS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.admin_plans (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      price NUMERIC(10,2) NOT NULL DEFAULT 0,
+      description TEXT DEFAULT '',
+      features TEXT DEFAULT '[]',
+      is_active BOOLEAN DEFAULT TRUE,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  await exec(`
+    INSERT INTO public.admin_plans (name, price, description, sort_order) VALUES
+      ('Basic', 5.00, 'Basic plan with essential features', 1),
+      ('Standard', 10.00, 'Standard plan with advanced features', 2),
+      ('Premium', 15.00, 'Premium plan with all features', 3)
+    ON CONFLICT (name) DO NOTHING;
+  `);
+
+  // ═══════════════════════════════════════════════
+  // ADMIN AUDIT LOG
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.admin_audit_log (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      admin_id UUID,
+      admin_email TEXT DEFAULT '',
+      action TEXT NOT NULL,
+      entity_type TEXT DEFAULT '',
+      entity_id TEXT DEFAULT '',
+      details TEXT DEFAULT '',
+      ip_address TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  // ═══════════════════════════════════════════════
+  // ADMIN NOTIFICATIONS
+  // ═══════════════════════════════════════════════
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.admin_notifications (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      type TEXT NOT NULL DEFAULT 'info',
+      title TEXT DEFAULT '',
+      message TEXT NOT NULL,
+      link TEXT DEFAULT '',
+      is_read INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  // Seed admin_notifications from existing data (only if table is empty)
+  try {
+    await exec(`
+      INSERT INTO admin_notifications (type, title, message, link, created_at)
+      SELECT 'info', 'New client registered', 'New client registered: ' || COALESCE(company_name, email), '/admin/clients', created_at
+      FROM admin_clients WHERE created_at >= NOW() - INTERVAL '30 days'
+      AND NOT EXISTS (SELECT 1 FROM admin_notifications WHERE admin_notifications.message LIKE 'New client registered:%')
+    `);
+  } catch {}
+  try {
+    await exec(`
+      INSERT INTO admin_notifications (type, title, message, link, created_at)
+      SELECT 'info', 'License generated', 'License generated for ' || COALESCE(ac.company_name, 'a client'), '/admin/licenses', alk.created_at
+      FROM admin_license_keys alk LEFT JOIN admin_clients ac ON alk.client_id = ac.id
+      WHERE alk.created_at >= NOW() - INTERVAL '30 days'
+      AND NOT EXISTS (SELECT 1 FROM admin_notifications WHERE admin_notifications.title = 'License generated')
+    `);
+  } catch {}
+  try {
+    await exec(`
+      INSERT INTO admin_notifications (type, title, message, link, created_at)
+      SELECT 'info', 'Update published', 'Software update v' || version || ' published', '/admin/updates', COALESCE(release_date, created_at)
+      FROM app_updates WHERE created_at >= NOW() - INTERVAL '30 days'
+      AND NOT EXISTS (SELECT 1 FROM admin_notifications WHERE admin_notifications.title = 'Update published')
+    `);
+  } catch {}
+  try {
+    await exec(`
+      INSERT INTO admin_notifications (type, title, message, link, created_at)
+      SELECT 'warning', 'License expiring', 'License ' || license_key || ' expiring in 3 days', '/admin/licenses', expires_at
+      FROM admin_license_keys WHERE is_active = true AND expires_at BETWEEN NOW() AND NOW() + INTERVAL '3 days'
+      AND NOT EXISTS (SELECT 1 FROM admin_notifications WHERE admin_notifications.title = 'License expiring')
+    `);
+  } catch {}
+
+  // ═══════════════════════════════════════════════
   // OPEN API / WEBHOOKS
   // ═══════════════════════════════════════════════
   await exec(`
@@ -1227,10 +1371,27 @@ export async function initSchema() {
     { table: 'notification_log', column: 'is_read', name: 'idx_nl_read' },
     { table: 'audit_log', column: 'entity_type', name: 'idx_al_entity' },
     { table: 'audit_log', column: 'created_at', name: 'idx_al_date' },
+    { table: 'admin_notifications', column: 'created_at', name: 'idx_admin_notif_date' },
+    { table: 'admin_audit_log', column: 'created_at', name: 'idx_admin_audit_date' },
+    { table: 'admin_audit_log', column: 'admin_email', name: 'idx_admin_audit_email' },
   ];
   for (const { table, column, name } of indexColumns) {
     try {
       await exec(`CREATE INDEX IF NOT EXISTS ${name} ON public.${table} (${column})`);
     } catch {}
+  }
+
+  // Final pass: ensure tenant_id on any tables still missing it
+  const allTables = [
+    'inventory_items', 'inventory_transactions', 'fixed_assets', 'journal_entries',
+    'chart_of_accounts', 'budgets', 'bank_accounts', 'bank_statements',
+    'reconciliations', 'employees', 'salaries', 'approval_workflows',
+    'approval_requests', 'recurring_templates', 'notifications', 'api_keys',
+    'exchange_rates', 'project_transactions', 'articles',
+  ];
+  for (const tbl of allTables) {
+    try {
+      await exec(`ALTER TABLE public.${tbl} ADD COLUMN IF NOT EXISTS tenant_id TEXT`);
+    } catch { /* skip if table doesn't exist */ }
   }
 }

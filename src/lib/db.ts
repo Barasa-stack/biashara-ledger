@@ -1,4 +1,4 @@
-import { Pool, QueryResultRow } from 'pg';
+import { Pool, PoolClient, QueryResultRow } from 'pg';
 import { AsyncLocalStorage } from 'async_hooks';
 
 const tenantPools = new Map<string, Pool>();
@@ -37,7 +37,7 @@ async function getTenantPool(tenantId: string): Promise<Pool> {
       idleTimeoutMillis: 30000,
       onConnect: async (client: any) => {
         try {
-          await client.query('SET nile.tenant_id = $1', [tenantId]);
+          await client.query(`SET nile.tenant_id = '${tenantId}'`);
         } catch (e: any) {
           console.error(`[db] onConnect error for tenant ${tenantId.substring(0,8)}: ${e.message}`);
         }
@@ -144,20 +144,36 @@ export async function adminRun(sql: string, params?: any[]): Promise<{ rowCount:
   return { rowCount: result.rowCount ?? 0 };
 }
 
-export async function exec(sql: string): Promise<void> {
+export async function exec(sql: string, params?: any[]): Promise<void> {
   const currentTenantId = getTenantContext();
   if (currentTenantId) {
     const pool = await getTenantPool(currentTenantId);
-    await pool.query(sql);
+    await pool.query(sql, params);
   } else {
     const pool = await getBasePool();
-    await pool.query(sql);
+    await pool.query(sql, params);
   }
 }
 
 export async function insertReturning<T extends QueryResultRow = any>(sql: string, params?: any[]): Promise<T> {
   const rows = await query<T>(sql, params);
   return rows[0];
+}
+
+export async function transaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const currentTenantId = getTenantContext();
+  const client = currentTenantId ? await getTenantPool(currentTenantId).then((pool) => pool.connect()) : await getBasePool().then((pool) => pool.connect());
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export function getOrCreatePool(_max?: number, _schema?: string) {

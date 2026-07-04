@@ -1,9 +1,16 @@
 import { adminGet, adminRun } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
+import { generateLicenseKey } from '@/lib/admin';
+import { logLicenseActivation } from '@/lib/license';
+import { normalizePlan } from '@/lib/feature-gate';
 import { NextResponse } from 'next/server';
 import * as crypto from 'crypto';
 
-const SECRET = process.env.LICENSE_SECRET || 'your-very-secret-key-change-in-production';
+const SECRET = (() => {
+  const s = process.env.LICENSE_SECRET;
+  if (!s) throw new Error('LICENSE_SECRET environment variable is required');
+  return s;
+})();
 
 export class LicenseService {
   // ─── ONLINE ACTIVATION (license key) ───
@@ -85,6 +92,7 @@ export class LicenseService {
       return { error: 'This license key belongs to a different account.' };
     }
 
+    const plan = normalizePlan(license.plan || 'standard');
     // 5. Update user
     await adminRun(
       `UPDATE users
@@ -94,14 +102,14 @@ export class LicenseService {
            license_status = 'active',
            license_key = $3,
            trial_used = 1
-       WHERE email = $4`,
-      [license.plan || 'standard', license.expires_at, key, sessionEmail]
+       WHERE LOWER(email) = LOWER($4)`,
+      [plan, license.expires_at, key, sessionEmail]
     );
 
     // 6. Update admin_clients
     await adminRun(
-      `UPDATE admin_clients SET is_active = true, expires_at = $1::timestamptz WHERE id = $2`,
-      [license.expires_at, actualClient.id]
+      `UPDATE admin_clients SET is_active = true, expires_at = $1::timestamptz, plan = $2 WHERE id = $3`,
+      [license.expires_at, plan, actualClient.id]
     );
 
     // 7. Mark license as used (if in admin_license_keys)
@@ -112,9 +120,18 @@ export class LicenseService {
       );
     }
 
+    // 8. Log activation for admin panel
+    await logLicenseActivation({
+      licenseKey: key,
+      userEmail: sessionEmail,
+      ipAddress: '',
+      deviceInfo: 'web',
+      status: 'success',
+    });
+
     return {
       success: true,
-      plan: license.plan || 'standard',
+      plan,
       expiresAt: license.expires_at,
       companyName: actualClient.company_name,
       clientId: actualClient.id,
@@ -147,6 +164,7 @@ export class LicenseService {
       return { error: 'This license belongs to a different account.' };
     }
 
+    const plan = normalizePlan(licenseFile.plan);
     await adminRun(
       `UPDATE users
        SET subscription_plan = $1,
@@ -155,14 +173,14 @@ export class LicenseService {
            license_status = 'active',
            license_key = $3,
            trial_used = 1
-       WHERE email = $4`,
-      [licenseFile.plan, licenseFile.expiresAt, licenseFile.licenseKey, sessionEmail]
+       WHERE LOWER(email) = LOWER($4)`,
+      [plan, licenseFile.expiresAt, licenseFile.licenseKey, sessionEmail]
     );
 
     await adminRun(
-      `UPDATE admin_clients SET is_active = true, expires_at = $1::timestamptz, license_key = $2
-       WHERE id = $3`,
-      [licenseFile.expiresAt, licenseFile.licenseKey, licenseFile.clientId]
+      `UPDATE admin_clients SET is_active = true, expires_at = $1::timestamptz, license_key = $2, plan = $3
+       WHERE id = $4`,
+      [licenseFile.expiresAt, licenseFile.licenseKey, plan, licenseFile.clientId]
     );
 
     await adminRun(
@@ -171,9 +189,17 @@ export class LicenseService {
       [licenseFile.licenseKey]
     );
 
+    await logLicenseActivation({
+      licenseKey: licenseFile.licenseKey,
+      userEmail: sessionEmail,
+      ipAddress: '',
+      deviceInfo: 'desktop',
+      status: 'success',
+    });
+
     return {
       success: true,
-      plan: licenseFile.plan,
+      plan,
       expiresAt: licenseFile.expiresAt,
       clientId: licenseFile.clientId,
     };
@@ -185,24 +211,16 @@ export class LicenseService {
       subscription_plan: string;
       subscription_status: string;
       subscription_expiry: string;
+      license_status: string;
     }>(
-      `SELECT subscription_plan, subscription_status, subscription_expiry
+      `SELECT subscription_plan, subscription_status, subscription_expiry, license_status
        FROM users
-       WHERE email = $1 AND role = 'admin'`,
+       WHERE LOWER(email) = LOWER($1)`,
       [email]
     );
 
-    const plan = user?.subscription_plan || 'trial';
-    const status = user?.subscription_status || 'expired';
-
-    response.cookies.set('bl_sub_status', `${plan}:${status}`, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
-
+    const plan = normalizePlan(user?.subscription_plan || 'trial');
+    const status = user?.license_status === 'active' ? 'active' : user?.subscription_status || 'expired';
     return { plan, status, expiry: user?.subscription_expiry };
   }
 
@@ -216,13 +234,14 @@ export class LicenseService {
 
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
-    const licenseKey = `BL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const licenseKey = generateLicenseKey(client.email);
 
+    const normalizedPlan = normalizePlan(plan);
     const payload = {
       licenseKey,
       clientId: client.id,
       email: client.email,
-      plan,
+      plan: normalizedPlan,
       expiresAt: expiresAt.toISOString(),
       issuedAt: new Date().toISOString(),
     };
@@ -235,11 +254,29 @@ export class LicenseService {
     await adminRun(
       `INSERT INTO admin_license_keys (license_key, client_id, plan, is_active, is_used, expires_at)
        VALUES ($1, $2, $3, true, false, $4::timestamptz)`,
-      [licenseKey, client.id, plan, expiresAt.toISOString()]
+      [licenseKey, client.id, payload.plan, payload.expiresAt]
     );
 
-    return { ...payload, signature };
+    await adminRun(
+      `UPDATE users
+       SET subscription_plan = $1,
+           subscription_status = 'active',
+           subscription_expiry = $2::timestamptz,
+           license_status = 'active',
+           license_key = $3
+       WHERE LOWER(email) = LOWER($4)`,
+      [payload.plan, payload.expiresAt, licenseKey, client.email]
+    );
+
+    return {
+      licenseKey,
+      plan: payload.plan,
+      expiresAt: payload.expiresAt,
+      signature,
+    };
   }
+
+  // ─── EXTEND EXISTING LICENSE ───
 
   // ─── EXTEND EXISTING LICENSE ───
   static async extendLicense(clientId: string, additionalMonths: number, newPlan?: string) {
@@ -263,17 +300,19 @@ export class LicenseService {
     const newExpiry = new Date(license.expires_at);
     newExpiry.setMonth(newExpiry.getMonth() + additionalMonths);
 
+    const normalizedNewPlan = newPlan ? normalizePlan(newPlan) : normalizePlan(license.plan);
+
     await adminRun(
       `UPDATE admin_license_keys
        SET expires_at = $1::timestamptz, plan = COALESCE($2, plan)
        WHERE id = $3`,
-      [newExpiry.toISOString(), newPlan || license.plan, license.id]
+      [newExpiry.toISOString(), normalizedNewPlan, license.id]
     );
 
     await adminRun(
       `UPDATE admin_clients SET expires_at = $1::timestamptz, plan = COALESCE($2, plan)
        WHERE id = $3`,
-      [newExpiry.toISOString(), newPlan || license.plan, clientId]
+      [newExpiry.toISOString(), normalizedNewPlan, clientId]
     );
 
     return {
@@ -300,7 +339,7 @@ export class LicenseService {
     if (!user) return { error: 'User not found' };
 
     return {
-      plan: user.subscription_plan,
+      plan: normalizePlan(user.subscription_plan),
       status: user.subscription_status,
       expiry: user.subscription_expiry,
       licenseKey: user.license_key,

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, X, Webhook, Copy, CheckCircle, Search, Pencil, Trash2 } from 'lucide-react';
+import { useConfirm } from '@/components/ConfirmDialog';
+import { useToast } from '@/components/Toast';
 
 type WebhookEvent = {
   id: string;
@@ -51,6 +53,8 @@ export default function WebhooksPage() {
   const [newWebhookData, setNewWebhookData] = useState<NewWebhookResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const fetchWebhooks = () => {
     setLoading(true);
@@ -241,7 +245,7 @@ export default function WebhooksPage() {
                     </td>
                     <td className="py-3 pr-4 text-gray-700 text-xs">{w.last_triggered_at ? new Date(w.last_triggered_at).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4">
-                      <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${w.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${w.is_active ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
                         {w.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -277,9 +281,9 @@ export default function WebhooksPage() {
 
             {newWebhookData ? (
               <div className="px-6 py-5 space-y-4">
-                <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                  <p className="text-sm text-green-700 font-medium">Webhook created successfully</p>
+                <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                  <p className="text-sm text-red-700 font-medium">Webhook created successfully</p>
                 </div>
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-xs font-medium text-yellow-700 mb-2">Webhook Secret — Copy this now. You won't see it again.</p>

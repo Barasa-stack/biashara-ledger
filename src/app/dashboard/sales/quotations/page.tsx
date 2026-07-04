@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, FileText, Download, Search, Filter, Printer, XCircle } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 import { getVatRate } from '@/lib/vat-rates';
 import { getCountryByCode } from '@/lib/countries';
 
@@ -64,6 +64,7 @@ export default function QuotationsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
+  const { confirm, dialog } = useConfirm();
 
   const filteredQuotations = useMemo(() => {
     let list = quotations;
@@ -197,7 +198,8 @@ export default function QuotationsPage() {
     try {
       const url = '/api/sales/quotations';
       const method = editing ? 'PUT' : 'POST';
-      const body = editing ? { ...form, id: editing.id } : form;
+      const payload = { ...recalc(form), vat_rate: activeVatRate };
+      const body = editing ? { ...payload, id: editing.id } : payload;
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -210,7 +212,7 @@ export default function QuotationsPage() {
       if (!editing) {
         const customer = customers.find(c => c.id === form.customer_id);
         const customerEmail = customer?.email_address;
-        if (customerEmail && confirm(`Send quotation "${form.quotation_number}" to ${customerEmail}?`)) {
+        if (customerEmail && await confirm(`Send quotation "${form.quotation_number}" to ${customerEmail}?`)) {
           try {
             const emailRes = await fetch('/api/send-email', {
               method: 'POST',
@@ -244,7 +246,7 @@ export default function QuotationsPage() {
         setToast({ type: 'success', message: 'Quotation updated' });
       }
     } catch (e: any) {
-      toast(e.message || 'Save failed');
+      setToast({ type: 'error', message: e.message || 'Save failed' });
     } finally {
       setSaving(false);
     }
@@ -261,7 +263,7 @@ export default function QuotationsPage() {
       if (!res.ok) throw new Error('Delete failed');
       fetchQuotations();
     } catch (e: any) {
-      toast(e.message || 'Delete failed');
+      setToast({ type: 'error', message: e.message || 'Delete failed' });
     }
   };
 
@@ -277,7 +279,7 @@ export default function QuotationsPage() {
       fetchQuotations();
       setToast({ type: 'success', message: `Quotation "${q.quotation_number}" marked as declined` });
     } catch (e: any) {
-      toast(e.message || 'Failed to decline quotation');
+      setToast({ type: 'error', message: e.message || 'Failed to decline quotation' });
     }
   };
 
@@ -351,7 +353,7 @@ export default function QuotationsPage() {
     const colors: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-600',
       sent: 'bg-blue-100 text-blue-700',
-      accepted: 'bg-green-100 text-green-700',
+      accepted: 'bg-red-100 text-red-700',
       declined: 'bg-red-100 text-red-700',
       expired: 'bg-yellow-100 text-yellow-700',
       overdue: 'bg-red-100 text-red-700',
@@ -381,7 +383,7 @@ export default function QuotationsPage() {
     <div className="space-y-5">
       {toast && (
         <div className={`fixed top-4 right-4 z-[100] flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
-          toast.type === 'success' ? 'bg-green-600 text-white' : toast.type === 'warning' ? 'bg-amber-500 text-white' : 'bg-red-600 text-white'
+          toast.type === 'success' ? 'bg-red-600 text-white' : toast.type === 'warning' ? 'bg-amber-500 text-white' : 'bg-red-600 text-white'
         }`}>
           {toast.message}
           <button onClick={() => setToast(null)} className="ml-2 hover:opacity-80">
@@ -533,7 +535,7 @@ export default function QuotationsPage() {
                       value={form.customer_id}
                       onChange={e => {
                         const id = e.target.value;
-                        const c = customers.find(c => c.id === id);
+                        const c = customers.find(c => String(c.id) === id);
                         setForm(prev => recalc({ ...prev, customer_id: id, customer_name: c?.customer_name || '', customer_country: c?.country || '' }));
                       }}
                     className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"

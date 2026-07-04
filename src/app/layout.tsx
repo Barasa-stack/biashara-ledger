@@ -8,25 +8,25 @@ const baseUrl = 'https://biasharaledsgr.com';
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'BiasharaLedger - Business Management Software for Kenyan SMEs',
+    default: 'BiasharaLedger - Business Management Software for Modern Enterprises',
     template: '%s | BiasharaLedger',
   },
-  description: 'Cloud and desktop business management platform for Kenyan retailers, wholesalers, pharmacies, and SMEs. Inventory, POS, accounting, payroll, and KRA compliance in one place.',
-  keywords: ['business management software', 'accounting software Kenya', 'inventory management', 'POS system', 'KRA compliance', 'payroll software', 'MPesa reconciliation', 'Kenyan SME software', 'BiasharaLedger'],
+  description: 'Cloud and desktop business management platform for inventory, POS, accounting, payroll, and compliance. Built for businesses worldwide.',
+  keywords: ['business management software', 'accounting software', 'inventory management', 'POS system', 'payroll software', 'compliance', 'global business software', 'BiasharaLedger'],
   authors: [{ name: 'BiasharaLedger' }],
   robots: { index: true, follow: true },
   openGraph: {
     type: 'website',
-    locale: 'en_KE',
+    locale: 'en_US',
     siteName: 'BiasharaLedger',
-    title: 'BiasharaLedger - Business Management Software for Kenyan SMEs',
-    description: 'Cloud and desktop platform for inventory, POS, accounting, payroll, and KRA compliance. Built for Kenyan businesses.',
+    title: 'BiasharaLedger - Business Management Software',
+    description: 'Cloud and desktop platform for inventory, POS, accounting, payroll, and compliance. Built for businesses worldwide.',
     url: baseUrl,
   },
   twitter: {
     card: 'summary_large_image',
     title: 'BiasharaLedger - Business Management Software',
-    description: 'Cloud and desktop platform for inventory, POS, accounting, payroll, and KRA compliance.',
+    description: 'Cloud and desktop platform for inventory, POS, accounting, payroll, and compliance.',
   },
   icons: [{ rel: 'icon', url: '/favicon.svg', type: 'image/svg+xml' }],
   alternates: { canonical: baseUrl },
@@ -45,7 +45,7 @@ export default async function RootLayout({
     name: 'BiasharaLedger',
     url: baseUrl,
     logo: `${baseUrl}/favicon.svg`,
-    description: 'Cloud and desktop business management platform for Kenyan SMEs.',
+    description: 'Cloud and desktop business management platform for businesses worldwide.',
     contactPoint: {
       '@type': 'ContactPoint',
       telephone: '+254-715-434-805',
@@ -62,14 +62,14 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="en-KE">
+    <html lang="en">
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="bg-[#ffffff] antialiased">
+      <body className="bg-[#ffffff] antialiased" suppressHydrationWarning>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

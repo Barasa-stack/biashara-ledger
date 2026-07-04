@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { adminRun, adminGet, adminQuery } from '@/lib/db';
+import { adminRun, adminGet } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
+import { logAdminAction } from '@/lib/admin-audit';
 
 export async function POST(request: Request) {
-  const { error } = await adminGuard();
+  const { error, session } = await adminGuard();
   if (error) return error;
 
   try {
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     }
 
     const newClient = await adminGet(
-      'SELECT id, company_name, email FROM admin_clients WHERE email = $1',
+      'SELECT id, company_name, email FROM admin_clients WHERE LOWER(email) = LOWER($1)',
       [newClientEmail.trim().toLowerCase()]
     ) as any;
 
@@ -49,6 +50,15 @@ export async function POST(request: Request) {
       'UPDATE admin_clients SET license_key = $1 WHERE id = $2',
       [licenseKey, newClient.id]
     );
+
+    logAdminAction({
+      adminId: session?.user_id,
+      adminEmail: session?.email,
+      action: 'License Transferred',
+      entityType: 'license',
+      entityId: licenseKey,
+      details: `License ${licenseKey} transferred from ${license.company_name || 'unknown'} to ${newClient.company_name}`,
+    });
 
     return NextResponse.json({
       success: true,

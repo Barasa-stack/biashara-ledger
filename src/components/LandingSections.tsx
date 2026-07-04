@@ -190,7 +190,7 @@ export default function LandingSections() {
                     <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-white/50">Cloud Database</span>
-                        <span className="text-xs text-green-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400" /> Synced</span>
+                        <span className="text-xs text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400" /> Synced</span>
                       </div>
                       <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                         <div className="h-full w-full bg-gradient-to-r from-brand to-orange-400 rounded-full" />
@@ -200,7 +200,7 @@ export default function LandingSections() {
                       <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                         <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Online Sales</p>
                         <p className="text-lg font-bold text-white">$184,500</p>
-                        <p className="text-[10px] text-green-400">+12.3% today</p>
+                        <p className="text-[10px] text-red-400">+12.3% today</p>
                       </div>
                       <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                         <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Offline Queue</p>
@@ -549,7 +549,7 @@ export default function LandingSections() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <AnimatedSection>
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-5 py-2 mb-8">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
               <span className="text-sm font-medium text-white/80">Join 12,500+ businesses</span>
             </div>
             <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight">Ready to Transform<br />Your Business?</h2>

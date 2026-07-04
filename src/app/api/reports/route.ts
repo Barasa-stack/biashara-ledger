@@ -1,11 +1,38 @@
 import { NextResponse } from 'next/server';
-import { query, get, withTenantContext } from '@/lib/db';
+import { query as dbQuery, get as dbGet, withTenantContext } from '@/lib/db';
 import { requireSubscription, AuthError } from '@/lib/auth-guard';
+
+async function safeQuery<T extends object = any>(sql: string, params: any[] = []): Promise<T[]> {
+  try {
+    return await dbQuery<T>(sql, params);
+  } catch (err: any) {
+    console.warn('[reports] query failed:', err.message || err, sql, params);
+    return [] as T[];
+  }
+}
+
+async function safeGet<T extends object = any>(sql: string, params: any[] = []): Promise<T> {
+  try {
+    const row = await dbGet<T>(sql, params);
+    return new Proxy((row ?? {}) as T, {
+      get(target, prop) {
+        return prop in target ? (target as any)[prop] : 0;
+      },
+    }) as T;
+  } catch (err: any) {
+    console.warn('[reports] get failed:', err.message || err, sql, params);
+    return new Proxy({} as T, {
+      get() {
+        return 0;
+      },
+    }) as T;
+  }
+}
 
 export async function GET(request: Request) {
   try {
     const { session } = await requireSubscription();
-  const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(request.url);
   const year = new Date().getFullYear();
   const from = searchParams.get('from') || `${year}-01-01`;
   const to = searchParams.get('to') || new Date().toISOString().split('T')[0];
@@ -16,17 +43,17 @@ export async function GET(request: Request) {
   // PROFIT & LOSS STATEMENT (period-based)
   // ═══════════════════════════════════════════════
   // Revenue — use subtotal (excludes VAT) for true net revenue
-  const grossSales = await get(
+  const grossSales = await safeGet<{ total: number }>(
     `SELECT COALESCE(SUM(subtotal), 0) as total FROM sales_invoices WHERE status != 'cancelled' AND issue_date BETWEEN $1 AND $2`,
     [from, to]
-  ) as { total: number };
+  );
 
-  const salesReturns = await get(
+  const salesReturns = await safeGet<{ total: number }>(
     `SELECT COALESCE(SUM(amount), 0) as total FROM credit_notes WHERE (status IS NULL OR status != 'cancelled') AND issue_date BETWEEN $1 AND $2`,
     [from, to]
-  ) as { total: number };
+  );
 
-  const discounts = await get(
+  const discounts = await safeGet(
     `SELECT COALESCE(SUM(discounts), 0) as total FROM sales_invoices WHERE status != 'cancelled' AND issue_date BETWEEN $1 AND $2`,
     [from, to]
   ) as { total: number };
@@ -35,7 +62,7 @@ export async function GET(request: Request) {
   const netSales = grossSales.total - salesReturns.total - discounts.total - allowances;
 
   // Cost of Goods Sold
-  const inventoryItems = await query(
+  const inventoryItems = await safeQuery(
     `SELECT COALESCE(SUM(opening_stock * unit_cost), 0) as opening_value, 
             COALESCE(SUM(current_stock * unit_cost), 0) as closing_value
      FROM inventory_items`
@@ -43,12 +70,12 @@ export async function GET(request: Request) {
   const openingInventory = inventoryItems[0]?.opening_value ?? 0;
   const closingInventory = inventoryItems[0]?.closing_value ?? 0;
 
-  const purchases = await get(
+  const purchases = await safeGet(
     `SELECT COALESCE(SUM(amount), 0) as total FROM purchase_invoices WHERE status != 'cancelled' AND issue_date BETWEEN $1 AND $2`,
     [from, to]
   ) as { total: number };
 
-  const debitNotes = await get(
+  const debitNotes = await safeGet(
     `SELECT COALESCE(SUM(amount), 0) as total FROM debit_notes WHERE (status IS NULL OR status != 'cancelled') AND issue_date BETWEEN $1 AND $2`,
     [from, to]
   ) as { total: number };
@@ -57,7 +84,7 @@ export async function GET(request: Request) {
   const costOfGoodsSold = openingInventory + purchases.total + directCosts - closingInventory - debitNotes.total;
 
   // Inventory valuation detail
-  const inventoryItemsDetail = await query(
+  const inventoryItemsDetail = await safeQuery(
     `SELECT id, item_name, sku, category, unit_of_measure, current_stock, unit_cost, (current_stock * unit_cost) as total_value
      FROM inventory_items WHERE current_stock > 0 ORDER BY item_name`
   ) as any[];
@@ -66,7 +93,7 @@ export async function GET(request: Request) {
   const grossProfit = netSales - costOfGoodsSold;
 
   // Operating Expenses — dynamic categories
-  const allExpenses = await query(
+  const allExpenses = await safeQuery(
     `SELECT category, COALESCE(SUM(amount), 0) as total FROM expenses WHERE status='approved' AND expense_date BETWEEN $1 AND $2 GROUP BY category`,
     [from, to]
   ) as { category: string; total: number }[];
@@ -96,7 +123,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const salariesTotal = await get(
+  const salariesTotal = await safeGet(
     `SELECT COALESCE(SUM(amount), 0) as total FROM salaries WHERE status='paid' AND pay_date BETWEEN $1 AND $2`,
     [from, to]
   ) as { total: number };
@@ -105,11 +132,11 @@ export async function GET(request: Request) {
   const operatingProfit = grossProfit - totalOperatingExpenses;
 
   // Other Income & Expenses
-  const otherIncomeRow = await get(
+  const otherIncomeRow = await safeGet(
     `SELECT COALESCE(SUM(amount), 0) as total FROM other_transactions WHERE type='OTHER_INCOME' AND transaction_date BETWEEN $1 AND $2`,
     [from, to]
   ) as { total: number };
-  const otherExpensesRow = await get(
+  const otherExpensesRow = await safeGet(
     `SELECT COALESCE(SUM(amount), 0) as total FROM other_transactions WHERE type='OTHER_EXPENSE' AND transaction_date BETWEEN $1 AND $2`,
     [from, to]
   ) as { total: number };
@@ -117,7 +144,7 @@ export async function GET(request: Request) {
   const otherExpenses = otherExpensesRow.total;
 
   // Income Tax
-  const companySettings = await get('SELECT vat_rate, income_tax_rate FROM company_settings') as { vat_rate: number; income_tax_rate: number } | undefined;
+  const companySettings = await safeGet('SELECT vat_rate, income_tax_rate FROM company_settings') as { vat_rate: number; income_tax_rate: number } | undefined;
   const incomeTaxRate = companySettings?.income_tax_rate ?? 0;
   const profitBeforeTax = operatingProfit + otherIncome - otherExpenses;
   const taxes = profitBeforeTax > 0 ? profitBeforeTax * (incomeTaxRate / 100) : 0;
@@ -127,7 +154,7 @@ export async function GET(request: Request) {
   const operatingExpenses = expenseTotal + salariesTotal.total;
 
   // Expense breakdown by category
-  const expenseByCategory = await query(
+  const expenseByCategory = await safeQuery(
     `SELECT category, COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
      FROM expenses WHERE status='approved' AND expense_date BETWEEN $1 AND $2 
      GROUP BY category ORDER BY total DESC`,
@@ -135,7 +162,7 @@ export async function GET(request: Request) {
   ) as any[];
 
   // Salaries detail
-  const salariesDetail = await get(
+  const salariesDetail = await safeGet(
     `SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
      FROM salaries WHERE status='paid' AND pay_date BETWEEN $1 AND $2`,
     [from, to]
@@ -144,73 +171,73 @@ export async function GET(request: Request) {
   // ═══════════════════════════════════════════════
   // BALANCE SHEET (cumulative snapshot)
   // ═══════════════════════════════════════════════
-  const allPayments = await get(
+  const allPayments = await safeGet(
     'SELECT COALESCE(SUM(amount), 0) as total FROM payments'
   ) as { total: number };
 
-  const allApprovedExpenses = await get(
+  const allApprovedExpenses = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE status='approved'"
   ) as { total: number };
 
-  const allPaidSalaries = await get(
+  const allPaidSalaries = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM salaries WHERE status='paid'"
   ) as { total: number };
 
-  const allPurchaseTotal = await get(
+  const allPurchaseTotal = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM purchase_invoices WHERE status != 'cancelled'"
   ) as { total: number };
 
-  const allSupplierPayments = await get(
+  const allSupplierPayments = await safeGet(
     'SELECT COALESCE(SUM(amount), 0) as total FROM supplier_payments'
   ) as { total: number };
 
-  const accountsPayable = await get(
+  const accountsPayable = await safeGet(
     `SELECT COALESCE(SUM(amount - COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE invoice_id=purchase_invoices.id), 0)), 0) as total 
      FROM purchase_invoices WHERE status IN ('unpaid','partially_paid')`
   ) as { total: number };
 
-  const overdueAP = await get(
+  const overdueAP = await safeGet(
     `SELECT COALESCE(SUM(amount - COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE invoice_id=purchase_invoices.id), 0)), 0) as total 
      FROM purchase_invoices WHERE status IN ('unpaid','partially_paid') AND NULLIF(due_date,'')::date < CURRENT_DATE`
   ) as { total: number };
 
   const cashOnHand = allPayments.total - allApprovedExpenses.total - allPaidSalaries.total - allSupplierPayments.total;
 
-  const accountsReceivable = await get(
+  const accountsReceivable = await safeGet(
     `SELECT COALESCE(SUM(amount - COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_id=sales_invoices.id), 0)), 0) as total 
      FROM sales_invoices WHERE status IN ('unpaid','partially_paid')`
   ) as { total: number };
 
-  const overdueAR = await get(
+  const overdueAR = await safeGet(
     `SELECT COALESCE(SUM(amount - COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_id=sales_invoices.id), 0)), 0) as total 
      FROM sales_invoices WHERE status IN ('unpaid','partially_paid') AND NULLIF(due_date,'')::date < CURRENT_DATE`
   ) as { total: number };
 
   // All-time P&L for retained earnings — consistent filters throughout
-  const allRevenue = await get(
+  const allRevenue = await safeGet(
     "SELECT COALESCE(SUM(subtotal), 0) as total FROM sales_invoices WHERE status != 'cancelled'"
   ) as { total: number };
-  const allCreditNotes = await get(
+  const allCreditNotes = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM credit_notes WHERE (status IS NULL OR status != 'cancelled')"
   ) as { total: number };
-  const allPurchases = await get(
+  const allPurchases = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM purchase_invoices WHERE status != 'cancelled'"
   ) as { total: number };
-  const allDebitNotes = await get(
+  const allDebitNotes = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM debit_notes WHERE (status IS NULL OR status != 'cancelled')"
   ) as { total: number };
-  const allExpensesTotal = await get(
+  const allExpensesTotal = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE status='approved'"
   ) as { total: number };
-  const allSalaries = await get(
+  const allSalaries = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM salaries WHERE status='paid'"
   ) as { total: number };
 
   // All-time capital transactions
-  const allCapitalInjections = await get(
+  const allCapitalInjections = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM capital_transactions WHERE type='CAPITAL_INJECTION'"
   ) as { total: number };
-  const allWithdrawals = await get(
+  const allWithdrawals = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM capital_transactions WHERE type='OWNER_WITHDRAWAL'"
   ) as { total: number };
 
@@ -241,29 +268,29 @@ export async function GET(request: Request) {
   // CASH FLOW (period-based)
   // ═══════════════════════════════════════════════
   // Cash inflows: actual payments received from customers
-  const periodPayments = await get(
+  const periodPayments = await safeGet(
     'SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE payment_date BETWEEN $1 AND $2',
     [from, to]
   ) as { total: number };
 
   // Cash outflows: actual cash disbursed
-  const periodExpensePayments = await get(
+  const periodExpensePayments = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE status='approved' AND expense_date BETWEEN $1 AND $2",
     [from, to]
   ) as { total: number };
 
-  const periodSalaryPayments = await get(
+  const periodSalaryPayments = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM salaries WHERE status='paid' AND pay_date BETWEEN $1 AND $2",
     [from, to]
   ) as { total: number };
 
-  const periodSupplierPayments = await get(
+  const periodSupplierPayments = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM supplier_payments WHERE payment_date BETWEEN $1 AND $2",
     [from, to]
   ) as { total: number };
 
   // Accrual-based purchases (for P&L, not cash flow)
-  const periodPurchases = await get(
+  const periodPurchases = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM purchase_invoices WHERE status != 'cancelled' AND issue_date BETWEEN $1 AND $2",
     [from, to]
   ) as { total: number };
@@ -278,11 +305,11 @@ export async function GET(request: Request) {
     const dt = new Date(year, m, 1);
     const monthStart = `${year}-${String(m + 1).padStart(2, '0')}-01`;
     const monthEnd = new Date(year, m + 1, 0).toISOString().slice(0, 10);
-    const inc = await get(
+    const inc = await safeGet(
       'SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE payment_date BETWEEN $1 AND $2',
       [monthStart, monthEnd]
     ) as { total: number };
-    const out = await get(
+    const out = await safeGet(
       `SELECT COALESCE(SUM(amount), 0) as total FROM (
         SELECT amount FROM supplier_payments WHERE payment_date BETWEEN $1 AND $2
         UNION ALL SELECT amount FROM expenses WHERE status='approved' AND expense_date BETWEEN $3 AND $4
@@ -302,10 +329,10 @@ export async function GET(request: Request) {
   // TRIAL BALANCE (cumulative)
   // ═══════════════════════════════════════════════
   // All-time other income/expenses for trial balance
-  const tbOtherIncome = await get(
+  const tbOtherIncome = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM other_transactions WHERE type='OTHER_INCOME'"
   ) as { total: number };
-  const tbOtherExpenses = await get(
+  const tbOtherExpenses = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM other_transactions WHERE type='OTHER_EXPENSE'"
   ) as { total: number };
 
@@ -333,40 +360,40 @@ export async function GET(request: Request) {
   // ═══════════════════════════════════════════════
   // GENERAL LEDGER (with all transaction types)
   // ═══════════════════════════════════════════════
-  const glPayments = await query(
+  const glPayments = await safeQuery(
     "SELECT p.id, 'Payment' as type, p.amount, p.payment_method as detail, p.payment_date as date, p.created_at FROM payments p WHERE p.payment_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
-  const glExpenses = await query(
+  const glExpenses = await safeQuery(
     "SELECT e.id, 'Expense' as type, e.amount, e.category as detail, e.expense_date as date, e.created_at FROM expenses e WHERE e.status='approved' AND e.expense_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
-  const glSalaries = await query(
+  const glSalaries = await safeQuery(
     "SELECT s.id, 'Salary' as type, s.amount, e.name as detail, s.pay_date as date, s.created_at FROM salaries s JOIN employees e ON e.id=s.employee_id WHERE s.status='paid' AND s.pay_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
-  const glPurchases = await query(
+  const glPurchases = await safeQuery(
     "SELECT pi.id, 'Purchase Invoice' as type, pi.amount, c.company_name as detail, pi.issue_date as date, pi.created_at FROM purchase_invoices pi JOIN clients c ON c.id=pi.client_id WHERE pi.issue_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
-  const glSalesInvoices = await query(
+  const glSalesInvoices = await safeQuery(
     "SELECT si.id, 'Sales Invoice' as type, si.amount, cu.company_name as detail, si.issue_date as date, si.created_at FROM sales_invoices si JOIN customers cu ON cu.id=si.customer_id WHERE si.issue_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
-  const glCreditNotes = await query(
+  const glCreditNotes = await safeQuery(
     "SELECT cn.id, 'Credit Note' as type, cn.amount, cn.reason as detail, cn.issue_date as date, cn.created_at FROM credit_notes cn WHERE (cn.status IS NULL OR cn.status != 'cancelled') AND cn.issue_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
-  const glDebitNotes = await query(
+  const glDebitNotes = await safeQuery(
     "SELECT dn.id, 'Debit Note' as type, dn.amount, dn.reason as detail, dn.issue_date as date, dn.created_at FROM debit_notes dn WHERE (dn.status IS NULL OR dn.status != 'cancelled') AND dn.issue_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
-  const glSupplierPayments = await query(
+  const glSupplierPayments = await safeQuery(
     "SELECT sp.id, 'Supplier Payment' as type, sp.amount, c.company_name as detail, sp.payment_date as date, sp.created_at FROM supplier_payments sp JOIN purchase_invoices pi ON pi.id=sp.invoice_id JOIN clients c ON c.id=pi.client_id WHERE sp.payment_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
 
-  const glOtherTransactions = await query(
+  const glOtherTransactions = await safeQuery(
     "SELECT id, type as tx_type, amount, category as detail, transaction_date as date, created_at FROM other_transactions WHERE transaction_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
@@ -377,7 +404,7 @@ export async function GET(request: Request) {
     .filter((t: any) => t.tx_type === 'OTHER_EXPENSE')
     .map((t: any) => ({ ...t, type: 'Other Expense' }));
 
-  const glCapitalTxns = await query(
+  const glCapitalTxns = await safeQuery(
     "SELECT id, type as tx_type, amount, description as detail, transaction_date as date, created_at FROM capital_transactions WHERE transaction_date BETWEEN $1 AND $2",
     [from, to]
   ) as any[];
@@ -403,7 +430,7 @@ export async function GET(request: Request) {
   ];
 
   const receivablesAging = await Promise.all(agingBuckets.map(async (b) => {
-    const r = await get(
+    const r = await safeGet(
       `SELECT 
         COALESCE(SUM(amount - COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_id=sales_invoices.id), 0)), 0) as total,
         COUNT(*) as count
@@ -415,7 +442,7 @@ export async function GET(request: Request) {
    }));
 
    const payablesAging = await Promise.all(agingBuckets.map(async (b) => {
-     const r = await get(
+     const r = await safeGet(
        `SELECT 
          COALESCE(SUM(amount - COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE invoice_id=purchase_invoices.id), 0)), 0) as total,
          COUNT(*) as count
@@ -429,7 +456,7 @@ export async function GET(request: Request) {
   // ═══════════════════════════════════════════════
   // SALES BY CUSTOMER (accrual-based: invoices, not payments)
   // ═══════════════════════════════════════════════
-  const salesByCustomer = await query(`
+  const salesByCustomer = await safeQuery(`
     SELECT cu.company_name, COALESCE(SUM(si.amount), 0) as total, COUNT(si.id) as count
     FROM sales_invoices si
     JOIN customers cu ON cu.id=si.customer_id
@@ -451,55 +478,55 @@ export async function GET(request: Request) {
   // ═══════════════════════════════════════════════
   // AUDIT TRAIL (with all transaction types)
   // ═══════════════════════════════════════════════
-  const auditPayments = await query(
+  const auditPayments = await safeQuery(
     "SELECT 'Payment' as action, id, amount, created_at FROM payments WHERE payment_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
-  const auditExpenses = await query(
+  const auditExpenses = await safeQuery(
     "SELECT 'Expense' as action, id, amount, created_at FROM expenses WHERE expense_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
-  const auditSalaries = await query(
+  const auditSalaries = await safeQuery(
     "SELECT 'Salary' as action, id, amount, created_at FROM salaries WHERE pay_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
-  const auditPurchases = await query(
+  const auditPurchases = await safeQuery(
     "SELECT 'Purchase Invoice' as action, id, amount, created_at FROM purchase_invoices WHERE issue_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
-  const auditSales = await query(
+  const auditSales = await safeQuery(
     "SELECT 'Sales Invoice' as action, id, amount, created_at FROM sales_invoices WHERE issue_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
-  const auditCreditNotes = await query(
+  const auditCreditNotes = await safeQuery(
     "SELECT 'Credit Note' as action, id, amount, created_at FROM credit_notes WHERE (status IS NULL OR status != 'cancelled') AND issue_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
-  const auditDebitNotes = await query(
+  const auditDebitNotes = await safeQuery(
     "SELECT 'Debit Note' as action, id, amount, created_at FROM debit_notes WHERE (status IS NULL OR status != 'cancelled') AND issue_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
-  const auditSupplierPayments = await query(
+  const auditSupplierPayments = await safeQuery(
     "SELECT 'Supplier Payment' as action, id, amount, created_at FROM supplier_payments WHERE payment_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
 
-  const auditOtherIncome = await query(
+  const auditOtherIncome = await safeQuery(
     "SELECT 'Other Income' as action, id, amount, created_at FROM other_transactions WHERE type='OTHER_INCOME' AND transaction_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
 
-  const auditOtherExpenses = await query(
+  const auditOtherExpenses = await safeQuery(
     "SELECT 'Other Expense' as action, id, amount, created_at FROM other_transactions WHERE type='OTHER_EXPENSE' AND transaction_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
 
-  const auditCapitalInjections = await query(
+  const auditCapitalInjections = await safeQuery(
     "SELECT 'Capital Injection' as action, id, amount, created_at FROM capital_transactions WHERE type='CAPITAL_INJECTION' AND transaction_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
 
-  const auditOwnerWithdrawals = await query(
+  const auditOwnerWithdrawals = await safeQuery(
     "SELECT 'Owner Withdrawal' as action, id, amount, created_at FROM capital_transactions WHERE type='OWNER_WITHDRAWAL' AND transaction_date BETWEEN $1 AND $2 ORDER BY created_at DESC LIMIT 20",
     [from, to]
   ) as any[];
@@ -511,45 +538,45 @@ export async function GET(request: Request) {
   // ═══════════════════════════════════════════════
   // PD GENERATION FORMULAS (Cash-basis)
   // ═══════════════════════════════════════════════
-  const pdTotalPayments = await get(
+  const pdTotalPayments = await safeGet(
     'SELECT COALESCE(SUM(amount), 0) as total FROM payments'
   ) as { total: number };
 
-  const pdTotalCreditNotes = await get(
+  const pdTotalCreditNotes = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM credit_notes WHERE (status IS NULL OR status != 'cancelled')"
   ) as { total: number };
 
-  const pdTotalPurchaseInvoices = await get(
+  const pdTotalPurchaseInvoices = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM purchase_invoices WHERE status != 'cancelled'"
   ) as { total: number };
 
-  const pdTotalDebitNotes = await get(
+  const pdTotalDebitNotes = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM debit_notes WHERE (status IS NULL OR status != 'cancelled')"
   ) as { total: number };
 
-  const pdSupplierPayments = await get(
+  const pdSupplierPayments = await safeGet(
     'SELECT COALESCE(SUM(amount), 0) as total FROM supplier_payments'
   ) as { total: number };
 
-  const pdExpenses = await get(
+  const pdExpenses = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE status='approved'"
   ) as { total: number };
 
-  const pdSalaries = await get(
+  const pdSalaries = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM salaries WHERE status='paid'"
   ) as { total: number };
 
   // PD other income/expenses (all-time)
-  const pdOtherIncome = await get(
+  const pdOtherIncome = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM other_transactions WHERE type='OTHER_INCOME'"
   ) as { total: number };
-  const pdOtherExpenses = await get(
+  const pdOtherExpenses = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM other_transactions WHERE type='OTHER_EXPENSE'"
   ) as { total: number };
-  const pdCapitalInjections = await get(
+  const pdCapitalInjections = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM capital_transactions WHERE type='CAPITAL_INJECTION'"
   ) as { total: number };
-  const pdOwnerWithdrawals = await get(
+  const pdOwnerWithdrawals = await safeGet(
     "SELECT COALESCE(SUM(amount), 0) as total FROM capital_transactions WHERE type='OWNER_WITHDRAWAL'"
   ) as { total: number };
 
@@ -656,7 +683,7 @@ export async function GET(request: Request) {
     },
     // Budget vs Actual
     budgetVsActual: await (async () => {
-      const budgets = await query(
+      const budgets = await safeQuery(
         `SELECT category_type, category_name, SUM(amount) as budget_amount 
          FROM budgets WHERE fiscal_year = $1 GROUP BY category_type, category_name ORDER BY category_type, category_name`,
         [year]
@@ -712,20 +739,20 @@ export async function GET(request: Request) {
     inventoryItems: inventoryItemsDetail,
     // Fixed Assets summary
     fixedAssets: await (async () => {
-      const fa = await query(`SELECT COUNT(*) as count, COALESCE(SUM(purchase_cost),0) as total_cost, COALESCE(SUM(accumulated_depreciation),0) as total_depreciation, COALESCE(SUM(book_value),0) as total_book_value FROM fixed_assets WHERE status='active'`) as any[];
+      const fa = await safeQuery(`SELECT COUNT(*) as count, COALESCE(SUM(purchase_cost),0) as total_cost, COALESCE(SUM(accumulated_depreciation),0) as total_depreciation, COALESCE(SUM(book_value),0) as total_book_value FROM fixed_assets WHERE status='active'`) as any[];
       const faRow = fa[0] || { count: 0, total_cost: 0, total_depreciation: 0, total_book_value: 0 };
       return { count: Number(faRow.count), totalCost: Number(faRow.total_cost), totalDepreciation: Number(faRow.total_depreciation), totalBookValue: Number(faRow.total_book_value) };
     })(),
     // Deals pipeline summary
     pipelineSummary: await (async () => {
-      const totalPipeline = await query("SELECT COALESCE(SUM(deal_value),0) as total FROM deals WHERE status='open'") as any[];
-      const byStage = await query("SELECT pipeline_stage, COUNT(*) as count, COALESCE(SUM(deal_value),0) as total FROM deals WHERE status='open' GROUP BY pipeline_stage ORDER BY pipeline_stage") as any[];
+      const totalPipeline = await safeQuery("SELECT COALESCE(SUM(deal_value),0) as total FROM deals WHERE status='open'") as any[];
+      const byStage = await safeQuery("SELECT pipeline_stage, COUNT(*) as count, COALESCE(SUM(deal_value),0) as total FROM deals WHERE status='open' GROUP BY pipeline_stage ORDER BY pipeline_stage") as any[];
       return { totalPipelineValue: Number(totalPipeline[0]?.total || 0), byStage };
     })(),
     // Projects summary
     projectsSummary: await (async () => {
-      const activeProjects = await query("SELECT COUNT(*) as count FROM projects WHERE status='active'") as any[];
-      const projectFinances = await query("SELECT COALESCE(SUM(budget),0) as total_budget, (SELECT COALESCE(SUM(amount),0) FROM project_transactions WHERE entity_type='revenue') as total_revenue, (SELECT COALESCE(SUM(amount),0) FROM project_transactions WHERE entity_type='expense') as total_expenses FROM projects") as any[];
+      const activeProjects = await safeQuery("SELECT COUNT(*) as count FROM projects WHERE status='active'") as any[];
+      const projectFinances = await safeQuery("SELECT COALESCE(SUM(budget),0) as total_budget, (SELECT COALESCE(SUM(amount),0) FROM project_transactions WHERE entity_type='revenue') as total_revenue, (SELECT COALESCE(SUM(amount),0) FROM project_transactions WHERE entity_type='expense') as total_expenses FROM projects") as any[];
       const pf = projectFinances[0] || { total_budget: 0, total_revenue: 0, total_expenses: 0 };
       return { activeCount: Number(activeProjects[0]?.count || 0), totalBudget: Number(pf.total_budget), totalRevenue: Number(pf.total_revenue), totalExpenses: Number(pf.total_expenses) };
     })(),

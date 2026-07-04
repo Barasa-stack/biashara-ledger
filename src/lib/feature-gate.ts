@@ -1,5 +1,15 @@
 export type PlanTier = 'Basic' | 'Standard' | 'Premium';
 
+export function normalizePlan(plan?: string): PlanTier | 'trial' {
+  if (!plan) return 'trial';
+  const normalized = plan.toString().trim().toLowerCase();
+  if (normalized === 'basic') return 'Basic';
+  if (normalized === 'standard') return 'Standard';
+  if (normalized === 'premium') return 'Premium';
+  if (normalized === 'trial') return 'trial';
+  return 'trial';
+}
+
 type FeatureMap = Record<string, PlanTier[]>;
 
 export const FEATURE_PLAN_MAP: FeatureMap = {
@@ -112,11 +122,12 @@ export const FEATURE_PLAN_MAP: FeatureMap = {
 };
 
 export function isFeatureAvailable(featureKey: string, plan: PlanTier | string | undefined): boolean {
-  if (!plan) return false;
-  if (plan === 'Premium') return true;
+  const normalizedPlan = normalizePlan(plan as string);
+  if (normalizedPlan === 'trial') return false;
+  if (normalizedPlan === 'Premium') return true;
   const allowed = FEATURE_PLAN_MAP[featureKey];
   if (!allowed) return false;
-  return allowed.includes(plan as PlanTier);
+  return allowed.includes(normalizedPlan as PlanTier);
 }
 
 export function getFeaturePlan(featureKey: string): PlanTier | null {

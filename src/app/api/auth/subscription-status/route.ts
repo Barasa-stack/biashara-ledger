@@ -1,20 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { get, query, adminGet } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { get, query } from '@/lib/db';
+import { getSessionFromCookies } from '@/lib/auth-server';
+import { normalizePlan } from '@/lib/feature-gate';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const cookie = request.headers.get('cookie');
-    const sessionToken = cookie?.split('bl_session=')[1]?.split(';')[0];
-
-    if (!sessionToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const session = await adminGet(
-      "SELECT * FROM sessions WHERE token = $1 AND expires_at > NOW()",
-      [sessionToken]
-    ) as any;
-
+    const session = await getSessionFromCookies();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -44,11 +35,12 @@ export async function GET(request: NextRequest) {
       [user.id]
     );
 
+    const effectiveStatus = user.license_status === 'active' ? 'active' : user.subscription_status || 'active';
     return NextResponse.json({
       id: user.id,
       email: user.email,
-      subscription_plan: user.subscription_plan || 'trial',
-      subscription_status: user.subscription_status || 'active',
+      subscription_plan: normalizePlan(user.subscription_plan || 'trial'),
+      subscription_status: effectiveStatus,
       subscription_expiry: user.subscription_expiry,
       role: user.role || 'admin',
       grace_period_end: user.grace_period_end,

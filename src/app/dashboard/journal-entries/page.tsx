@@ -5,7 +5,7 @@ import { useDebounce } from '@/lib/use-debounce';
 import { Plus, Pencil, Trash2, X, PenTool, Search, Download, CheckCircle, AlertTriangle } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
-import { useConfirm } from '@/components/ConfirmDialog';;
+import { useConfirm } from '@/components/ConfirmDialog';
 
 type Account = {
   id: string;
@@ -69,6 +69,8 @@ export default function JournalEntriesPage() {
   const [formDescription, setFormDescription] = useState('');
   const [formReference, setFormReference] = useState('');
   const [formLines, setFormLines] = useState<JournalLine[]>([emptyLine()]);
+  const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
 
   const totalDebit = useMemo(() => formLines.reduce((s, l) => s + (Number(l.debit_amount) || 0), 0), [formLines]);
   const totalCredit = useMemo(() => formLines.reduce((s, l) => s + (Number(l.credit_amount) || 0), 0), [formLines]);
@@ -354,7 +356,7 @@ export default function JournalEntriesPage() {
                     <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(entry.total_credit)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                        entry.status === 'posted' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                        entry.status === 'posted' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                       }`}>
                         {entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'Draft'}
                       </span>
@@ -544,7 +546,7 @@ export default function JournalEntriesPage() {
                         <td colSpan={5} className="px-3 py-2">
                           <div className="flex items-center gap-2 text-xs">
                             {isBalanced ? (
-                              <span className="inline-flex items-center gap-1 text-green-700">
+                              <span className="inline-flex items-center gap-1 text-red-700">
                                 <CheckCircle className="h-3.5 w-3.5" />
                                 Balanced ({fmtUSD(totalDebit)} = {fmtUSD(totalCredit)})
                               </span>
@@ -615,7 +617,7 @@ export default function JournalEntriesPage() {
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
                   <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                    detailEntry.entry.status === 'posted' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                    detailEntry.entry.status === 'posted' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                   }`}>
                     {detailEntry.entry.status ? detailEntry.entry.status.charAt(0).toUpperCase() + detailEntry.entry.status.slice(1) : 'Draft'}
                   </span>
