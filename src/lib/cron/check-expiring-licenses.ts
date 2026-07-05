@@ -2,6 +2,7 @@ import { getExpiringLicenses, markReminderSent } from '@/lib/license';
 import { sendExpiryReminderEmail } from '@/lib/email';
 import { logInfo, logError } from '@/lib/logger';
 import { adminRun } from '@/lib/db';
+import { createNotification } from '@/lib/admin-notify';
 
 export const checkExpiringLicenses = async () => {
   const schedule = [
@@ -64,9 +65,16 @@ export const checkExpiringLicenses = async () => {
     summary.deactivated = deactivated?.rowCount || 0;
     if (deactivated?.rowCount > 0) {
       logInfo('cron', `Deactivated ${deactivated.rowCount} expired licenses`);
+      createNotification('warning', 'Licenses Expired', `${deactivated.rowCount} license(s) expired and have been deactivated.`, '/admin/licenses');
     }
   } catch (err: any) {
     logError('cron', 'Failed to deactivate expired licenses', { error: err?.message });
+  }
+
+  // Notify about expiring licenses in 3 days
+  const expiringSoon = (summary as any).expiringIn3Days || 0;
+  if (expiringSoon > 0) {
+    createNotification('warning', 'Licenses Expiring Soon', `${expiringSoon} license(s) will expire in 3 days.`, '/admin/licenses');
   }
 
   return summary;

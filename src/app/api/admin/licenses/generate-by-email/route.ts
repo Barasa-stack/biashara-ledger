@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { adminRun, adminGet } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
 import { createTransporter } from '@/lib/email';
+import { createNotification } from '@/lib/admin-notify';
 
 export async function POST(req: Request) {
   try {
@@ -127,6 +128,8 @@ export async function POST(req: Request) {
       emailError = err?.message || 'Failed to send email';
       console.error('[generate-by-email] Email send failed:', emailError);
     }
+
+    createNotification('success', 'License Generated', `License for ${normalizedEmail} (${plan}) created. Expires: ${new Date(expiresAt).toLocaleDateString()}`, '/admin/licenses');
 
     return NextResponse.json({
       success: true,

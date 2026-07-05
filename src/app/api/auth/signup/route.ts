@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { adminRun, adminGet } from '@/lib/db';
 import { createTransporter } from '@/lib/email';
+import { createNotification } from '@/lib/admin-notify';
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,6 +82,8 @@ export async function POST(req: NextRequest) {
     } catch (err: any) {
       console.error('[signup] Email send failed:', err?.message);
     }
+
+    createNotification('info', 'New User Registration', `${normalizedEmail} registered for a 14-day trial (${selectedPackage || 'No plan'}).`, '/admin/clients');
 
     return NextResponse.json({
       success: true,
