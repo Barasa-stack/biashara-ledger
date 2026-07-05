@@ -213,7 +213,7 @@ export async function getExpiringLicenses(daysUntilExpiry: number) {
   );
 }
 
-export async function markReminderSent(licenseKey: string, reminderType: '30d' | '7d' | '1d') {
+export async function markReminderSent(licenseKey: string, reminderType: '30d' | '7d' | '3d' | '1d') {
   const column = reminderType === '30d' ? 'reminder_sent_30d' : reminderType === '7d' ? 'reminder_sent_7d' : 'reminder_sent_1d';
   await adminRun(
     `UPDATE admin_license_keys SET ${column} = true WHERE license_key = $1`,
