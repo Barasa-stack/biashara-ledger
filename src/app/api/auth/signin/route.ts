@@ -127,7 +127,8 @@ export async function POST(req: NextRequest) {
     return response;
 
   } catch (error: any) {
-    console.error('Signin error:', error?.message || error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Signin error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
