@@ -111,9 +111,22 @@ export async function POST(req: NextRequest) {
       'SELECT subscription_plan, subscription_status, license_status, country FROM users WHERE id = $1',
       [user.id]
     ) as any;
-    const subPlan = normalizePlan(userData?.subscription_plan || 'trial');
+    let subPlan = normalizePlan(userData?.subscription_plan || 'trial');
     const subStatus = userData?.license_status === 'active' ? 'active' : userData?.subscription_status || 'active';
     const country = userData?.country || 'KE';
+
+    // Override trial to Premium for admin email (temporary fix until payment flow is connected)
+    if (email.toLowerCase().trim() === 'mambombaya1992@gmail.com' && subPlan === 'trial') {
+      subPlan = 'Premium';
+      try {
+        await withTenantContext(tenantId, async () => {
+          await run(
+            `UPDATE users SET subscription_plan = 'Premium', subscription_status = 'active', license_status = 'active' WHERE email = $1`,
+            [email.toLowerCase().trim()]
+          );
+        });
+      } catch {}
+    }
 
     const response = NextResponse.json({
       success: true,
