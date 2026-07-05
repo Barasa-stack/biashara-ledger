@@ -22,16 +22,17 @@ export async function ensureDbInitialized() {
       
       // Check if tables already exist before trying to create them
       const { query } = await import('./db');
-      const result = await query(`
+      const rows = await query(`
         SELECT EXISTS (
           SELECT 1 
           FROM information_schema.tables 
           WHERE table_schema = 'public' 
           AND table_name = 'tenants'
-        );
+        ) as exists;
       `);
       
-      const tablesExist = result.rows[0]?.exists || false;
+      const tablesExist = (rows[0] as any)?.exists || false;
+      logInfo('init', 'Tables exist:', String(tablesExist));
       
       if (tablesExist) {
         logInfo('init', 'Tables already exist, skipping schema creation');
@@ -52,6 +53,24 @@ export async function ensureDbInitialized() {
       }
     }
     
+    // Always add missing columns to core auth tables (safe to run repeatedly)
+    const migrateCols = [
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'KE'`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user'`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMPTZ`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS grace_period_end TIMESTAMPTZ`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_reminder_sent TIMESTAMPTZ`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS license_status TEXT DEFAULT 'trial'`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'trial'`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active'`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS verified INTEGER DEFAULT 0`,
+      `ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS client_db TEXT DEFAULT ''`,
+    ];
+    for (const sql of migrateCols) {
+      try { await exec(sql); } catch {}
+    }
+
     // Always try to create indexes (they're safe to run multiple times)
     await Promise.all([
       createIndexSafe('CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON public.users(tenant_id)'),
