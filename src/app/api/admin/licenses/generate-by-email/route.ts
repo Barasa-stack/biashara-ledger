@@ -37,20 +37,17 @@ export async function POST(req: Request) {
     if (existingClient) {
       clientId = (existingClient as any).id;
       await adminRun(
-        `UPDATE admin_clients SET company_name = COALESCE($1, company_name), contact_person = COALESCE($2, contact_person), plan = $3, is_active = true, expires_at = $4, license_key = $5 WHERE id = $6`,
-        [company_name || null, contact_person || null, planLower, expiresAt, licenseKey, clientId]
+        `UPDATE admin_clients SET company_name = COALESCE($1, company_name), plan = $3, is_active = true, expires_at = $4, license_key = $5 WHERE id = $6`,
+        [company_name || null, planLower, expiresAt, licenseKey, clientId]
       );
     } else {
+      const clientIdNum = Math.floor(Math.random() * 2147483647) + 1;
       await adminRun(
-        `INSERT INTO admin_clients (company_name, email, contact_person, plan, is_active, expires_at, license_key, created_at)
+        `INSERT INTO admin_clients (id, company_name, email, plan, is_active, expires_at, license_key, created_at)
          VALUES ($1, $2, $3, $4, true, $5, $6, NOW())`,
-        [company_name || 'Unknown Company', normalizedEmail, contact_person || '', planLower, expiresAt, licenseKey]
+        [clientIdNum, company_name || 'Unknown Company', normalizedEmail, planLower, expiresAt, licenseKey]
       );
-      const newClient = await adminGet(
-        `SELECT id FROM admin_clients WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-        [normalizedEmail]
-      );
-      clientId = (newClient as any)?.id || null;
+      clientId = clientIdNum;
     }
 
     // 2. Store in admin_license_keys
