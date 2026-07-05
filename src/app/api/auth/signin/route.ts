@@ -54,6 +54,25 @@ export async function POST(req: NextRequest) {
       console.log('🔍 User subscription_plan:', user.subscription_plan);
     }
 
+    // Auto-create admin users on first sign-in (Nile bootstrap)
+    const ADMIN_EMAILS = ['digitalbaroz@gmail.com', 'mambombaya1992@gmail.com'];
+    if (!user && ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
+      console.log('🔍 Auto-creating admin user:', email);
+      const hashedPw = await bcrypt.hash(password, 10);
+      const tenantUuid = crypto.randomUUID();
+      await adminRun(
+        `INSERT INTO users (tenant_id, email, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, country, role)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [tenantUuid, email.toLowerCase().trim(), hashedPw, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya', 1, 'Premium', 'active', 'active', 'KE', 'admin']
+      );
+      // Refetch the newly created user
+      user = await adminGet(
+        `SELECT id, tenant_id, email, password_hash, first_name, last_name, verified,
+                subscription_plan, subscription_status, license_status, country
+         FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+        [email.toLowerCase().trim()]
+      ) as any;
+    }
 
     if (!user || !user.password_hash) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
