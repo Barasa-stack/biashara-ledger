@@ -15,7 +15,7 @@ export default function LicensesPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'revoked'>('all');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showGenModal, setShowGenModal] = useState(false);
-  const [genForm, setGenForm] = useState({ email: '', plan: 'standard', clientName: '' });
+  const [genForm, setGenForm] = useState({ email: '', plan: 'standard', clientName: '', contactPerson: '' });
   const [genSaving, setGenSaving] = useState(false);
   const [genMessage, setGenMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -76,12 +76,17 @@ export default function LicensesPage() {
       const res = await fetch('/api/admin/licenses/generate-by-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: genForm.email, plan: genForm.plan }),
+        body: JSON.stringify({
+          email: genForm.email,
+          plan: genForm.plan,
+          company_name: genForm.clientName,
+          contact_person: genForm.contactPerson,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setGenMessage({ type: 'error', text: data.error || 'Failed to generate license' }); return; }
       setGenMessage({ type: 'success', text: `License generated for ${genForm.email}! Key: ${data.license_key}` });
-      setGenForm({ email: '', plan: 'standard', clientName: '' });
+      setGenForm({ email: '', plan: 'standard', clientName: '', contactPerson: '' });
       const refresh = await fetch('/api/admin/licenses');
       if (refresh.ok) setLicenses(await refresh.json());
     } catch (e: any) { setGenMessage({ type: 'error', text: e.message }); }
@@ -250,6 +255,16 @@ export default function LicensesPage() {
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Client Email *</label>
                 <input type="email" value={genForm.email} onChange={e => setGenForm({ ...genForm, email: e.target.value })}
                   placeholder="client@example.com" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Company Name</label>
+                <input type="text" value={genForm.clientName} onChange={e => setGenForm({ ...genForm, clientName: e.target.value })}
+                  placeholder="Company Ltd" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Contact Person</label>
+                <input type="text" value={genForm.contactPerson} onChange={e => setGenForm({ ...genForm, contactPerson: e.target.value })}
+                  placeholder="John Doe" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Plan</label>
