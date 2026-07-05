@@ -40,10 +40,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const adminUser = await adminGet(
-      'SELECT id, email, password_hash, role FROM admin_users WHERE email = $1 LIMIT 1',
+    let adminUser = await adminGet(
+      'SELECT id, tenant_id, email, password_hash, role FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
       [normalizedEmail]
     );
+
+    // Fall back to admin_users table
+    if (!adminUser) {
+      adminUser = await adminGet(
+        'SELECT id, tenant_id, email, password_hash, role FROM admin_users WHERE email = $1 LIMIT 1',
+        [normalizedEmail]
+      );
+    }
 
     if (!adminUser) {
       return NextResponse.json(
@@ -60,20 +68,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const rows = await adminQuery(
-      `INSERT INTO users (tenant_id, email, password_hash, role, verified, subscription_plan, subscription_status)
-       VALUES ('local-default', $1, $2, 'super_admin', 1, 'premium', 'active')
-       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash
-       RETURNING id, tenant_id`,
-      [normalizedEmail, adminUser.password_hash]
-    );
-    const appUser = rows[0];
+    // Use the existing user id and tenant_id for session creation
+    const appUser = adminUser;
 
     const sessionToken = crypto.randomUUID();
+    const sessionId = Math.floor(Math.random() * 2147483647) + 1;
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     await adminRun(
-      'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
-      [appUser.tenant_id, appUser.id, sessionToken, expiresAt]
+      'INSERT INTO sessions (id, tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4, $5)',
+      [sessionId, appUser.tenant_id, appUser.id, sessionToken, expiresAt]
     );
 
     const response = NextResponse.json({
@@ -91,11 +94,9 @@ export async function POST(req: NextRequest) {
 
     return response;
 
-  } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Login error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
