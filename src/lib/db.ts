@@ -154,6 +154,9 @@ export async function exec(sql: string, params?: any[]): Promise<void> {
     await pool.query(sql, params);
   } else {
     const pool = await getBasePool();
+    try {
+      await pool.query(`SET nile.tenant_id = '00000000-0000-0000-0000-000000000000'`);
+    } catch {}
     await pool.query(sql, params);
   }
 }
