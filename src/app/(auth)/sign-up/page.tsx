@@ -72,6 +72,8 @@ export default function SignUpPage() {
   const [message, setMessage] = useState('');
   const [devOtp, setDevOtp] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [showTrialPopup, setShowTrialPopup] = useState(false);
+  const [trialKey, setTrialKey] = useState('');
 
   const countryRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -215,7 +217,8 @@ export default function SignUpPage() {
       if (result.requiresPackageSelection) {
         router.push('/select-package');
       } else {
-        router.push('/dashboard');
+        setShowTrialPopup(true);
+        setTrialKey((result as any).trial_key || '');
       }
     } else {
       setError(result.error || 'Verification failed.');
@@ -493,6 +496,41 @@ export default function SignUpPage() {
           <Link href="/sign-in" className="text-brand font-medium hover:text-[#000000] transition-colors">Sign In</Link>
         </p>
       </div>
+
+      {showTrialPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+              <Check className="h-8 w-8 text-green-600" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-800 mb-2">🎉 Account Created Successfully!</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Please check your email at <strong>{email}</strong> for your 14-day trial activation key.
+            </p>
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <p className="text-xs text-gray-500 mb-1">Your Trial License Key</p>
+              <p className="text-lg font-bold tracking-widest font-mono text-brand">{trialKey}</p>
+            </div>
+            <p className="text-xs text-gray-500 mb-6">
+              Enter this key on the activation page to start your free trial.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowTrialPopup(false); router.push('/activate-license'); }}
+                className="flex-1 bg-brand hover:bg-brand-hover text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+              >
+                Activate Now
+              </button>
+              <button
+                onClick={() => { setShowTrialPopup(false); router.push('/sign-in'); }}
+                className="flex-1 border border-gray-200 text-gray-600 text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Sign In Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
