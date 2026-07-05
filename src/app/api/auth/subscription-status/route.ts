@@ -50,9 +50,9 @@ export async function GET() {
       billingHistory,
       recentEvents,
     });
-  } catch (error) {
-    console.error('Subscription status error:', error);
-    // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+  } catch (error: any) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Subscription status error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

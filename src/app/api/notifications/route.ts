@@ -13,12 +13,10 @@ export async function GET() {
     const unread = notifications.filter((n: any) => !n.is_read).length;
     return NextResponse.json({ notifications, unread });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[] Error:', e instanceof Error ? e.message : e);
-    // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[notifications] GET Error:', msg);
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -43,11 +41,9 @@ export async function PUT(request: Request) {
     });
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[] Error:', e instanceof Error ? e.message : e);
-    // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[notifications] PUT Error:', msg);
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -39,6 +39,8 @@ export async function GET() {
   } catch (error) {
     console.error('Subscription status error:', error);
     // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const __eMsg = e instanceof Error ? e.message : String(e);
+    console.error('[api]', __eMsg);
+    return NextResponse.json({ error: __eMsg }, { status: 500 });
   }
 }

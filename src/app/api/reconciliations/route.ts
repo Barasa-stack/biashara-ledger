@@ -17,12 +17,10 @@ export async function GET() {
     });
     return NextResponse.json(reconciliations);
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[] Error:', e instanceof Error ? e.message : e);
-    // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[reconciliations] GET Error:', msg);
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -34,17 +32,15 @@ export async function POST(request: Request) {
     const result = await withTenantContext(session.tenant_id!, async () => {
       return await insertReturning<{ id: string }>(
         `INSERT INTO reconciliation_runs (tenant_id, bank_account_id, statement_balance, system_balance, difference, start_date, end_date, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'in_progress') RETURNING id`,
-        [session.tenant_id, body.bank_account_id, Number(body.statement_balance) || 0, Number(body.system_balance) || 0, Number(body.difference) || 0, body.start_date, body.end_date]
+        [session.tenant_id, body.bank_account_id, Number(body.statement_balance) || 0, Number(body.system_balance) || 0, Number(body.difference) || 0, body.start_date || body.reconciliation_date, body.end_date || body.reconciliation_date]
       );
     });
     return NextResponse.json({ id: result.id }, { status: 201 });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[] Error:', e instanceof Error ? e.message : e);
-    // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[reconciliations] POST Error:', msg);
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -59,11 +55,9 @@ export async function PUT(request: Request) {
     });
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[] Error:', e instanceof Error ? e.message : e);
-    // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[reconciliations] PUT Error:', msg);
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

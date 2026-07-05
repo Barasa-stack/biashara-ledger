@@ -7,7 +7,7 @@ export async function GET() {
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
     const accounts = await withTenantContext(session.tenant_id!, async () => {
-      return await query('SELECT * FROM bank_accounts ORDER BY account_name');
+      return await query('SELECT * FROM bank_accounts ORDER BY created_at DESC');
     });
     return NextResponse.json(accounts);
   } catch (e: any) {

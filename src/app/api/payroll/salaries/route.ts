@@ -14,7 +14,9 @@ export async function GET() {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
     // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const __eMsg = e instanceof Error ? e.message : String(e);
+    console.error('[api]', __eMsg);
+    return NextResponse.json({ error: __eMsg }, { status: 500 });
   }
 }
 
@@ -44,7 +46,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
     // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const __eMsg = e instanceof Error ? e.message : String(e);
+    console.error('[api]', __eMsg);
+    return NextResponse.json({ error: __eMsg }, { status: 500 });
   }
 }
 
@@ -68,7 +72,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
     // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const __eMsg = e instanceof Error ? e.message : String(e);
+    console.error('[api]', __eMsg);
+    return NextResponse.json({ error: __eMsg }, { status: 500 });
   }
 }
 
@@ -85,6 +91,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
     // error already logged above
-    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
+    const __eMsg = e instanceof Error ? e.message : String(e);
+    console.error('[api]', __eMsg);
+    return NextResponse.json({ error: __eMsg }, { status: 500 });
   }
 }
