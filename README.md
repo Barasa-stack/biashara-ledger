@@ -2,7 +2,7 @@
 
 BiasharaLedger is a tenant-isolated accounting application using Next.js and Nile/Postgres.
 
-## Nile Setup
+## Nile Setup 
 
 Set these environment variables before running the app:
 
