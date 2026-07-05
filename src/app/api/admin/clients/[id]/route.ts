@@ -78,29 +78,48 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 });
     }
 
-    const client = await adminGet(
-      `SELECT id, email FROM admin_clients WHERE id = $1`,
+    // Try admin_clients first, then fall back to users table
+    let client = await adminGet(
+      `SELECT id, email FROM admin_clients WHERE CAST(id AS TEXT) = $1`,
       [id]
     );
+
+    let clientEmail: string | null = null;
+    let isUserTable = false;
+
     if (!client) {
+      // Look up user directly
+      const user = await adminGet(
+        `SELECT id, email FROM users WHERE CAST(id AS TEXT) = $1`,
+        [id]
+      );
+      if (user) {
+        clientEmail = (user as any).email;
+        isUserTable = true;
+      }
+    } else {
+      clientEmail = (client as any).email;
+    }
+
+    if (!clientEmail) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    const clientEmail = (client as any).email;
+    if (!isUserTable) {
+      // Update admin_clients
+      await adminRun(
+        `UPDATE admin_clients SET plan = $1 WHERE CAST(id AS TEXT) = $2`,
+        [plan, id]
+      );
 
-    // Update admin_clients
-    await adminRun(
-      `UPDATE admin_clients SET plan = $1 WHERE id = $2`,
-      [plan, id]
-    );
+      // Update admin_license_keys
+      await adminRun(
+        `UPDATE admin_license_keys SET plan = $1 WHERE client_id = (SELECT id FROM admin_clients WHERE CAST(id AS TEXT) = $2)`,
+        [plan, id]
+      );
+    }
 
-    // Update admin_license_keys
-    await adminRun(
-      `UPDATE admin_license_keys SET plan = $1 WHERE client_id = $2`,
-      [plan, id]
-    );
-
-    // Update users table and ensure the user's subscription is active.
+    // Update users table
     await adminRun(
       `UPDATE users SET subscription_plan = $1,
                         subscription_status = 'active',
@@ -113,10 +132,16 @@ export async function PATCH(
       [plan, clientEmail]
     );
 
+    // Return updated data
     const updatedClient = await adminGet(
       `SELECT id, company_name, email, database_name, license_key, max_users, plan,
               is_active, is_trial, trial_start_date, trial_end_date, expires_at, last_active, created_at
-       FROM admin_clients WHERE id = $1`,
+       FROM admin_clients WHERE CAST(id AS TEXT) = $1`,
+      [id]
+    ) || await adminGet(
+      `SELECT id, email, subscription_plan as plan, subscription_status as is_active,
+              subscription_expiry as expires_at, created_at
+       FROM users WHERE CAST(id AS TEXT) = $1`,
       [id]
     );
 
