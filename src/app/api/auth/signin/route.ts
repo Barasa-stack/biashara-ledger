@@ -77,6 +77,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
+    // License check: admin users bypass, all others must have valid license
+    const ADMIN_EMAILS = ['digitalbaroz@gmail.com', 'mambombaya1992@gmail.com'];
+    if (!ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
+      const licenseKey = user.license_key;
+      const licenseStatus = user.license_status;
+      const expiry = user.subscription_expiry ? new Date(user.subscription_expiry) : null;
+
+      if (!licenseKey || !licenseStatus || licenseStatus !== 'active') {
+        return NextResponse.json({
+          error: 'No active license found. Please contact your administrator to activate your account.',
+        }, { status: 403 });
+      }
+
+      if (expiry && expiry < new Date()) {
+        return NextResponse.json({
+          error: 'Your license has expired. Please contact your administrator to renew.',
+        }, { status: 403 });
+      }
+    }
+
     const tenantId = user.tenant_id || 'local-default';
 
     // Ensure company_settings exists for this tenant
