@@ -116,6 +116,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    // error already logged above
+    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
   }
 }

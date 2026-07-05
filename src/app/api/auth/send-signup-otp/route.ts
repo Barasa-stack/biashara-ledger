@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Send OTP error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    // error already logged above
+    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
   }
 }

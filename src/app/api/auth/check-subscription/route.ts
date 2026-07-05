@@ -38,6 +38,7 @@ export async function GET() {
     return NextResponse.json(subscriptionCheck);
   } catch (error) {
     console.error('Subscription status error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    // error already logged above
+    return NextResponse.json({ error: typeof __msg !== 'undefined' ? __msg : msg }, { status: 500 });
   }
 }
