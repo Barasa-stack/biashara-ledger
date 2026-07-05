@@ -73,14 +73,14 @@ export default function LicensesPage() {
     setGenSaving(true);
     setGenMessage(null);
     try {
-      const res = await fetch('/api/admin/licenses/generate', {
+      const res = await fetch('/api/admin/licenses/generate-by-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(genForm),
+        body: JSON.stringify({ email: genForm.email, plan: genForm.plan }),
       });
       const data = await res.json();
       if (!res.ok) { setGenMessage({ type: 'error', text: data.error || 'Failed to generate license' }); return; }
-      setGenMessage({ type: 'success', text: `License ${data.licenseKey} generated!` });
+      setGenMessage({ type: 'success', text: `License generated for ${genForm.email}! Key: ${data.license_key}` });
       setGenForm({ email: '', plan: 'standard', clientName: '' });
       const refresh = await fetch('/api/admin/licenses');
       if (refresh.ok) setLicenses(await refresh.json());
