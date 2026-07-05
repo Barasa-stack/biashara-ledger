@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { adminRun, adminGet } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
+import { createTransporter } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
@@ -15,11 +17,15 @@ export async function POST(req: Request) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Generate a unique license key based on email
+    // Generate a unique license key and a random password
     const hash = crypto.createHash('sha256').update(normalizedEmail + process.env.LICENSE_SECRET || 'default-secret').digest('hex');
     const licenseKey = `BL-${hash.substring(0, 8).toUpperCase()}-${hash.substring(8, 16).toUpperCase()}-${hash.substring(16, 24).toUpperCase()}`;
     const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
     const planLower = plan.toLowerCase();
+
+    // Generate a random 12-character password
+    const tempPassword = crypto.randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 12) + '1A!';
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     // 1. Create/Update client in admin_clients
     let clientId = null;
@@ -35,12 +41,16 @@ export async function POST(req: Request) {
         [company_name || null, contact_person || null, planLower, expiresAt, licenseKey, clientId]
       );
     } else {
-      const insertResult = await adminRun(
+      await adminRun(
         `INSERT INTO admin_clients (company_name, email, contact_person, plan, is_active, expires_at, license_key, created_at)
-         VALUES ($1, $2, $3, $4, true, $5, $6, NOW()) RETURNING id`,
+         VALUES ($1, $2, $3, $4, true, $5, $6, NOW())`,
         [company_name || 'Unknown Company', normalizedEmail, contact_person || '', planLower, expiresAt, licenseKey]
       );
-      clientId = (insertResult as any).id || null;
+      const newClient = await adminGet(
+        `SELECT id FROM admin_clients WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+        [normalizedEmail]
+      );
+      clientId = (newClient as any)?.id || null;
     }
 
     // 2. Store in admin_license_keys
@@ -51,7 +61,7 @@ export async function POST(req: Request) {
       [licenseKey, clientId, planLower, expiresAt]
     );
 
-    // 3. Update the user in users table
+    // 3. Create/Update user with hashed password and license
     const existingUser = await adminGet(
       `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
       [normalizedEmail]
@@ -59,30 +69,84 @@ export async function POST(req: Request) {
 
     if (existingUser) {
       await adminRun(
-        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active' WHERE LOWER(email) = LOWER($4)`,
-        [licenseKey, plan, expiresAt, normalizedEmail]
+        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', password_hash = $4 WHERE LOWER(email) = LOWER($5)`,
+        [licenseKey, plan, expiresAt, hashedPassword, normalizedEmail]
       );
     } else {
       await adminRun(
-        `INSERT INTO users (email, license_key, license_status, subscription_plan, subscription_expiry, subscription_status, role, verified)
-         VALUES ($1, $2, 'active', $3, $4, 'active', 'user', 1)`,
-        [normalizedEmail, licenseKey, plan, expiresAt]
+        `INSERT INTO users (email, password_hash, license_key, license_status, subscription_plan, subscription_expiry, subscription_status, role, verified)
+         VALUES ($1, $2, $3, 'active', $4, $5, 'active', 'user', 1)`,
+        [normalizedEmail, hashedPassword, licenseKey, plan, expiresAt]
       );
+    }
+
+    // 4. Send activation email with credentials
+    let emailSent = false;
+    let emailError = '';
+    try {
+      const transporter = await createTransporter();
+      if (transporter) {
+        const activateUrl = `https://biashara-ledger.vercel.app/activate-license`;
+        const signInUrl = `https://biashara-ledger.vercel.app/sign-in`;
+        const companyName = company_name || 'BiasharaLedger';
+
+        await transporter.sendMail({
+          from: `"${companyName}" <${(transporter as any).options?.auth?.user || 'noreply@biasharaledger.com'}>`,
+          to: normalizedEmail,
+          subject: `Welcome to ${companyName} — Your Account Credentials`,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
+              <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:28px;text-align:center;border-radius:8px 8px 0 0;">
+                <h1 style="color:#fff;margin:0;font-size:20px;">${companyName}</h1>
+              </div>
+              <div style="padding:28px;background:#fff;border:1px solid #e5e7eb;">
+                <h2 style="font-size:16px;color:#111;margin:0 0 12px;">Welcome to ${companyName}!</h2>
+                <p style="font-size:13px;color:#444;line-height:1.6;">Your account has been created. Use the credentials below to sign in.</p>
+                <div style="background:#f9fafb;border-radius:8px;padding:16px;margin:16px 0;">
+                  <p style="margin:4px 0;font-size:13px;color:#444;"><strong>Email:</strong> ${normalizedEmail}</p>
+                  <p style="margin:4px 0;font-size:13px;color:#444;"><strong>Password:</strong> <code style="background:#fff;padding:2px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:14px;">${tempPassword}</code></p>
+                  <p style="margin:4px 0;font-size:13px;color:#444;"><strong>License Key:</strong> <code style="background:#fff;padding:2px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;">${licenseKey}</code></p>
+                  <p style="margin:4px 0;font-size:13px;color:#444;"><strong>Plan:</strong> ${plan}</p>
+                </div>
+                <p style="font-size:13px;color:#444;line-height:1.6;">
+                  <strong>Step 1:</strong> Activate your license by visiting:<br/>
+                  <a href="${activateUrl}" style="color:#dc2626;">${activateUrl}</a>
+                </p>
+                <p style="font-size:13px;color:#444;line-height:1.6;">
+                  <strong>Step 2:</strong> Sign in at:<br/>
+                  <a href="${signInUrl}" style="color:#dc2626;">${signInUrl}</a>
+                </p>
+                <p style="font-size:12px;color:#888;margin-top:16px;">You can reset your password after signing in.</p>
+              </div>
+              <div style="padding:16px;text-align:center;background:#f9fafb;border:1px solid #e5e7eb;border-top:0;border-radius:0 0 8px 8px;">
+                <p style="margin:0;font-size:11px;color:#999;">${companyName} &mdash; Business Management Software</p>
+              </div>
+            </div>
+          `,
+        });
+        emailSent = true;
+      }
+    } catch (err: any) {
+      emailError = err?.message || 'Failed to send email';
+      console.error('[generate-by-email] Email send failed:', emailError);
     }
 
     return NextResponse.json({
       success: true,
       license_key: licenseKey,
       email: normalizedEmail,
+      temp_password: tempPassword,
       contact_person: contact_person || '',
       company_name: company_name || '',
       plan,
       expires_at: expiresAt,
       client_id: clientId,
-      message: `License generated for ${normalizedEmail}. Key: ${licenseKey}`,
+      email_sent: emailSent,
+      email_error: emailError || undefined,
+      message: `License generated. Credentials sent to ${normalizedEmail}.`,
     });
   } catch (err: any) {
     console.error('[generate-by-email] Error:', err?.message || err);
-    return NextResponse.json({ error: 'Failed to generate license: ' + (err?.message || 'Unknown error') }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate license: ' + (err?.message || 'Unknown') }, { status: 500 });
   }
 }
