@@ -55,11 +55,13 @@ export async function GET() {
     });
     return NextResponse.json(transactions);
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${msg}`);
+    if (msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -85,10 +87,12 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ id: result.id }, { status: 201 });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${msg}`);
+    if (msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

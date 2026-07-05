@@ -32,7 +32,7 @@ export async function ensureDbInitialized() {
       `);
       
       const tablesExist = (rows[0] as any)?.exists || false;
-      logInfo('init', 'Tables exist:', String(tablesExist));
+      logInfo('init', 'Tables exist:', { exists: tablesExist });
       
       if (tablesExist) {
         logInfo('init', 'Tables already exist, skipping schema creation');

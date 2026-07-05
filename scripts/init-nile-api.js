@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
 async function initNileDb() {
-  console.log('🔄 Initializing Nile database...');
+  console.log('🔄 Initializing Nile database via API...');
   
   const user = process.env.NILEDB_USER;
   const password = process.env.NILEDB_PASSWORD;
@@ -28,26 +28,50 @@ async function initNileDb() {
     await pool.query('SELECT 1');
     console.log('✅ Connected to Nile database');
 
-    // Set the tenant context for Nile
-    // First, check if tenants table exists
-    const tableCheck = await pool.query(`
-      SELECT EXISTS (
-        SELECT 1 FROM information_schema.tables 
-        WHERE table_name = 'tenants'
-      )
+    // The issue is with Nile's tenant isolation.
+    // We need to run operations without tenant context first,
+    // then create the tenant and set it.
+
+    // Check if tenant exists in the tenants table
+    const tenantCheck = await pool.query(`
+      SELECT id FROM tenants WHERE name = 'default_tenant'
     `);
     
-    // Create tables if they don't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS tenants (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name TEXT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      );
-      
+    let tenantId;
+    if (tenantCheck.rows.length === 0) {
+      // Insert tenant without tenant context (use the master table)
+      const tenantResult = await pool.query(`
+        INSERT INTO tenants (id, name) 
+        VALUES (gen_random_uuid(), 'default_tenant')
+        RETURNING id
+      `);
+      tenantId = tenantResult.rows[0].id;
+      console.log('✅ Default tenant created');
+    } else {
+      tenantId = tenantCheck.rows[0].id;
+      console.log('✅ Default tenant exists');
+    }
+
+    console.log(`📋 Tenant ID: ${tenantId}`);
+
+    // Now create a new connection with tenant context
+    const tenantPool = new Pool({
+      connectionString: connectionString,
+      ssl: { rejectUnauthorized: false },
+      max: 10,
+      // Set tenant context on connection
+      connectionTimeoutMillis: 5000,
+    });
+
+    // Set the tenant context for Nile
+    await tenantPool.query('SELECT set_config($1, $2, true)', ['nile.tenant_id', tenantId]);
+    console.log('✅ Tenant context set');
+
+    // Now create tables within the tenant context
+    await tenantPool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID DEFAULT gen_random_uuid(),
-        tenant_id UUID REFERENCES tenants(id),
+        tenant_id UUID NOT NULL,
         email TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         first_name TEXT DEFAULT '',
@@ -62,41 +86,19 @@ async function initNileDb() {
         PRIMARY KEY (id)
       );
     `);
-    console.log('✅ Tables created/verified');
+    console.log('✅ Users table created/verified');
 
-    // Check if default tenant exists
-    const tenantCheck = await pool.query(`
-      SELECT id FROM tenants WHERE name = 'default_tenant'
-    `);
-    
-    let tenantId;
-    if (tenantCheck.rows.length === 0) {
-      const tenantResult = await pool.query(`
-        INSERT INTO tenants (id, name) 
-        VALUES (gen_random_uuid(), 'default_tenant')
-        RETURNING id
-      `);
-      tenantId = tenantResult.rows[0].id;
-      console.log('✅ Default tenant created');
-    } else {
-      tenantId = tenantCheck.rows[0].id;
-      console.log('✅ Default tenant exists');
-    }
-
-    // Set tenant context for Nile
-    await pool.query('SELECT set_config($1, $2, true)', ['nile.tenant_id', tenantId]);
-
-    // Create admin user within the tenant context
+    // Create admin user within tenant context
     const adminEmail = 'digitalbaroz@gmail.com';
     const adminPassword = 'Admin123!';
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
     
-    const userCheck = await pool.query(`
-      SELECT id FROM users WHERE email = $1 AND tenant_id = $2
-    `, [adminEmail, tenantId]);
+    const userCheck = await tenantPool.query(`
+      SELECT id FROM users WHERE email = $1
+    `, [adminEmail]);
     
     if (userCheck.rows.length === 0) {
-      await pool.query(`
+      await tenantPool.query(`
         INSERT INTO users (
           email, password_hash, tenant_id, verified, 
           first_name, last_name, role, 
@@ -119,6 +121,7 @@ async function initNileDb() {
     console.log('\n📋 Login credentials:');
     console.log(`  Admin: ${adminEmail} / ${adminPassword}`);
     
+    await tenantPool.end();
     await pool.end();
     process.exit(0);
   } catch (err) {

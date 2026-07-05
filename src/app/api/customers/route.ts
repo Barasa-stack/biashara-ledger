@@ -12,7 +12,9 @@ export async function GET() {
     });
     return NextResponse.json(customers);
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const __msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${__msg}`);
+    if (__msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
@@ -83,7 +85,9 @@ export async function PUT(request: Request) {
     });
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const __msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${__msg}`);
+    if (__msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
@@ -101,7 +105,9 @@ export async function DELETE(request: Request) {
     });
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const __msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${__msg}`);
+    if (__msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);

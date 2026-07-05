@@ -140,7 +140,9 @@ export async function POST(request: Request) {
       emailError,
     });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const __msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${__msg}`);
+    if (__msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);

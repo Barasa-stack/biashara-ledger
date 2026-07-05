@@ -11,11 +11,13 @@ export async function GET() {
     });
     return NextResponse.json(data);
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${msg}`);
+    if (msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -36,11 +38,13 @@ export async function PUT(request: Request) {
     });
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${msg}`);
+    if (msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -54,10 +58,12 @@ export async function DELETE(request: Request) {
     });
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized' || !e?.message) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${msg}`);
+    if (msg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
