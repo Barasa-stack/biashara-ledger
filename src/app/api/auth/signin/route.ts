@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { adminRun, adminGet } from '@/lib/db';
+import { adminRun, adminGet, run, withTenantContext } from '@/lib/db';
 import { ensureDbInitialized } from '@/lib/init';
 import { normalizePlan } from '@/lib/feature-gate';
 
@@ -88,19 +88,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Invalidate all prior sessions for this email across duplicate user records
-    await adminRun(
-      `DELETE FROM sessions WHERE user_id IN (
-         SELECT id FROM users WHERE LOWER(email) = LOWER($1)
-       )`,
-      [email.toLowerCase().trim()]
-    );
+    await withTenantContext(tenantId, async () => {
+      await run(
+        `DELETE FROM sessions WHERE user_id IN (
+           SELECT id FROM users WHERE LOWER(email) = LOWER($1)
+         )`,
+        [email.toLowerCase().trim()]
+      );
+    });
 
     const sessionToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    await adminRun(
-      'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
-      [tenantId, user.id, sessionToken, expiresAt]
-    );
+    await withTenantContext(tenantId, async () => {
+      await run(
+        'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+        [tenantId, user.id, sessionToken, expiresAt]
+      );
+    });
 
     const displayName = user.first_name || user.last_name || '';
     const userData = await adminGet(
