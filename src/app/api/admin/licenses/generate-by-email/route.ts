@@ -43,9 +43,9 @@ export async function POST(req: Request) {
     } else {
       const clientIdNum = Math.floor(Math.random() * 2147483647) + 1;
       await adminRun(
-        `INSERT INTO admin_clients (id, company_name, email, plan, is_active, expires_at, license_key, created_at)
-         VALUES ($1, $2, $3, $4, true, $5, $6, NOW())`,
-        [clientIdNum, company_name || 'Unknown Company', normalizedEmail, planLower, expiresAt, licenseKey]
+        `INSERT INTO admin_clients (id, company_name, email, database_name, plan, is_active, expires_at, license_key, created_at)
+         VALUES ($1, $2, $3, $4, $5, true, $6, $7, NOW())`,
+        [clientIdNum, company_name || 'Unknown Company', normalizedEmail, 'db_' + clientIdNum, planLower, expiresAt, licenseKey]
       );
       clientId = clientIdNum;
     }

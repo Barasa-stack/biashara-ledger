@@ -80,8 +80,8 @@ export async function POST(request: Request) {
       );
 
       const clientResult = await adminQuery(
-        `INSERT INTO admin_clients (id, company_name, email, license_key, max_users, expires_at, is_active, is_trial)
-         VALUES (CAST(floor(random() * 2147483647) + 1 AS integer), $1, $2, 'MANUAL-' || upper(substr(md5(random()::text), 1, 12)), $3, $4::timestamptz, true, false)
+        `INSERT INTO admin_clients (id, company_name, email, database_name, license_key, max_users, expires_at, is_active, is_trial)
+         VALUES (CAST(floor(random() * 2147483647) + 1 AS integer), $1, $2, 'manual-' || substr(md5(random()::text), 1, 8), 'MANUAL-' || upper(substr(md5(random()::text), 1, 12)), $3, $4::timestamptz, true, false)
          ON CONFLICT (email) DO NOTHING
          RETURNING id, company_name, email`,
         [company_name, email, max_users || 5, expiresAt]
