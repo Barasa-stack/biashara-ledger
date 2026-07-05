@@ -21,6 +21,7 @@ import {
   Shield,
   Clock as ClockIcon,
   Database,
+  X,
 } from 'lucide-react';
 
 const PLAN_OPTIONS = ['Basic', 'Standard', 'Premium'];
@@ -36,6 +37,8 @@ export default function ClientDetailPage() {
   const [selectedPlan, setSelectedPlan] = useState('Basic');
   const [planUpdateError, setPlanUpdateError] = useState('');
   const [planUpdating, setPlanUpdating] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (!params.id) return;
@@ -322,6 +325,34 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </div>
+
+            {/* Actions */}
+            {client.license_key && (
+              <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
+                <button
+                  onClick={async () => {
+                    setResending(true);
+                    try {
+                      const res = await fetch('/api/admin/clients/resend-license', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ clientId: params.id }),
+                      });
+                      const data = await res.json();
+                      if (res.ok) alert('License email sent!');
+                      else alert('Error: ' + data.error);
+                    } catch { alert('Failed to send email'); }
+                    setResending(false);
+                  }}
+                  disabled={resending}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-brand text-brand px-4 py-2 text-sm font-medium hover:bg-brand/5 disabled:opacity-50 transition-colors"
+                >
+                  <Mail size={14} />
+                  {resending ? 'Sending...' : 'Resend License Email'}
+                </button>
+              </div>
+            )}
+      </div>
       )}
 
       {activeTab === 'activity' && (
