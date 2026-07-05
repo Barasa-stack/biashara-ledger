@@ -5,7 +5,7 @@ BiasharaLedger is a tenant-isolated accounting application using Next.js and Nil
 ## Nile Setup 
 
 Set these environment variables before running the app:
-
+ 
 ```bash
 DATABASE_URL="postgres://..."
 NILEDB_API_URL="https://..."
