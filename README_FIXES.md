@@ -56,6 +56,6 @@ To test the fixes:
 
 1. **Single Source of Truth**: All SMTP configuration is centralized in the admin dashboard
 2. **Easier Management**: No need to modify environment variables for email settings
-3. **Improved User Experience**: Automatic welcome emails enhance user engagement
+3. **Improved User Experience**: Automatic welcome emails enhance user engagement 
 4. **Better Security**: Sensitive credentials are stored in the database rather than environment variables
 
