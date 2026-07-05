@@ -78,7 +78,6 @@ export async function POST(req: NextRequest) {
     }
 
     // License check: admin users bypass, all others must have valid license
-    const ADMIN_EMAILS = ['digitalbaroz@gmail.com', 'mambombaya1992@gmail.com'];
     if (!ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
       const licenseKey = user.license_key;
       const licenseStatus = user.license_status;
