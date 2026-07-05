@@ -107,10 +107,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
     });
   } catch (e: any) {
-    if (e?.message === 'Unauthorized') {
+    const errMsg = e instanceof Error ? e.message : String(e);
+    if (errMsg === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[sales] Error:', e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }
