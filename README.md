@@ -59,4 +59,4 @@ npm run build
 
 ## Existing Data Migration
 
-Use `scripts/migrate-to-nile.sql` for the current Nile schema. The older `scripts/migrate-data.ts` is retained for custom Neon-to-Nile data migration work, but it should be reviewed against the source database schema before running because legacy column names may differ from the current application schema.
+Use `scripts/migrate-to-nile.sql` for the current Nile schema. The older `scripts/migrate-data.ts` is retained for custom Neon-to-Nile data migration work, but it should be reviewed against the source database schema before running because legacy column names may differ from the current application schema. 
