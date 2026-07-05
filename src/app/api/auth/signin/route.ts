@@ -43,12 +43,10 @@ export async function POST(req: NextRequest) {
       const hashedPw = await bcrypt.hash(password, 10);
       const tenantUuid = crypto.randomUUID();
       // First create the tenant record, then create the user
-      try {
-        await adminRun(
-          `INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [tenantUuid, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya']
-        );
-      } catch {}
+      await adminRun(
+        `INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [tenantUuid, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya']
+      );
       await withTenantContext(tenantUuid, async () => {
         await run(
           `INSERT INTO users (tenant_id, email, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, country, role)

@@ -140,9 +140,6 @@ export async function run(sql: string, params?: any[]): Promise<{ rowCount: numb
 
 export async function adminRun(sql: string, params?: any[]): Promise<{ rowCount: number }> {
   const pool = await getBasePool();
-  try {
-    await pool.query(`SET nile.tenant_id = '00000000-0000-0000-0000-000000000000'`);
-  } catch {}
   const result = await pool.query(sql, params);
   return { rowCount: result.rowCount ?? 0 };
 }
@@ -154,9 +151,6 @@ export async function exec(sql: string, params?: any[]): Promise<void> {
     await pool.query(sql, params);
   } else {
     const pool = await getBasePool();
-    try {
-      await pool.query(`SET nile.tenant_id = '00000000-0000-0000-0000-000000000000'`);
-    } catch {}
     await pool.query(sql, params);
   }
 }
