@@ -13,7 +13,7 @@ export async function GET() {
           COALESCE(SUM(CASE WHEN t.transaction_type = 'SALE' THEN t.quantity ELSE 0 END), 0) as total_sold
         FROM inventory_items i
         LEFT JOIN inventory_transactions t ON t.item_id = i.id
-        GROUP BY i.id, i.tenant_id, i.item_name, i.sku, i.category, i.unit_of_measure, i.opening_stock, i.current_stock, i.unit_cost, i.created_at
+        GROUP BY i.id, i.tenant_id, i.item_name, i.sku, i.category, i.unit_of_measure, i.opening_stock, i.current_stock, i.unit_cost, i.reorder_level, i.created_at
         ORDER BY i.item_name
       `);
     });

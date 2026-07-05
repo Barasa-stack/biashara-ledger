@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query as dbQuery, get as dbGet, withTenantContext } from '@/lib/db';
+import { query as dbQuery, get as dbGet, run as dbRun, withTenantContext } from '@/lib/db';
 import { requireSubscription, AuthError } from '@/lib/auth-guard';
 
 async function safeQuery<T extends object = any>(sql: string, params: any[] = []): Promise<T[]> {

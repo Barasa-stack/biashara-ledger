@@ -73,7 +73,7 @@ export async function requireRole(...allowedRoles: string[]) {
   const { session } = await requireSubscription();
   const user = await adminGet<{ role: string }>('SELECT role FROM users WHERE id = $1', [session.user_id]);
   const effectiveRole = user?.role || 'admin';
-  if (effectiveRole === 'admin') return { session, role: effectiveRole };
+  if (effectiveRole === 'admin' || effectiveRole === 'super_admin') return { session, role: effectiveRole };
   if (!allowedRoles.includes(effectiveRole)) {
     throw new AuthError('You do not have permission to access this resource', 'FORBIDDEN');
   }
