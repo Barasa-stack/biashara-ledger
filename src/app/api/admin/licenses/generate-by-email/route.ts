@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     await adminRun(
       `INSERT INTO admin_license_keys (license_key, client_id, plan, is_active, is_used, expires_at, created_at)
        VALUES ($1, $2, $3, true, false, $4, NOW())
-       ON CONFLICT (license_key) DO UPDATE SET is_active = true, expires_at = $4, client_id = COALESCE($2, client_id)`,
+       ON CONFLICT (license_key) DO UPDATE SET is_active = true, expires_at = $4`,
       [licenseKey, clientId, planLower, expiresAt]
     );
 
