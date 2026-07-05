@@ -47,11 +47,13 @@ export async function POST(req: NextRequest) {
         `INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
         [tenantUuid, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya']
       );
+      const userId = Math.floor(Math.random() * 2147483647) + 1;
+      const pwHash = hashedPw;
       await withTenantContext(tenantUuid, async () => {
         await run(
-          `INSERT INTO users (tenant_id, email, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, country, role)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [tenantUuid, email.toLowerCase().trim(), hashedPw, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya', 1, 'Premium', 'active', 'active', 'KE', 'admin']
+          `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, country, role)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [userId, tenantUuid, email.toLowerCase().trim(), pwHash, pwHash, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya', true, 'Premium', 'active', 'active', 'KE', 'admin']
         );
       });
       user = await adminGet(
@@ -100,11 +102,12 @@ export async function POST(req: NextRequest) {
     });
 
     const sessionToken = crypto.randomUUID();
+    const sessionId = Math.floor(Math.random() * 2147483647) + 1;
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     await withTenantContext(tenantId, async () => {
       await run(
-        'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
-        [tenantId, user.id, sessionToken, expiresAt]
+        'INSERT INTO sessions (id, tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4, $5)',
+        [sessionId, tenantId, user.id, sessionToken, expiresAt]
       );
     });
 
