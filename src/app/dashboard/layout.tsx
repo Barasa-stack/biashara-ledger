@@ -66,14 +66,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const safetyTimer = setTimeout(() => {
       if (loading) {
-        hardRedirect('/login');
+        hardRedirect('/sign-in');
       }
     }, 25000);
 
     if (!loading) {
       clearTimeout(safetyTimer);
       if (!user) {
-        hardRedirect('/login');
+        hardRedirect('/sign-in');
       } else if (user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'cancelled') {
         hardRedirect('/renew');
       } else {
