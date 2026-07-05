@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { adminRun, adminGet, run, withTenantContext } from '@/lib/db';
+import { adminRun, adminGet } from '@/lib/db';
 import { ensureDbInitialized } from '@/lib/init';
 import { normalizePlan } from '@/lib/feature-gate';
 
@@ -11,11 +11,6 @@ export async function POST(req: NextRequest) {
     await ensureDbInitialized();
 
     const { email, password } = await req.json();
-
-    console.log('🔍 ===== SIGNIN ATTEMPT =====');
-    console.log('🔍 Email:', email);
-    console.log('🔍 Password provided:', password ? 'Yes (length: ' + password.length + ')' : 'No');
-
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
     const rl = await checkRateLimit(`signin:${email ?? 'unknown'}:${ip}`, 5, 60 * 1000);
@@ -27,11 +22,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    
-    console.log('🔍 Running query for:', email);
-    console.log('🔍 Query: SELECT id, tenant_id, email, password_hash, first_name, last_name, verified, subscription_plan, subscription_status, license_status, country FROM users WHERE LOWER(email) = LOWER($1) ...');
-
-    const user = await adminGet(
+    // Use let instead of const so we can reassign
+    let user = await adminGet(
       `SELECT id, tenant_id, email, password_hash, first_name, last_name, verified,
               subscription_plan, subscription_status, license_status, country
        FROM users
@@ -45,36 +37,10 @@ export async function POST(req: NextRequest) {
       [email.toLowerCase().trim()]
     ) as any;
 
-    console.log('🔍 Query result:', user ? '✅ User found' : '❌ User not found');
-    if (user) {
-      console.log('🔍 User email:', user.email);
-      console.log('🔍 User verified:', user.verified);
-      console.log('🔍 User has password_hash:', !!user.password_hash);
-      console.log('🔍 User tenant_id:', user.tenant_id);
-      console.log('🔍 User subscription_plan:', user.subscription_plan);
-    }
-
-    // Auto-create admin users on first sign-in (Nile bootstrap)
-    const ADMIN_EMAILS = ['digitalbaroz@gmail.com', 'mambombaya1992@gmail.com'];
-    if (!user && ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
-      console.log('🔍 Auto-creating admin user:', email);
-      const hashedPw = await bcrypt.hash(password, 10);
-      const tenantUuid = crypto.randomUUID();
-      await adminRun(
-        `INSERT INTO users (tenant_id, email, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, country, role)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [tenantUuid, email.toLowerCase().trim(), hashedPw, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya', 1, 'Premium', 'active', 'active', 'KE', 'admin']
-      );
-      // Refetch the newly created user
-      user = await adminGet(
-        `SELECT id, tenant_id, email, password_hash, first_name, last_name, verified,
-                subscription_plan, subscription_status, license_status, country
-         FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-        [email.toLowerCase().trim()]
-      ) as any;
-    }
-
+    // If user doesn't exist, try to create a new user (for first-time login)
     if (!user || !user.password_hash) {
+      // Check if we should create the user (you can customize this logic)
+      // For now, we'll just return an error
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
@@ -82,19 +48,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    
-    console.log('🔍 Comparing password...');
-    console.log('🔍 Password hash from DB:', user.password_hash ? 'Has value (length: ' + user.password_hash.length + ')' : 'EMPTY');
     const isMatch = await bcrypt.compare(password, user.password_hash);
-    console.log('🔍 Password match result:', isMatch ? '✅ MATCH' : '❌ NO MATCH');
-
     if (!isMatch) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
     const tenantId = user.tenant_id || 'local-default';
 
-    // Ensure company_settings exists for this tenant (for email functionality)
+    // Ensure company_settings exists for this tenant
     try {
       await adminRun(
         `INSERT INTO company_settings (tenant_id, company_name, email) 
@@ -106,50 +67,42 @@ export async function POST(req: NextRequest) {
       console.warn('Could not ensure company_settings:', settingsError);
     }
 
-    // Invalidate all prior sessions for this email across duplicate user records
-    await withTenantContext(tenantId, async () => {
-      await run(
-        `DELETE FROM sessions WHERE user_id IN (
-           SELECT id FROM users WHERE LOWER(email) = LOWER($1)
-         )`,
-        [email.toLowerCase().trim()]
-      );
-    });
+    // Invalidate all prior sessions for this email
+    await adminRun(
+      `DELETE FROM sessions WHERE user_id IN (
+         SELECT id FROM users WHERE LOWER(email) = LOWER($1)
+       )`,
+      [email.toLowerCase().trim()]
+    );
 
     const sessionToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    await withTenantContext(tenantId, async () => {
-      await run(
-        'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
-        [tenantId, user.id, sessionToken, expiresAt]
-      );
-    });
+    await adminRun(
+      'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+      [tenantId, user.id, sessionToken, expiresAt]
+    );
 
     const displayName = user.first_name || user.last_name || '';
     const userData = await adminGet(
       'SELECT subscription_plan, subscription_status, license_status, country FROM users WHERE id = $1',
       [user.id]
     ) as any;
-    let subPlan = normalizePlan(userData?.subscription_plan || 'trial');
+    
+    const subPlan = normalizePlan(userData?.subscription_plan || 'trial');
     const subStatus = userData?.license_status === 'active' ? 'active' : userData?.subscription_status || 'active';
     const country = userData?.country || 'KE';
 
-    // Override trial to Premium for admin email (temporary fix until payment flow is connected)
-    if (email.toLowerCase().trim() === 'mambombaya1992@gmail.com' && subPlan === 'trial') {
-      subPlan = 'Premium';
-      try {
-        await withTenantContext(tenantId, async () => {
-          await run(
-            `UPDATE users SET subscription_plan = 'Premium', subscription_status = 'active', license_status = 'active' WHERE email = $1`,
-            [email.toLowerCase().trim()]
-          );
-        });
-      } catch {}
-    }
-
     const response = NextResponse.json({
       success: true,
-      user: { id: user.id, email: user.email, name: displayName, tenantId: tenantId, subscriptionPlan: subPlan, subscriptionStatus: subStatus, country }
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        name: displayName, 
+        tenantId: tenantId, 
+        subscriptionPlan: subPlan, 
+        subscriptionStatus: subStatus, 
+        country 
+      }
     });
 
     response.cookies.set('bl_session', sessionToken, {
@@ -163,8 +116,7 @@ export async function POST(req: NextRequest) {
     return response;
 
   } catch (error: any) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error('Signin error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('Signin error:', error?.message || error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
