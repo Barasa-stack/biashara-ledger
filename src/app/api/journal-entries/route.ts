@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query, run, insertReturning, withTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
+import { generateNextNumber } from '@/lib/numbers';
 
 export async function GET() {
   try {
@@ -11,7 +12,7 @@ export async function GET() {
         SELECT je.*, 
           COALESCE((SELECT SUM(credit_amount) FROM journal_entry_lines WHERE journal_entry_id=je.id), 0) as total_credit,
           COALESCE((SELECT SUM(debit_amount) FROM journal_entry_lines WHERE journal_entry_id=je.id), 0) as total_debit
-        FROM journal_entries je ORDER BY je.entry_date DESC, je.created_at DESC`);
+        FROM journal_entries je ORDER BY je.created_at DESC, je.entry_date DESC`);
     });
     return NextResponse.json(entries);
   } catch (e: any) {
@@ -30,10 +31,12 @@ export async function POST(request: Request) {
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
     const body = await request.json();
+    let entryNumber = '';
     const result = await withTenantContext(session.tenant_id!, async () => {
+      entryNumber = body.entry_number || await generateNextNumber('journal');
       const entry = await insertReturning<{ id: string }>(
         `INSERT INTO journal_entries (tenant_id, entry_number, description, entry_date, reference, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [session.tenant_id, body.entry_number || '', body.description || '', body.entry_date || new Date().toISOString().split('T')[0], body.reference || '', body.status || 'draft']
+        [session.tenant_id, entryNumber, body.description || '', body.entry_date || new Date().toISOString().split('T')[0], body.reference || '', body.status || 'draft']
       );
       if (body.lines && Array.isArray(body.lines)) {
         for (const line of body.lines) {
@@ -43,8 +46,12 @@ export async function POST(request: Request) {
       }
       return entry;
     });
-    return NextResponse.json({ id: result.id }, { status: 201 });
-  } catch { return NextResponse.json({ error: 'Failed to create entry' }, { status: 401 }); }
+    return NextResponse.json({ id: result.id, entry_number: entryNumber }, { status: 201 });
+  } catch (e: any) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[journal-entries] POST Error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
 
 export async function PUT(request: Request) {

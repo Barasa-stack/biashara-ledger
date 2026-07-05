@@ -1,6 +1,12 @@
 import { get, run } from './db';
 
-export async function generateNextNumber(type: 'invoice' | 'quotation' | 'credit_note'): Promise<string> {
+export async function generateNextNumber(type: 'invoice' | 'quotation' | 'credit_note' | 'journal'): Promise<string> {
+  if (type === 'journal') {
+    const now = new Date();
+    const ts = Math.floor(now.getTime() / 1000).toString(36).toUpperCase();
+    return `JE-${ts}`;
+  }
+
   if (type === 'credit_note') {
     const settings = await get('SELECT credit_note_prefix, next_credit_note_number, last_credit_note_month FROM company_settings') as any;
     const prefix = settings?.credit_note_prefix || 'CN';

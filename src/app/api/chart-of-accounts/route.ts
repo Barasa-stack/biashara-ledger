@@ -27,7 +27,7 @@ export async function GET() {
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
     const accounts = await withTenantContext(session.tenant_id!, async () => {
-      const existing = await query('SELECT * FROM chart_of_accounts ORDER BY account_code');
+      const existing = await query('SELECT * FROM chart_of_accounts ORDER BY created_at DESC');
       if (existing.length === 0) {
         for (const a of DEFAULT_ACCOUNTS) {
           await run('INSERT INTO chart_of_accounts (tenant_id, account_code, account_name, account_type) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
