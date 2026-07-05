@@ -323,10 +323,6 @@ export default function ClientDetailPage() {
                 );
               })}
             </div>
-          </div>
-        </div>
-
-            {/* Actions */}
             {client.license_key && (
               <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
                 <button
@@ -352,7 +348,8 @@ export default function ClientDetailPage() {
                 </button>
               </div>
             )}
-      </div>
+          </div>
+        </div>
       )}
 
       {activeTab === 'activity' && (
