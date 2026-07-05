@@ -23,7 +23,7 @@ export async function POST(request: Request) {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
           [session.tenant_id, body.po_number || '', body.client_id, body.client_name,
            body.description || '', body.quantity || 1, body.unit_price || 0,
-           body.subtotal || 0, body.tax_vat || 0, body.amount,
+           body.subtotal || 0, body.tax_vat || 0, body.amount || 0,
            body.delivery_date || '', body.status || 'pending',
            body.notes || '', body.issue_date]
         );
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
           [session.tenant_id, body.debit_note_number || '', body.purchase_invoice_id,
            body.client_id, body.client_name, body.description || '',
-           body.quantity || 1, body.unit_price || 0, body.amount,
+           body.quantity || 1, body.unit_price || 0, body.amount || 0,
            body.reason || '', body.notes || '', body.issue_date]
         );
         return NextResponse.json({ id: result.id }, { status: 201 });
