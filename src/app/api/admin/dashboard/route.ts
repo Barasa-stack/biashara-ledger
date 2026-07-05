@@ -27,7 +27,14 @@ export async function GET() {
           (SELECT COUNT(*) FROM admin_clients WHERE created_at >= $1) as new_this_week,
           (SELECT COUNT(*) FROM admin_clients WHERE plan = 'basic' OR (plan IS NULL AND is_trial = false)) as basic_plan,
           (SELECT COUNT(*) FROM admin_clients WHERE plan = 'standard') as standard_plan,
-          (SELECT COUNT(*) FROM admin_clients WHERE plan = 'premium') as premium_plan
+          (SELECT COUNT(*) FROM admin_clients WHERE plan = 'premium') as premium_plan,
+          (SELECT COUNT(*) FROM users) as total_users,
+          (SELECT COUNT(*) FROM users WHERE license_status = 'active' OR subscription_status = 'active') as active_users,
+          (SELECT COUNT(*) FROM users WHERE license_status = 'active') as licensed_users,
+          (SELECT COUNT(*) FROM users WHERE subscription_plan = 'Premium' OR subscription_plan = 'premium') as premium_users,
+          (SELECT COUNT(*) FROM users WHERE subscription_plan = 'Basic' OR subscription_plan = 'basic') as basic_users,
+          (SELECT COUNT(*) FROM users WHERE subscription_plan = 'Standard' OR subscription_plan = 'standard') as standard_users,
+          (SELECT COUNT(*) FROM users WHERE subscription_status = 'trial' OR subscription_plan = 'trial') as trial_users
       `, [new Date(Date.now() - 7 * 86400000).toISOString()]),
       adminQuery(`
         SELECT
@@ -97,6 +104,15 @@ export async function GET() {
         basicPlan: parseInt(clients.basic_plan) || 0,
         standardPlan: parseInt(clients.standard_plan) || 0,
         premiumPlan: parseInt(clients.premium_plan) || 0,
+      },
+      realUsers: {
+        total: parseInt(clients.total_users) || 0,
+        active: parseInt(clients.active_users) || 0,
+        licensed: parseInt(clients.licensed_users) || 0,
+        premium: parseInt(clients.premium_users) || 0,
+        basic: parseInt(clients.basic_users) || 0,
+        standard: parseInt(clients.standard_users) || 0,
+        trial: parseInt(clients.trial_users) || 0,
       },
       licenses: {
         total: parseInt(licenses.total_licenses) || 0,

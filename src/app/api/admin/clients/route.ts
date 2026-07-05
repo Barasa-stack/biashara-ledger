@@ -20,7 +20,7 @@ export async function GET() {
     }
 
     try {
-      let userQuery = `SELECT u.id, t.name as company_name, u.email, u.subscription_plan, u.subscription_status, u.subscription_expiry, u.license_status, u.verified, u.created_at, u.last_active FROM users u JOIN tenants t ON t.id = u.tenant_id WHERE u.role = 'admin'`;
+      let userQuery = `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.subscription_plan, u.subscription_status, u.subscription_expiry, u.license_status, u.verified, u.created_at FROM users u WHERE 1=1`;
       if (clients.length > 0) {
         const adminClientIds = clients.map(c => c.id);
         const placeholders = adminClientIds.map((_, i) => `$${i + 1}`).join(',');
