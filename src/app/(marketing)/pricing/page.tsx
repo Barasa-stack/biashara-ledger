@@ -10,64 +10,29 @@ const pricingImages: CityImage[] = [
   { url: '/images/hero/hero-skyscraper-glass-modern.jpg', label: 'Simple Pricing' },
 ];
 
-const PLANS = [
-  {
-    id: 'basic',
-    name: 'Basic',
-    monthly: 500,
-    yearly: 5000,
-    description: 'Everything you need to run your day-to-day business operations.',
-    features: [
-      'Dashboard',
-      'Customers & Suppliers',
-      'Sales',
-      'Purchases',
-      'Other Income / Expenses',
-      'Projects',
-      'Developer Tools',
-      'Financial Reports',
-      'Notifications',
-      'Subscription Management',
-      'Company Settings',
-    ],
-    cta: 'Get Started',
-    popular: false,
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    monthly: 1000,
-    yearly: 10000,
-    description: 'For growing businesses that need advanced financial management.',
-    features: [
-      'Everything in Basic',
-      'HR & Payroll Expenses',
-      'Capital Transactions',
-      'Exchange Rates',
-      'Chart of Accounts',
-      'Fixed Assets',
-    ],
-    cta: 'Get Started',
-    popular: true,
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    monthly: 1500,
-    yearly: 15000,
-    description: 'For businesses that demand full control and automation.',
-    features: [
-      'Everything in Standard',
-      'Inventory Management',
-      'Budgets',
-      'Journal Entries',
-      'Banking',
-      'Automation',
-      'CRM Pipeline',
-    ],
-    cta: 'Get Started',
-    popular: false,
-  },
+const FEATURES = [
+  'Dashboard',
+  'Customers & Suppliers',
+  'Sales',
+  'Purchases',
+  'Other Income / Expenses',
+  'Projects',
+  'Developer Tools',
+  'Financial Reports',
+  'Notifications',
+  'Subscription Management',
+  'Company Settings',
+  'HR & Payroll Expenses',
+  'Capital Transactions',
+  'Exchange Rates',
+  'Chart of Accounts',
+  'Fixed Assets',
+  'Inventory Management',
+  'Budgets',
+  'Journal Entries',
+  'Banking',
+  'Automation',
+  'CRM Pipeline',
 ];
 
 export default function PricingPage() {
@@ -213,94 +178,57 @@ export default function PricingPage() {
         </button>
         <span className={`text-sm font-medium ${yearly ? 'text-gray-900' : 'text-gray-400'}`}>
           Yearly
-          <span className="ml-1 text-xs text-brand font-semibold">          Save ~17%</span>
+          <span className="ml-1 text-xs text-brand font-semibold">Save ~17%</span>
         </span>
       </div>
 
-      {/* ─── PRICING PLANS ─── */}
+      {/* ─── PRICING ─── */}
       <section className="py-12 bg-gray-50" aria-labelledby="pricing-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children animate-on-scroll">
-            {PLANS.map((plan) => {
-              const displayPrice = `KES ${yearly ? plan.yearly.toLocaleString() : plan.monthly.toLocaleString()}`;
-              const displayPeriod = yearly ? '/year' : '/month';
-              return (
-                <div
-                  key={plan.id}
-                  className={`pricing-card rounded-xl p-8 ${plan.popular ? 'popular' : ''}`}
-                >
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                  <div className="mb-4">
-                    <span className="text-4xl font-bold text-gray-900">{displayPrice}</span>
-                    <span className="text-gray-500 text-sm">{displayPeriod}</span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-6">{plan.description}</p>
-                  <p className="text-xs text-brand font-medium mb-4">14-day free trial</p>
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
-                        <Check className="h-5 w-5 text-brand flex-shrink-0 mt-0.5" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Link
-                    href={'/sign-up'}
-                    className={`w-full text-center px-6 py-3 rounded-xl font-semibold transition-all inline-block ${
-                      plan.popular
-                        ? 'bg-brand hover:bg-brand-hover text-white hover:shadow-lg hover:shadow-brand/25'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Link>
-                </div>
-              );
-            })}
+          <div className="max-w-lg mx-auto stagger-children animate-on-scroll">
+            <div className="pricing-card rounded-xl p-8 popular text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">All Features Included</h3>
+              <div className="mb-4">
+                <span className="text-4xl font-bold text-gray-900">KES {yearly ? '5,000' : '500'}</span>
+                <span className="text-gray-500 text-sm">{yearly ? '/year' : '/month'}</span>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">The complete BiasharaLedger platform — no feature restrictions.</p>
+              <p className="text-xs text-brand font-medium mb-6">14-day free trial</p>
+              <Link
+                href="/sign-up"
+                className="inline-block w-full bg-brand hover:bg-brand-hover text-white px-6 py-3 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-brand/25"
+              >
+                Get Started
+              </Link>
+              <div className="mt-8 border-t border-gray-100 pt-8">
+                <ul className="space-y-3 max-w-sm mx-auto">
+                  {FEATURES.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-sm text-gray-600 text-left">
+                      <Check className="h-5 w-5 text-brand flex-shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── CUSTOM PACKAGE ─── */}
-      <section className="py-20 bg-white" aria-labelledby="custom-heading">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 id="custom-heading" className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight animate-on-scroll">
-            Need a <span className="gradient-text-shine">Custom Package</span>?
-          </h2>
-          <p className="text-lg text-gray-500 mb-8 animate-on-scroll">
-            For companies needing customized systems, integrations, or dedicated infrastructure — we tailor a solution to your exact needs.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-on-scroll">
-            <Link
-              href="/contact"
-              className="bg-brand hover:bg-brand-hover text-white px-8 py-3.5 rounded-xl text-base font-semibold transition-all hover:shadow-lg hover:shadow-brand/25 inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
-            >
-              Contact Sales <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link
-              href="/contact"
-              className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-8 py-3.5 rounded-xl text-base font-semibold transition-all inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
-            >
-              Schedule a Demo
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── FAQ / CTA ─── */}
-      <section className="py-20 text-center bg-gray-50" aria-labelledby="faq-heading">
+      {/* ─── CTA ─── */}
+      <section className="py-20 text-center bg-white" aria-labelledby="cta-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight animate-on-scroll">
-            Still have questions?
+          <h2 id="cta-heading" className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight animate-on-scroll">
+            Ready to get started?
           </h2>
           <p className="text-lg text-gray-500 mb-8 animate-on-scroll">
-            All plans include a 14-day free trial. No credit card required.
+            14-day free trial. No credit card required. All features included.
           </p>
           <Link
-            href="/contact"
+            href="/sign-up"
             className="bg-brand hover:bg-brand-hover text-white px-8 py-3.5 rounded-xl text-base font-semibold transition-all hover:shadow-lg hover:shadow-brand/25 inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 cta-button"
           >
-            Contact Sales <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            Start Free Trial <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
       </section>

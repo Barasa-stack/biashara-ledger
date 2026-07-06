@@ -46,19 +46,10 @@ export default async function RootLayout({
     url: baseUrl,
     logo: `${baseUrl}/favicon.svg`,
     description: 'Cloud and desktop business management platform for businesses worldwide.',
-    contactPoint: {
-      '@type': 'ContactPoint',
-      telephone: '+254-715-434-805',
-      contactType: 'sales',
-      availableLanguage: ['English', 'Swahili'],
-    },
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'KE',
     },
-    sameAs: [
-      'https://wa.me/254715434805',
-    ],
   };
 
   return (

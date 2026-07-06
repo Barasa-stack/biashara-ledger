@@ -23,9 +23,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
               <p className="text-sm text-white/50 leading-relaxed mb-6">
                 The complete cloud and desktop business management platform for modern businesses.
               </p>
-              <a href="https://wa.me/254715434805" className="inline-flex items-center gap-2 text-sm text-brand hover:text-brand-hover transition-colors">
-                WhatsApp +254715434805
-              </a>
+
             </div>
 
             <div>
