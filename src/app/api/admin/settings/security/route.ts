@@ -7,10 +7,6 @@ export async function GET() {
   if (error) return error;
 
   try {
-    await adminRun(
-      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS two_factor_enabled INTEGER DEFAULT 0`
-    );
-
     const user = await adminGet<{ two_factor_enabled: number }>(
       'SELECT two_factor_enabled FROM users WHERE id = $1',
       [session.user_id]
@@ -29,9 +25,6 @@ export async function PUT(request: Request) {
   try {
     const { enabled } = await request.json();
 
-    await adminRun(
-      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS two_factor_enabled INTEGER DEFAULT 0`
-    );
     await adminRun(
       'UPDATE users SET two_factor_enabled = $1 WHERE id = $2',
       [enabled ? 1 : 0, session.user_id]

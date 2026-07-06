@@ -18,7 +18,7 @@ export async function POST(
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    logAdminAction({
+    await logAdminAction({
       adminId: session?.user_id,
       adminEmail: session?.email,
       action: 'Client Activated',

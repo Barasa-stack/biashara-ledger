@@ -67,12 +67,18 @@ export default function OfflinePage() {
           { label: 'Connected PCs', value: stats.connected, icon: Wifi, color: 'text-brand', bg: 'bg-brand-light' },
           { label: 'Offline PCs', value: stats.offline, icon: WifiOff, color: 'text-orange-600', bg: 'bg-orange-50' },
           { label: 'Expiring Soon', value: stats.expiring, icon: Clock, color: 'text-red-600', bg: 'bg-red-50' },
-        ].map(s => (
-          <div key={s.label} className={`${s.bg} rounded-xl p-4 border border-gray-100`}>
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-          </div>
-        ))}
+        ].map(s => {
+          const Icon = s.icon;
+          return (
+            <div key={s.label} className={`${s.bg} rounded-xl p-4 border border-gray-100`}>
+              <div className="flex items-center justify-between mb-2">
+                <Icon size={20} className={s.color} />
+                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+              </div>
+              <p className="text-xs text-gray-500">{s.label}</p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Search */}

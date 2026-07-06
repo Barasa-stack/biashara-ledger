@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, UserCircle, CheckCircle2, XCircle, Clock, Loader2,
-  Mail, Building2, Key, Calendar, ChevronDown, Filter
+  Mail, Key, Calendar, ChevronDown
 } from 'lucide-react';
 
 export default function UsersPage() {

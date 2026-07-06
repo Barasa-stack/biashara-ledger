@@ -41,7 +41,8 @@ export async function POST(req: Request) {
   if (error) return error;
 
   try {
-    const { action } = await req.json();
+    const body = await req.json();
+    const { action } = body;
 
     if (action === 'mark_read') {
       await adminRun('UPDATE admin_notifications SET is_read = 1 WHERE is_read = 0');
@@ -49,13 +50,13 @@ export async function POST(req: Request) {
     }
 
     if (action === 'mark_one_read') {
-      const { id } = await req.json();
+      const { id } = body;
       await adminRun('UPDATE admin_notifications SET is_read = 1 WHERE id = $1', [id]);
       return NextResponse.json({ success: true });
     }
 
     if (action === 'add') {
-      const { type, title, message, link } = await req.json();
+      const { type, title, message, link } = body;
       const result = await adminQuery(
         `INSERT INTO admin_notifications (type, title, message, link) VALUES ($1, $2, $3, $4) RETURNING id`,
         [type || 'info', title || '', message, link || '']

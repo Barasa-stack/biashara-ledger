@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Settings, Shield, Mail, Key, Palette, Server, Database,
-  Bell, Users, FileText, LogOut, Save, Loader2, Eye, EyeOff,
+  FileText, LogOut, Save, Loader2, Eye, EyeOff,
   CheckCircle2, AlertTriangle, RefreshCw, Plus, Trash2
 } from 'lucide-react';
 
@@ -258,6 +258,7 @@ export default function SettingsPage() {
       setTimeout(() => setSaved(false), 2000);
     } catch (error: any) {
       setSmtpError(error.message);
+      setTimeout(() => setSmtpError(''), 5000);
     } finally {
       setSaving(false);
     }

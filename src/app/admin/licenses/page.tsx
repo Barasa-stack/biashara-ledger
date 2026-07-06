@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Search, Plus, Key, Copy, Check, Loader2, AlertTriangle, XCircle, CheckCircle2, Clock,
-  MoreHorizontal, Ban, Repeat, ExternalLink, RefreshCw, User, Calendar, Download, Filter, X
+  Search, Plus, Key, Copy, Check, Loader2, XCircle, CheckCircle2, Clock,
+  Ban, RefreshCw, X
 } from 'lucide-react';
 
 export default function LicensesPage() {
@@ -245,7 +245,7 @@ export default function LicensesPage() {
             <div className="px-6 py-5 space-y-4">
               {genMessage && (
                 <div className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm ${
-                  genMessage.type === 'success' ? 'bg-red-50 text-red-700' : 'bg-red-50 text-red-700'
+                  genMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                 }`}>
                   {genMessage.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
                   {genMessage.text}

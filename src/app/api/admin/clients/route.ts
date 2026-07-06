@@ -24,7 +24,7 @@ export async function GET() {
       if (clients.length > 0) {
         const adminClientIds = clients.map(c => c.id);
         const placeholders = adminClientIds.map((_, i) => `$${i + 1}`).join(',');
-        userQuery += ` AND u.tenant_id NOT IN (${placeholders})`;
+        userQuery += ` AND u.tenant_id NOT IN (${placeholders}) ORDER BY u.created_at DESC`;
         const usersResult = await adminQuery(userQuery, adminClientIds);
         selfRegistered = usersResult;
       } else {
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
         ['MANUAL-' + Math.random().toString(36).substring(2, 14).toUpperCase(), client.id, expiresAt]
       );
 
-      logAdminAction({ action: 'Client Created', entityType: 'client', details: `Client ${company_name} (${email}) created` });
+      await logAdminAction({ action: 'Client Created', entityType: 'client', details: `Client ${company_name} (${email}) created` });
 
       return NextResponse.json({ success: true, client, activated: true });
     }
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const client = await createClientDatabase(email, company_name, max_users || 5, 'premium', passwordHash);
-    logAdminAction({ action: 'Client Created', entityType: 'client', details: `Client ${company_name} (${email}) created with new database` });
+    await logAdminAction({ action: 'Client Created', entityType: 'client', details: `Client ${company_name} (${email}) created with new database` });
     return NextResponse.json({ success: true, client });
   } catch (err: any) {
     console.error('Create client error:', err);

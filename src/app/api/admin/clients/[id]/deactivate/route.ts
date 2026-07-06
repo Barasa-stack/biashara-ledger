@@ -21,7 +21,7 @@ export async function POST(
     const newStatus = !(client as any).is_active;
     await adminRun('UPDATE admin_clients SET is_active = $1 WHERE id = $2', [newStatus, id]);
 
-    logAdminAction({
+    await logAdminAction({
       adminId: session?.user_id,
       adminEmail: session?.email,
       action: newStatus ? 'Client Activated' : 'Client Deactivated',

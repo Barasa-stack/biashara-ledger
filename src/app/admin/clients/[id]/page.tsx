@@ -21,10 +21,20 @@ import {
   Shield,
   Clock as ClockIcon,
   Database,
-  X,
 } from 'lucide-react';
 
 const PLAN_OPTIONS = ['Basic', 'Standard', 'Premium'];
+
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
+  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
+  return (
+    <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-5 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
+      type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+    }`}>
+      {message}
+    </div>
+  );
+}
 
 export default function ClientDetailPage() {
   const router = useRouter();
@@ -39,6 +49,7 @@ export default function ClientDetailPage() {
   const [planUpdating, setPlanUpdating] = useState(false);
   const [resending, setResending] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     if (!params.id) return;
@@ -128,6 +139,7 @@ export default function ClientDetailPage() {
 
   return (
     <div className="space-y-6">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <button
         onClick={() => router.push('/admin/clients')}
         className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
@@ -335,9 +347,9 @@ export default function ClientDetailPage() {
                         body: JSON.stringify({ clientId: params.id }),
                       });
                       const data = await res.json();
-                      if (res.ok) alert('License email sent!');
-                      else alert('Error: ' + data.error);
-                    } catch { alert('Failed to send email'); }
+                      if (res.ok) setToast({ message: 'License email sent!', type: 'success' });
+                      else setToast({ message: data.error || 'Failed to send email', type: 'error' });
+                    } catch { setToast({ message: 'Failed to send email', type: 'error' }); }
                     setResending(false);
                   }}
                   disabled={resending}

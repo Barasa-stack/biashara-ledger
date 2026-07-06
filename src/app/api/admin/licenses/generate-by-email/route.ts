@@ -19,7 +19,8 @@ export async function POST(req: Request) {
     const normalizedEmail = email.toLowerCase().trim();
 
     // Generate a unique license key and a random password
-    const hash = crypto.createHash('sha256').update(normalizedEmail + process.env.LICENSE_SECRET || 'default-secret').digest('hex');
+    const secret = process.env.LICENSE_SECRET || 'default-secret';
+    const hash = crypto.createHash('sha256').update(normalizedEmail + secret).digest('hex');
     const licenseKey = `BL-${hash.substring(0, 8).toUpperCase()}-${hash.substring(8, 16).toUpperCase()}-${hash.substring(16, 24).toUpperCase()}`;
     const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
     const planLower = plan.toLowerCase();
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     if (existingClient) {
       clientId = (existingClient as any).id;
       await adminRun(
-        `UPDATE admin_clients SET company_name = COALESCE($1, company_name), plan = $3, is_active = true, expires_at = $4, license_key = $5 WHERE id = $6`,
+        `UPDATE admin_clients SET company_name = COALESCE($1, company_name), plan = $2, is_active = true, expires_at = $3, license_key = $4 WHERE id = $5`,
         [company_name || null, planLower, expiresAt, licenseKey, clientId]
       );
     } else {
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
       console.error('[generate-by-email] Email send failed:', emailError);
     }
 
-    createNotification('success', 'License Generated', `License for ${normalizedEmail} (${plan}) created. Expires: ${new Date(expiresAt).toLocaleDateString()}`, '/admin/licenses');
+    await createNotification('success', 'License Generated', `License for ${normalizedEmail} (${plan}) created. Expires: ${new Date(expiresAt).toLocaleDateString()}`, '/admin/licenses');
 
     return NextResponse.json({
       success: true,

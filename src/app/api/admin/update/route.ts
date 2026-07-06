@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       [version.trim(), changesPayload, releaseDate || new Date().toISOString()]
     );
 
-    logAdminAction({
+    await logAdminAction({
       adminId: session?.user_id,
       adminEmail: session?.email,
       action: 'Update Published',

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard, Users, Key, Monitor, Upload, Settings,
   LogOut, Bell, Search, ChevronDown, Menu, X, ExternalLink,
-  Activity, Shield, FileText, RefreshCw, UserCircle
+  Activity, Shield, RefreshCw, UserCircle
 } from 'lucide-react';
 
 const NAV_ITEMS = [

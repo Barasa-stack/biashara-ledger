@@ -70,6 +70,7 @@ export async function ensureDbInitialized() {
       `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'trial'`,
       `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active'`,
       `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS verified INTEGER DEFAULT 0`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS two_factor_enabled INTEGER DEFAULT 0`,
       `ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS client_db TEXT DEFAULT ''`,
     ];
     for (const sql of migrateCols) {

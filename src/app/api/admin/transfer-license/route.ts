@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       [licenseKey, newClient.id]
     );
 
-    logAdminAction({
+    await logAdminAction({
       adminId: session?.user_id,
       adminEmail: session?.email,
       action: 'License Transferred',

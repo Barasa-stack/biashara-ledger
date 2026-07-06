@@ -3,9 +3,9 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  Search, Plus, MoreHorizontal, Eye, ToggleLeft, Trash2, X,
-  Building2, Mail, Phone, Key, Calendar, CheckCircle2, XCircle,
-  AlertTriangle, Loader2, ChevronDown, Filter, Download, Copy, Check
+  Search, Plus, Eye, ToggleLeft, Trash2, X,
+  Building2, Mail, Key, CheckCircle2, XCircle,
+  AlertTriangle, Loader2
 } from 'lucide-react';
 
 export default function ClientsPage() {
