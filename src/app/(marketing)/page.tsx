@@ -132,7 +132,7 @@ export default function HomePage() {
         }
         
         .gradient-text-shine {
-          background: linear-gradient(90deg, #your-brand-color, #ff6b6b, #feca57, #your-brand-color);
+          background: linear-gradient(90deg, #df1c1c, #ff6b6b, #feca57, #df1c1c);
           background-size: 300% 100%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
@@ -172,7 +172,7 @@ export default function HomePage() {
         .stat-number {
           font-size: 2.5rem;
           font-weight: 700;
-          background: linear-gradient(135deg, #your-brand-color, #ff6b6b);
+          background: linear-gradient(135deg, #df1c1c, #ff6b6b);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
