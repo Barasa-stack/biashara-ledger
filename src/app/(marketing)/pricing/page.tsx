@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import PageHero from '@/components/PageHero';
 import type { CityImage } from '@/components/PageHero';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const pricingImages: CityImage[] = [
   { url: '/images/hero/hero-skyscraper-glass-modern.jpg', label: 'Simple Pricing' },
@@ -14,8 +14,8 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    price: '$29',
-    period: '/month',
+    monthly: 29,
+    yearly: 290,
     description: 'Perfect for small businesses just getting started.',
     features: [
       'Up to 5 users',
@@ -30,8 +30,8 @@ const PLANS = [
   {
     id: 'professional',
     name: 'Professional',
-    price: '$79',
-    period: '/month',
+    monthly: 79,
+    yearly: 790,
     description: 'For growing businesses that need more power.',
     features: [
       'Up to 25 users',
@@ -48,8 +48,8 @@ const PLANS = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    price: 'Custom',
-    period: '',
+    monthly: null,
+    yearly: null,
     description: 'For large organizations with complex needs.',
     features: [
       'Unlimited users',
@@ -66,6 +66,8 @@ const PLANS = [
 ];
 
 export default function PricingPage() {
+  const [yearly, setYearly] = useState(false);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -195,43 +197,67 @@ export default function PricingPage() {
         badgeWithoutTrust
       />
 
+      {/* ─── BILLING TOGGLE ─── */}
+      <div className="flex items-center justify-center gap-3 pt-12 pb-0 bg-gray-50">
+        <span className={`text-sm font-medium ${!yearly ? 'text-gray-900' : 'text-gray-400'}`}>Monthly</span>
+        <button
+          onClick={() => setYearly(!yearly)}
+          className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 ${yearly ? 'bg-brand' : 'bg-gray-300'}`}
+        >
+          <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${yearly ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
+        <span className={`text-sm font-medium ${yearly ? 'text-gray-900' : 'text-gray-400'}`}>
+          Yearly
+          <span className="ml-1 text-xs text-brand font-semibold">Save ~17%</span>
+        </span>
+      </div>
+
       {/* ─── PRICING PLANS ─── */}
-      <section className="py-20 bg-gray-50" aria-labelledby="pricing-heading">
+      <section className="py-12 bg-gray-50" aria-labelledby="pricing-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children animate-on-scroll">
-            {PLANS.map((plan) => (
-              <div
-                key={plan.id}
-                className={`pricing-card rounded-xl p-8 ${plan.popular ? 'popular' : ''}`}
-              >
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                <div className="mb-4">
-                  <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                  {plan.period && (
-                    <span className="text-gray-500 text-sm">{plan.period}</span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mb-6">{plan.description}</p>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
-                      <Check className="h-5 w-5 text-brand flex-shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href={plan.id === 'enterprise' ? '/contact' : '/sign-up'}
-                  className={`w-full text-center px-6 py-3 rounded-xl font-semibold transition-all inline-block ${
-                    plan.popular
-                      ? 'bg-brand hover:bg-brand-hover text-white hover:shadow-lg hover:shadow-brand/25'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-                  }`}
+            {PLANS.map((plan) => {
+              const isCustom = plan.monthly === null;
+              const displayPrice = isCustom
+                ? 'Custom'
+                : yearly
+                  ? `$${plan.yearly}`
+                  : `$${plan.monthly}`;
+              const displayPeriod = isCustom ? '' : yearly ? '/year' : '/month';
+              return (
+                <div
+                  key={plan.id}
+                  className={`pricing-card rounded-xl p-8 ${plan.popular ? 'popular' : ''}`}
                 >
-                  {plan.cta}
-                </Link>
-              </div>
-            ))}
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                  <div className="mb-4">
+                    <span className="text-4xl font-bold text-gray-900">{displayPrice}</span>
+                    {displayPeriod && (
+                      <span className="text-gray-500 text-sm">{displayPeriod}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 mb-6">{plan.description}</p>
+                  <ul className="space-y-3 mb-8">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
+                        <Check className="h-5 w-5 text-brand flex-shrink-0 mt-0.5" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={plan.id === 'enterprise' ? '/contact' : '/sign-up'}
+                    className={`w-full text-center px-6 py-3 rounded-xl font-semibold transition-all inline-block ${
+                      plan.popular
+                        ? 'bg-brand hover:bg-brand-hover text-white hover:shadow-lg hover:shadow-brand/25'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
