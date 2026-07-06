@@ -9,28 +9,29 @@ import { countries, filterCountries, getCountryByCode, getDialCode } from '@/lib
 
 const SHOW_OTP = true;
 
-const plans = [
-  {
-    name: 'Basic',
-    price: '5',
-    period: '/month',
-    popular: false,
-    features: ['Double-entry bookkeeping', 'Invoicing & quotations', 'Profit & Loss report', 'Balance Sheet', 'Trial Balance', 'Expense tracking'],
-  },
-  {
-    name: 'Standard',
-    price: '10',
-    period: '/month',
-    popular: true,
-    features: ['Everything in Basic', 'HR & Payroll management', 'General Ledger', 'Inventory management', 'Multi-user access (up to 5)', 'Cash flow statements'],
-  },
-  {
-    name: 'Premium',
-    price: '15',
-    period: '/month',
-    popular: false,
-    features: ['Unlimited users', 'Everything in Standard', 'API access', 'Multi-branch support', 'Budget vs actual reports', "Owner's equity statements"],
-  },
+const ALL_FEATURES = [
+  'Dashboard',
+  'Customers & Suppliers',
+  'Sales',
+  'Purchases',
+  'Other Income / Expenses',
+  'Projects',
+  'Developer Tools',
+  'Financial Reports',
+  'Notifications',
+  'Subscription Management',
+  'Company Settings',
+  'HR & Payroll Expenses',
+  'Capital Transactions',
+  'Exchange Rates',
+  'Chart of Accounts',
+  'Fixed Assets',
+  'Inventory Management',
+  'Budgets',
+  'Journal Entries',
+  'Banking',
+  'Automation',
+  'CRM Pipeline',
 ];
 
 function stripDialCode(phone: string, dial: string): string {
@@ -54,7 +55,8 @@ function isValidPhone(phone: string, dial: string): boolean {
 export default function SignUpPage() {
   const { signUp } = useAuth();
   const router = useRouter();
-  const [selectedPackage, setSelectedPackage] = useState('');
+  const [yearly, setYearly] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState('Premium');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -225,42 +227,29 @@ export default function SignUpPage() {
     }
   }
 
-  function PackageCard({ name, price, period, popular, features: pFeatures }: typeof plans[0]) {
-    const isSelected = selectedPackage === name;
+  function PackageCard({ features: pFeatures }: { features: string[] }) {
+    const displayPrice = yearly ? 'KES 5,000' : 'KES 500';
+    const displayPeriod = yearly ? '/year' : '/month';
     return (
-      <button
-        type="button"
-        onClick={() => setSelectedPackage(name)}
-        className={`relative text-left w-full bg-white rounded-xl border-2 p-4 transition-all ${
-          isSelected
-            ? 'border-brand ring-2 ring-brand/20'
-            : popular ? 'border-brand/40' : 'border-border hover:border-brand/40'
-        }`}
-      >
-        {popular && (
-          <div className="absolute -top-2.5 right-3 bg-brand text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full">
-            Most Popular
-          </div>
-        )}
+      <div className="w-full bg-white rounded-xl border-2 border-brand ring-2 ring-brand/20 p-4">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-bold text-[#000000]">{name}</h3>
+          <h3 className="text-sm font-bold text-[#000000]">All Features Included</h3>
           <div className="flex items-baseline gap-0.5">
-            <span className="text-lg font-bold text-[#000000]">${price}</span>
-            <span className="text-[10px] text-[#555555]">{period}</span>
+            <span className="text-lg font-bold text-[#000000]">{displayPrice}</span>
+            <span className="text-[10px] text-[#555555]">{displayPeriod}</span>
           </div>
         </div>
+        <p className="text-[11px] text-[#000000]/70 mb-3">The complete BiasharaLedger platform — no feature restrictions.</p>
         <ul className="space-y-1">
-          {pFeatures.slice(0, 3).map((f) => (
+          {pFeatures.slice(0, 6).map((f) => (
             <li key={f} className="flex items-start gap-1.5 text-[11px] text-[#000000]/70">
               <Check className="h-3 w-3 text-red-600 mt-0.5 shrink-0" />
               {f}
             </li>
           ))}
-          {pFeatures.length > 3 && (
-            <li className="text-[11px] text-brand font-medium">+{pFeatures.length - 3} more features</li>
-          )}
+          <li className="text-[11px] text-brand font-medium">+{pFeatures.length - 6} more features</li>
         </ul>
-      </button>
+      </div>
     );
   }
 
@@ -280,14 +269,28 @@ export default function SignUpPage() {
               <p className="text-xs text-brand font-medium">3-day free trial</p>
               <p className="text-[10px] text-[#000000]">No credit card required. Cancel anytime.</p>
             </div>
-            <h2 className="text-sm font-semibold text-brand mb-4">Choose your plan</h2>
+
+            {/* Billing toggle */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <span className={`text-xs font-medium ${!yearly ? 'text-[#000000]' : 'text-[#555555]'}`}>Monthly</span>
+              <button
+                onClick={() => setYearly(!yearly)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${yearly ? 'bg-brand' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${yearly ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+              </button>
+              <span className={`text-xs font-medium ${yearly ? 'text-[#000000]' : 'text-[#555555]'}`}>
+                Yearly
+                <span className="ml-0.5 text-[10px] text-brand font-semibold">Save ~17%</span>
+              </span>
+            </div>
+
             <div className="space-y-3 mb-5">
-              {plans.map((plan) => <PackageCard key={plan.name} {...plan} />)}
+              <PackageCard features={ALL_FEATURES} />
             </div>
             {error && <p className="text-xs text-brand mb-3">{error}</p>}
             <button
               onClick={() => {
-                if (!selectedPackage) { setError('Please select a plan to continue.'); return; }
                 setError('');
                 setStep('form');
               }}
@@ -299,7 +302,7 @@ export default function SignUpPage() {
         ) : step === 'form' ? (
           <>
             <button onClick={() => setStep('package')} className="flex items-center gap-1 text-xs text-brand hover:text-[#000000] mb-4 transition-colors">
-              ← Back to plans
+              ← Back
             </button>
             <h2 className="text-sm font-semibold text-brand mb-1">Create your account</h2>
             <p className="text-[11px] text-[#555555] mb-5">
