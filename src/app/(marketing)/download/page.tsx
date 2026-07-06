@@ -88,13 +88,38 @@ export default function DownloadPage() {
 
   return (
     <div className="min-h-screen">
+      <style jsx>{`
+        .gradient-text-shine {
+          background: linear-gradient(90deg, #df1c1c, #ff6b6b, #feca57, #df1c1c);
+          background-size: 300% 100%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradient-shine 4s ease-in-out infinite;
+        }
+        @keyframes gradient-shine {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .floating-text {
+          animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(10px); }
+          100% { transform: translateY(0px); }
+        }
+      `}</style>
       <PageHero
         images={desktopImages}
         showTrustBanner={false}
         title={
-          <>
-            Download <span className="text-white">BiasharaLedger</span>
-          </>
+          <div className="floating-text">
+            Download
+            <br />
+            <span className="gradient-text-shine">BiasharaLedger</span>
+          </div>
         }
         subtitle="Choose how you want to use BiasharaLedger — online from any browser, or as a native desktop application."
       />

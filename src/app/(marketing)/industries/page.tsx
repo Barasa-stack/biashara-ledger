@@ -27,14 +27,37 @@ const industries = [
 export default function IndustriesPage() {
   return (
     <div>
+      <style jsx>{`
+        .gradient-text-shine {
+          background: linear-gradient(90deg, #df1c1c, #ff6b6b, #feca57, #df1c1c);
+          background-size: 300% 100%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradient-shine 4s ease-in-out infinite;
+        }
+        @keyframes gradient-shine {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .floating-text {
+          animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(10px); }
+          100% { transform: translateY(0px); }
+        }
+      `}</style>
       <PageHero
         images={industryImages}
         title={
-          <>
+          <div className="floating-text">
             Solutions for Every
             <br />
-            <span className="text-white">Industry</span>
-          </>
+            <span className="gradient-text-shine">Industry</span>
+          </div>
         }
         subtitle="No matter your industry, BiasharaLedger adapts to your specific needs with customizable features and workflows."
       />
