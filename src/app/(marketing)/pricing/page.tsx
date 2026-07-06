@@ -14,8 +14,8 @@ const PLANS = [
   {
     id: 'basic',
     name: 'Basic',
-    monthly: 5,
-    yearly: 49,
+    monthly: 500,
+    yearly: 5000,
     description: 'Everything you need to run your day-to-day business operations.',
     features: [
       'Dashboard',
@@ -36,8 +36,8 @@ const PLANS = [
   {
     id: 'standard',
     name: 'Standard',
-    monthly: 10,
-    yearly: 99,
+    monthly: 1000,
+    yearly: 10000,
     description: 'For growing businesses that need advanced financial management.',
     features: [
       'Everything in Basic',
@@ -53,8 +53,8 @@ const PLANS = [
   {
     id: 'premium',
     name: 'Premium',
-    monthly: 15,
-    yearly: 149,
+    monthly: 1500,
+    yearly: 15000,
     description: 'For businesses that demand full control and automation.',
     features: [
       'Everything in Standard',
@@ -213,7 +213,7 @@ export default function PricingPage() {
         </button>
         <span className={`text-sm font-medium ${yearly ? 'text-gray-900' : 'text-gray-400'}`}>
           Yearly
-          <span className="ml-1 text-xs text-brand font-semibold">Save up to 18%</span>
+          <span className="ml-1 text-xs text-brand font-semibold">          Save ~17%</span>
         </span>
       </div>
 
@@ -222,7 +222,7 @@ export default function PricingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children animate-on-scroll">
             {PLANS.map((plan) => {
-              const displayPrice = yearly ? `$${plan.yearly}` : `$${plan.monthly}`;
+              const displayPrice = `KES ${yearly ? plan.yearly.toLocaleString() : plan.monthly.toLocaleString()}`;
               const displayPeriod = yearly ? '/year' : '/month';
               return (
                 <div
