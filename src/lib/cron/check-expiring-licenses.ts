@@ -5,16 +5,18 @@ import { adminRun } from '@/lib/db';
 import { createNotification } from '@/lib/admin-notify';
 
 export const checkExpiringLicenses = async () => {
-  const schedule = [
-    { days: 30, type: '30d' as const },
-    { days: 7, type: '7d' as const },
-    { days: 3, type: '3d' as const },
-    { days: 1, type: '1d' as const },
+  const schedule: { days: number; type: '30d' | '7d' | '3d' | '1d' | '12h'; label: string }[] = [
+    { days: 30, type: '30d', label: '30 days' },
+    { days: 7, type: '7d', label: '7 days' },
+    { days: 3, type: '3d', label: '3 days' },
+    { days: 1, type: '1d', label: '1 day' },
+    { days: 0.5, type: '12h', label: '12 hours' },
   ];
 
-  const summary = {
+  const summary: any = {
     expiringIn30Days: 0,
     expiringIn7Days: 0,
+    expiringIn3Days: 0,
     expiringIn1Day: 0,
     remindersSent: 0,
     remindersFailed: 0,
@@ -22,21 +24,26 @@ export const checkExpiringLicenses = async () => {
 
   for (const item of schedule) {
     const licenses = await getExpiringLicenses(item.days);
-    summary[`expiringIn${item.days}Days` as keyof typeof summary] = licenses.length;
+    if (item.days === 30) summary.expiringIn30Days = licenses.length;
+    else if (item.days === 7) summary.expiringIn7Days = licenses.length;
+    else if (item.days === 3) summary.expiringIn3Days = licenses.length;
+    else if (item.days === 1) summary.expiringIn1Day = licenses.length;
 
     for (const license of licenses) {
       const email = license.email as string;
       const name = license.company_name || email || 'Valued Customer';
       const expiresAt = license.expires_at ? new Date(license.expires_at).toISOString() : new Date().toISOString();
+      const isPaymentNotice = item.type === '12h';
 
       try {
         const result = await sendExpiryReminderEmail({
           to: email,
           name,
           licenseKey: license.license_key,
-          daysRemaining: item.days,
+          daysRemaining: isPaymentNotice ? 0 : Math.round(item.days),
           expiresAt,
           urgent: item.days <= 7,
+          paymentNotice: isPaymentNotice,
         });
 
         if (result.sent) {

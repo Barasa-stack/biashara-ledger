@@ -4,35 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Send, Check, Loader, RefreshCw, Bug, Sparkles, ArrowRight, ChevronDown, Search, Globe } from 'lucide-react';
+import { Eye, EyeOff, Send, Check, Loader, RefreshCw, Bug, Search } from 'lucide-react';
 import { countries, filterCountries, getCountryByCode, getDialCode } from '@/lib/countries';
 
 const SHOW_OTP = true;
-
-const ALL_FEATURES = [
-  'Dashboard',
-  'Customers & Suppliers',
-  'Sales',
-  'Purchases',
-  'Other Income / Expenses',
-  'Projects',
-  'Developer Tools',
-  'Financial Reports',
-  'Notifications',
-  'Subscription Management',
-  'Company Settings',
-  'HR & Payroll Expenses',
-  'Capital Transactions',
-  'Exchange Rates',
-  'Chart of Accounts',
-  'Fixed Assets',
-  'Inventory Management',
-  'Budgets',
-  'Journal Entries',
-  'Banking',
-  'Automation',
-  'CRM Pipeline',
-];
 
 function stripDialCode(phone: string, dial: string): string {
   const cleaned = phone.replace(/[\s\-\(\)]/g, '');
@@ -55,8 +30,6 @@ function isValidPhone(phone: string, dial: string): boolean {
 export default function SignUpPage() {
   const { signUp } = useAuth();
   const router = useRouter();
-  const [yearly, setYearly] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState('Premium');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -69,7 +42,7 @@ export default function SignUpPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const [step, setStep] = useState<'package' | 'form' | 'otp'>('package');
+  const [step, setStep] = useState<'form' | 'otp'>('form');
   const [otp, setOtp] = useState('');
   const [message, setMessage] = useState('');
   const [devOtp, setDevOtp] = useState('');
@@ -211,46 +184,16 @@ export default function SignUpPage() {
       firstName,
       lastName,
       otp.trim(),
-      selectedPackage,
+      'Premium',
       country
     );
     setBusy(false);
     if (result.success) {
-      if (result.requiresPackageSelection) {
-        router.push('/select-package');
-      } else {
-        setShowTrialPopup(true);
-        setTrialKey((result as any).trial_key || '');
-      }
+      setShowTrialPopup(true);
+      setTrialKey((result as any).trial_key || '');
     } else {
       setError(result.error || 'Verification failed.');
     }
-  }
-
-  function PackageCard({ features: pFeatures }: { features: string[] }) {
-    const displayPrice = yearly ? 'KES 5,000' : 'KES 500';
-    const displayPeriod = yearly ? '/year' : '/month';
-    return (
-      <div className="w-full bg-white rounded-xl border-2 border-brand ring-2 ring-brand/20 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-bold text-[#000000]">All Features Included</h3>
-          <div className="flex items-baseline gap-0.5">
-            <span className="text-lg font-bold text-[#000000]">{displayPrice}</span>
-            <span className="text-[10px] text-[#555555]">{displayPeriod}</span>
-          </div>
-        </div>
-        <p className="text-[11px] text-[#000000]/70 mb-3">The complete BiasharaLedger platform — no feature restrictions.</p>
-        <ul className="space-y-1">
-          {pFeatures.slice(0, 6).map((f) => (
-            <li key={f} className="flex items-start gap-1.5 text-[11px] text-[#000000]/70">
-              <Check className="h-3 w-3 text-red-600 mt-0.5 shrink-0" />
-              {f}
-            </li>
-          ))}
-          <li className="text-[11px] text-brand font-medium">+{pFeatures.length - 6} more features</li>
-        </ul>
-      </div>
-    );
   }
 
   return (
@@ -263,50 +206,11 @@ export default function SignUpPage() {
           <h1 className="text-lg font-bold text-brand">BiasharaLedger</h1>
         </div>
 
-        {step === 'package' ? (
+        {step === 'form' ? (
           <>
-            <div className="bg-brand/5 border border-brand/20 rounded-lg px-3 py-2 mb-5">
-              <p className="text-xs text-brand font-medium">3-day free trial</p>
-              <p className="text-[10px] text-[#000000]">No credit card required. Cancel anytime.</p>
-            </div>
-
-            {/* Billing toggle */}
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <span className={`text-xs font-medium ${!yearly ? 'text-[#000000]' : 'text-[#555555]'}`}>Monthly</span>
-              <button
-                onClick={() => setYearly(!yearly)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${yearly ? 'bg-brand' : 'bg-gray-300'}`}
-              >
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${yearly ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
-              </button>
-              <span className={`text-xs font-medium ${yearly ? 'text-[#000000]' : 'text-[#555555]'}`}>
-                Yearly
-                <span className="ml-0.5 text-[10px] text-brand font-semibold">Save ~17%</span>
-              </span>
-            </div>
-
-            <div className="space-y-3 mb-5">
-              <PackageCard features={ALL_FEATURES} />
-            </div>
-            {error && <p className="text-xs text-brand mb-3">{error}</p>}
-            <button
-              onClick={() => {
-                setError('');
-                setStep('form');
-              }}
-              className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
-            >
-              Continue <ArrowRight className="h-4 w-4" />
-            </button>
-          </>
-        ) : step === 'form' ? (
-          <>
-            <button onClick={() => setStep('package')} className="flex items-center gap-1 text-xs text-brand hover:text-[#000000] mb-4 transition-colors">
-              ← Back
-            </button>
-            <h2 className="text-sm font-semibold text-brand mb-1">Create your account</h2>
+            <h2 className="text-sm font-semibold text-brand mb-1">Create your free account</h2>
             <p className="text-[11px] text-[#555555] mb-5">
-              Selected: <span className="font-semibold text-brand">{selectedPackage}</span> plan
+              Start your 3-day free trial. No payment required.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -334,82 +238,69 @@ export default function SignUpPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#000000] mb-1">Business Email</label>
+                <label className="block text-xs font-medium text-[#000000] mb-1">Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="w-full bg-white border border-border rounded-lg px-3 py-2.5 text-sm text-[#000000] focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#555555]"
-                  placeholder="you@company.co.ke"
+                  placeholder="you@company.com"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#000000] mb-1">Phone Number</label>
+                <label className="block text-xs font-medium text-[#000000] mb-1">Phone</label>
                 <div className="flex gap-2">
-                  <div className="relative" ref={countryRef}>
+                  <div className="relative w-28" ref={countryRef}>
                     <button
                       type="button"
                       onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                      className="flex items-center gap-1.5 h-[42px] bg-white border border-border rounded-lg px-3 text-sm text-[#000000] hover:border-brand/40 transition-colors min-w-[100px]"
+                      className="w-full flex items-center gap-1 bg-white border border-border rounded-lg px-2.5 py-2.5 text-xs text-[#000000] focus:outline-none focus:ring-2 focus:ring-brand"
                     >
-                      <span className="text-base leading-none">{selectedCountry?.flag || '🇰🇪'}</span>
-                      <span className="text-xs font-medium text-[#000000]">{dialCode}</span>
-                      <ChevronDown className={`h-3 w-3 text-[#555555] transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
+                      <span className="text-base leading-none">{selectedCountry?.flag || '🌍'}</span>
+                      <span>{dialCode}</span>
                     </button>
-
                     {showCountryDropdown && (
-                      <div className="absolute bottom-full mb-1 left-0 z-50 w-72 bg-white border border-border rounded-xl shadow-lg overflow-hidden">
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-border rounded-lg shadow-xl z-50">
                         <div className="p-2 border-b border-border">
                           <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#555555]" />
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#555555]" />
                             <input
                               ref={searchRef}
                               type="text"
                               value={countrySearch}
                               onChange={e => setCountrySearch(e.target.value)}
                               placeholder="Search countries..."
-                              className="w-full pl-8 pr-3 py-2 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-[#000000]"
+                              className="w-full bg-gray-50 border border-border rounded-md pl-8 pr-2.5 py-1.5 text-xs text-[#000000] focus:outline-none focus:ring-1 focus:ring-brand"
                             />
                           </div>
                         </div>
-                        <div className="max-h-52 overflow-y-auto">
-                          {filteredCountries.length === 0 ? (
-                            <p className="text-xs text-[#555555] text-center py-4">No countries found</p>
-                          ) : (
-                            filteredCountries.map((c) => (
-                              <button
-                                key={c.code}
-                                type="button"
-                                onClick={() => handleCountrySelect(c.code)}
-                                className={`w-full flex items-center gap-3 px-3 py-2 text-xs text-left transition-colors ${
-                                  country === c.code
-                                    ? 'bg-brand/10 text-brand font-medium'
-                                    : 'text-[#000000] hover:bg-gray-50'
-                                }`}
-                              >
-                                <span className="text-base leading-none">{c.flag}</span>
-                                <span className="flex-1">{c.name}</span>
-                                <span className="text-[#555555]">{c.dial}</span>
-                              </button>
-                            ))
-                          )}
+                        <div className="max-h-48 overflow-y-auto">
+                          {filteredCountries.map(c => (
+                            <button
+                              key={c.code}
+                              type="button"
+                              onClick={() => handleCountrySelect(c.code)}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50 transition-colors ${country === c.code ? 'bg-brand/5 text-brand font-medium' : 'text-[#000000]'}`}
+                            >
+                              <span className="text-base leading-none">{c.flag}</span>
+                              <span>{c.name}</span>
+                              <span className="ml-auto text-[#555555]">{c.dial}</span>
+                            </button>
+                          ))}
                         </div>
                       </div>
                     )}
                   </div>
-
-                  <div className="flex-1">
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={handlePhoneChange}
-                      className="w-full bg-white border border-border rounded-lg px-3 py-2.5 text-sm text-[#000000] focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#555555]"
-                      placeholder={country === 'KE' ? '712 345 678' : 'Phone number'}
-                      required
-                    />
-                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    className="flex-1 bg-white border border-border rounded-lg px-3 py-2.5 text-sm text-[#000000] focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-[#555555]"
+                    placeholder="712 345 678"
+                    required
+                  />
                 </div>
               </div>
 
@@ -506,7 +397,7 @@ export default function SignUpPage() {
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
               <Check className="h-8 w-8 text-green-600" />
             </div>
-            <h2 className="text-lg font-bold text-gray-800 mb-2">🎉 Account Created Successfully!</h2>
+            <h2 className="text-lg font-bold text-gray-800 mb-2">Account Created Successfully!</h2>
             <p className="text-sm text-gray-600 mb-4">
               Please check your email at <strong>{email}</strong> for your 3-day trial activation key.
             </p>

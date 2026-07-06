@@ -403,6 +403,7 @@ export async function sendExpiryReminderEmail(params: {
   daysRemaining: number;
   expiresAt: string;
   urgent?: boolean;
+  paymentNotice?: boolean;
 }) {
   const transporter = await createTransporter();
   if (!transporter) {
@@ -413,6 +414,46 @@ export async function sendExpiryReminderEmail(params: {
   const config = await getSmtpConfig();
   const fromName = config?.fromName || 'BiasharaLedger';
   const fromAddr = config?.fromAddr || '';
+  const pricingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.com'}/pricing`;
+
+  if (params.paymentNotice) {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #df1c1c 0%, #b91c1c 100%); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 700;">Your Trial Ends in 12 Hours</h1>
+          <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">Time to choose a plan and keep using BiasharaLedger</p>
+        </div>
+        <div style="padding: 32px; background: #fff; border: 1px solid #e5e7eb; border-top: none;">
+          <p style="font-size: 16px; color: #111827; margin: 0 0 16px;">Dear ${params.name || 'Valued Customer'},</p>
+          <p style="font-size: 14px; color: #374151; line-height: 1.6;">Your 3-day free trial of BiasharaLedger is almost over — it expires in <strong style="color: #df1c1c;">12 hours</strong>.</p>
+          <p style="font-size: 14px; color: #374151; line-height: 1.6;">To continue using BiasharaLedger without interruption, please select a plan and complete your payment today.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${pricingUrl}" style="display: inline-block; background: #df1c1c; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;">View Plans & Subscribe</a>
+          </div>
+          <p style="font-size: 14px; color: #374151; line-height: 1.6;">If you have any questions, our team is here to help. Reply to this email or visit our website for support.</p>
+          <p style="font-size: 14px; color: #374151; margin-top: 20px;">Best regards,<br><strong>The ${fromName} Team</strong></p>
+        </div>
+        <div style="text-align: center; padding: 20px; background: #f3f4f6; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb; border-top: none;">
+          <p style="font-size: 12px; color: #6b7280; margin: 0;">&copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await transporter.sendMail({
+        from: `"${fromName}" <${fromAddr}>`,
+        to: params.to,
+        subject: `[12-Hour Notice] Your ${fromName} Free Trial Ends Today`,
+        html,
+      });
+      logInfo('email', '12-hour payment notice sent', { to: params.to });
+      return { sent: true };
+    } catch (err: any) {
+      logError('email', 'Failed to send 12-hour payment notice', { error: err.message });
+      return { sent: false, error: err.message };
+    }
+  }
+
   const renewalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.biasharaledger.com'}/subscription/renew`;
 
   const urgent = params.urgent || params.daysRemaining <= 7;

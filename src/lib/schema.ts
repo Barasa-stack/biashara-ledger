@@ -717,7 +717,9 @@ export async function initSchema() {
   // Income tax fields on company_settings
   await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_30d BOOLEAN DEFAULT FALSE`);
   await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_7d BOOLEAN DEFAULT FALSE`);
+  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_3d BOOLEAN DEFAULT FALSE`);
   await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_1d BOOLEAN DEFAULT FALSE`);
+  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_12h BOOLEAN DEFAULT FALSE`);
 
   await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS income_tax_rate REAL DEFAULT 0`);
   await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS tax_filing_frequency TEXT DEFAULT 'monthly'`);

@@ -184,6 +184,8 @@ export async function logEmailSent(params: {
 function getReminderColumn(daysUntilExpiry: number) {
   if (daysUntilExpiry === 30) return 'reminder_sent_30d';
   if (daysUntilExpiry === 7) return 'reminder_sent_7d';
+  if (daysUntilExpiry === 3) return 'reminder_sent_3d';
+  if (daysUntilExpiry === 0.5) return 'reminder_sent_12h';
   return 'reminder_sent_1d';
 }
 
@@ -192,7 +194,13 @@ function getExpiryRangeCondition(daysUntilExpiry: number) {
     return "l.expires_at > CURRENT_TIMESTAMP + interval '7 days' AND l.expires_at <= CURRENT_TIMESTAMP + interval '30 days'";
   }
   if (daysUntilExpiry === 7) {
-    return "l.expires_at > CURRENT_TIMESTAMP + interval '1 days' AND l.expires_at <= CURRENT_TIMESTAMP + interval '7 days'";
+    return "l.expires_at > CURRENT_TIMESTAMP + interval '3 days' AND l.expires_at <= CURRENT_TIMESTAMP + interval '7 days'";
+  }
+  if (daysUntilExpiry === 3) {
+    return "l.expires_at > CURRENT_TIMESTAMP + interval '1 days' AND l.expires_at <= CURRENT_TIMESTAMP + interval '3 days'";
+  }
+  if (daysUntilExpiry === 0.5) {
+    return "l.expires_at > CURRENT_TIMESTAMP AND l.expires_at <= CURRENT_TIMESTAMP + interval '12 hours'";
   }
   return "l.expires_at > CURRENT_TIMESTAMP AND l.expires_at <= CURRENT_TIMESTAMP + interval '1 days'";
 }
@@ -213,8 +221,13 @@ export async function getExpiringLicenses(daysUntilExpiry: number) {
   );
 }
 
-export async function markReminderSent(licenseKey: string, reminderType: '30d' | '7d' | '3d' | '1d') {
-  const column = reminderType === '30d' ? 'reminder_sent_30d' : reminderType === '7d' ? 'reminder_sent_7d' : 'reminder_sent_1d';
+export async function markReminderSent(licenseKey: string, reminderType: '30d' | '7d' | '3d' | '1d' | '12h') {
+  const column =
+    reminderType === '30d' ? 'reminder_sent_30d' :
+    reminderType === '7d' ? 'reminder_sent_7d' :
+    reminderType === '3d' ? 'reminder_sent_3d' :
+    reminderType === '12h' ? 'reminder_sent_12h' :
+    'reminder_sent_1d';
   await adminRun(
     `UPDATE admin_license_keys SET ${column} = true WHERE license_key = $1`,
     [licenseKey]
