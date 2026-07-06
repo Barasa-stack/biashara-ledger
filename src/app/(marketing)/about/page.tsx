@@ -91,7 +91,7 @@ export default function AboutPage() {
         .value-card:hover {
           transform: translateY(-8px) scale(1.03);
           box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-          border-color: #your-brand-color;
+          border-color: #df1c1c;
         }
         
         /* CTA button animations */

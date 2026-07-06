@@ -122,7 +122,7 @@ export default function PricingPage() {
         }
         
         .pricing-card.popular {
-          border: 2px solid #your-brand-color;
+          border: 2px solid #df1c1c;
           position: relative;
         }
         
@@ -132,7 +132,7 @@ export default function PricingPage() {
           top: -12px;
           left: 50%;
           transform: translateX(-50%);
-          background: linear-gradient(135deg, #your-brand-color, #ff6b6b);
+          background: linear-gradient(135deg, #df1c1c, #ff6b6b);
           color: white;
           padding: 4px 16px;
           border-radius: 20px;
@@ -141,7 +141,7 @@ export default function PricingPage() {
         }
         
         .gradient-text-shine {
-          background: linear-gradient(90deg, #your-brand-color, #ff6b6b, #feca57, #your-brand-color);
+          background: linear-gradient(90deg, #df1c1c, #ff6b6b, #feca57, #df1c1c);
           background-size: 300% 100%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;

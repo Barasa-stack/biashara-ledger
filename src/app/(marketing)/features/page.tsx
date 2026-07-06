@@ -106,7 +106,7 @@ export default function FeaturesPage() {
         .feature-card:hover {
           transform: translateY(10px) scale(1.02);
           box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-          border-color: #your-brand-color;
+          border-color: #df1c1c;
         }
         
         .feature-card:hover .feature-icon {
@@ -118,7 +118,7 @@ export default function FeaturesPage() {
         }
         
         .gradient-text-shine {
-          background: linear-gradient(90deg, #your-brand-color, #ff6b6b, #feca57, #your-brand-color);
+          background: linear-gradient(90deg, #df1c1c, #ff6b6b, #feca57, #df1c1c);
           background-size: 300% 100%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;

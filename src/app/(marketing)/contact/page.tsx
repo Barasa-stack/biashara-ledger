@@ -58,7 +58,7 @@ export default function ContactPage() {
         }
         
         .gradient-text-shine {
-          background: linear-gradient(90deg, #your-brand-color, #ff6b6b, #feca57, #your-brand-color);
+          background: linear-gradient(90deg, #df1c1c, #ff6b6b, #feca57, #df1c1c);
           background-size: 300% 100%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
@@ -96,8 +96,8 @@ export default function ContactPage() {
         }
         
         .form-input:focus {
-          border-color: #your-brand-color;
-          box-shadow: 0 0 0 3px rgba(#your-brand-color, 0.1);
+          border-color: #df1c1c;
+          box-shadow: 0 0 0 3px rgba(223, 28, 28, 0.1);
         }
       `}</style>
 
