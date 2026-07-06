@@ -44,13 +44,13 @@ export default function SelectPackagePage() {
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-brand/10 text-brand px-4 py-1.5 rounded-full text-sm font-medium mb-4">
             <Sparkles className="h-4 w-4" />
-            14-day free trial — no credit card required
+            3-day free trial — no credit card required
           </div>
           <h1 className="text-3xl font-bold text-[#000000] mb-3">
             Choose your plan{user?.firstName ? `, ${user.firstName}` : ''}
           </h1>
           <p className="text-[#555555] max-w-lg mx-auto">
-            Start with a 14-day free trial on any plan. Cancel anytime.
+            Start with a 3-day free trial on any plan. Cancel anytime.
           </p>
         </div>
 

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     // Generate trial license key
     const hash = crypto.createHash('sha256').update(normalizedEmail + 'trial' + process.env.LICENSE_SECRET || 'default').digest('hex');
     const trialKey = `TRIAL-${hash.substring(0, 8).toUpperCase()}-${hash.substring(8, 16).toUpperCase()}`;
-    const trialExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const trialExpiry = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 
     // Create tenant
     try {
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
               </div>
               <div style="padding:28px;background:#fff;border:1px solid #e5e7eb;">
                 <h2 style="font-size:16px;color:#111;margin:0 0 12px;">Welcome to BiasharaLedger! 🎉</h2>
-                <p style="font-size:13px;color:#444;line-height:1.6;">Your 14-day free trial has been created. Use the key below to activate your trial.</p>
+                <p style="font-size:13px;color:#444;line-height:1.6;">Your 3-day free trial has been created. Use the key below to activate your trial.</p>
                 <div style="background:#f9fafb;border-radius:8px;padding:16px;margin:16px 0;text-align:center;">
                   <p style="font-size:11px;color:#888;margin:0 0 4px;">Your Trial License Key</p>
                   <p style="font-size:18px;font-weight:700;color:#dc2626;letter-spacing:2px;font-family:monospace;margin:4px 0;">${trialKey}</p>
@@ -83,13 +83,13 @@ export async function POST(req: NextRequest) {
       console.error('[signup] Email send failed:', err?.message);
     }
 
-    createNotification('info', 'New User Registration', `${normalizedEmail} registered for a 14-day trial (${selectedPackage || 'No plan'}).`, '/admin/clients');
+    createNotification('info', 'New User Registration', `${normalizedEmail} registered for a 3-day trial (${selectedPackage || 'No plan'}).`, '/admin/clients');
 
     return NextResponse.json({
       success: true,
       trial_key: trialKey,
       email_sent: emailSent,
-      message: `Account created! Check ${normalizedEmail} for your 14-day trial activation key.`,
+      message: `Account created! Check ${normalizedEmail} for your 3-day trial activation key.`,
     });
   } catch (err: any) {
     console.error('[signup] Error:', err?.message || err);

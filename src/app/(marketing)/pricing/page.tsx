@@ -162,7 +162,7 @@ export default function PricingPage() {
             for Every Business
           </div>
         }
-        subtitle="Choose the plan that fits your business needs. All plans include a 14-day free trial."
+        subtitle="Choose the plan that fits your business needs. All plans include a 3-day free trial."
         badge="Pricing"
         badgeWithoutTrust
       />
@@ -193,7 +193,7 @@ export default function PricingPage() {
                 <span className="text-gray-500 text-sm">{yearly ? '/year' : '/month'}</span>
               </div>
               <p className="text-sm text-gray-600 mb-6">The complete BiasharaLedger platform — no feature restrictions.</p>
-              <p className="text-xs text-brand font-medium mb-6">14-day free trial</p>
+              <p className="text-xs text-brand font-medium mb-6">3-day free trial</p>
               <Link
                 href="/sign-up"
                 className="inline-block w-full bg-brand hover:bg-brand-hover text-white px-6 py-3 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-brand/25"
@@ -222,7 +222,7 @@ export default function PricingPage() {
             Ready to get started?
           </h2>
           <p className="text-lg text-gray-500 mb-8 animate-on-scroll">
-            14-day free trial. No credit card required. All features included.
+            3-day free trial. No credit card required. All features included.
           </p>
           <Link
             href="/sign-up"

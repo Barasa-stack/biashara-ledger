@@ -560,7 +560,7 @@ export default function LandingSections() {
               <Link href="/download" className="text-white/60 hover:text-white border border-white/10 hover:border-white/20 px-10 py-4 rounded-xl text-base font-semibold transition-all inline-flex items-center gap-2"><Download className="h-4 w-4" /> Download Desktop</Link>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-white/40 mt-10">
-              <span>Free 14-day trial</span>
+              <span>Free 3-day trial</span>
               <span>No credit card</span>
               <span>Free onboarding</span>
               <span>Cancel anytime</span>
@@ -588,7 +588,7 @@ export default function LandingSections() {
               { q: 'What industries does BiasharaLedger support?', a: 'We support 12+ industries including retail shops, supermarkets, hardware stores, pharmacies, restaurants, wholesalers, manufacturers, bookshops, electronics stores, fashion stores, agribusiness, and distributors. Each industry has tailored features.' },
               { q: 'Is my data secure?', a: 'Absolutely. We use AES-256-GCM encryption for data at rest and TLS 1.3 for data in transit. We perform daily encrypted backups, offer role-based access controls, and maintain strict security protocols across our infrastructure.' },
               { q: 'How does licensing work?', a: 'Each license is tied to one computer for the desktop version. The cloud version can be accessed from any device with your login credentials. Licenses are secure and can be managed from your account dashboard.' },
-              { q: 'Can I try before buying?', a: 'Yes! We offer a 14-day free trial with full access to all features. No credit card required. You can explore the cloud version, download the desktop app, and see if BiasharaLedger is right for your business.' },
+              { q: 'Can I try before buying?', a: 'Yes! We offer a 3-day free trial with full access to all features. No credit card required. You can explore the cloud version, download the desktop app, and see if BiasharaLedger is right for your business.' },
             ].map((faq) => (
               <details key={faq.q} className="group border border-white/20 rounded-xl overflow-hidden hover:border-brand/30 transition-colors bg-white/10 backdrop-blur-sm">
                 <summary className="px-6 py-4 text-sm font-semibold text-white cursor-pointer hover:bg-white/5 transition-colors list-none flex items-center justify-between">

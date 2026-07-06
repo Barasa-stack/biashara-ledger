@@ -3,7 +3,7 @@ import { getSessionFromCookies } from './auth-server';
 import { normalizePlan } from './feature-gate';
 
 const GRACE_PERIOD_DAYS = 3;
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 3;
 const EXPIRY_WARNING_DAYS = 7;
 
 export async function logSubscriptionEvent(userId: string, eventType: string, description: string, metadata: Record<string, any> = {}, tenantId?: string) {
@@ -134,7 +134,7 @@ export async function createTrialSubscription(userId: string) {
     'UPDATE users SET subscription_plan = $1, subscription_status = $2, subscription_expiry = $3, verified = $4 WHERE id = $5',
     ['trial', 'active', expiry, 1, userId]
   );
-  await logSubscriptionEvent(userId, 'trial_started', '14-day trial started', { expiresAt: expiry });
+  await logSubscriptionEvent(userId, 'trial_started', '3-day trial started', { expiresAt: expiry });
 }
 
 export async function activateSubscription(userId: string, planName: string, durationDays: number, paymentMethod: string = 'mpesa', transactionId: string = '', tenantId: string = '') {

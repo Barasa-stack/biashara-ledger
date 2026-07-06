@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { get, adminGet, adminRun, adminQuery } from './db';
 
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 3;
 
 export function validateLicenseKeyStructure(key: string): { valid: boolean; reason?: string } {
   try {

@@ -201,7 +201,7 @@ function PaymentContent() {
             </button>
 
             <p className="text-xs text-[#555555] text-center mt-4">
-              Your payment is secure and encrypted. You won't be charged until your 14-day trial ends.
+              Your payment is secure and encrypted. You won't be charged until your 3-day trial ends.
             </p>
           </>
         )}

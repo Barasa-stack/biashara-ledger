@@ -91,7 +91,7 @@ export default function IndustriesPage() {
       <section className="py-20 text-center">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">Ready to streamline your business?</h2>
-          <p className="text-lg text-white/60 mb-8">Start your 14-day free trial. No credit card required.</p>
+          <p className="text-lg text-white/60 mb-8">Start your 3-day free trial. No credit card required.</p>
           <Link
             href="/sign-up"
             className="bg-brand hover:bg-brand-hover text-white px-8 py-3.5 rounded-xl text-base font-semibold transition-all hover:shadow-lg hover:shadow-brand/25 inline-flex items-center gap-2"

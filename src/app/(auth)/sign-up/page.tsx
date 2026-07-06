@@ -277,7 +277,7 @@ export default function SignUpPage() {
         {step === 'package' ? (
           <>
             <div className="bg-brand/5 border border-brand/20 rounded-lg px-3 py-2 mb-5">
-              <p className="text-xs text-brand font-medium">14-day free trial</p>
+              <p className="text-xs text-brand font-medium">3-day free trial</p>
               <p className="text-[10px] text-[#000000]">No credit card required. Cancel anytime.</p>
             </div>
             <h2 className="text-sm font-semibold text-brand mb-4">Choose your plan</h2>
@@ -505,7 +505,7 @@ export default function SignUpPage() {
             </div>
             <h2 className="text-lg font-bold text-gray-800 mb-2">🎉 Account Created Successfully!</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Please check your email at <strong>{email}</strong> for your 14-day trial activation key.
+              Please check your email at <strong>{email}</strong> for your 3-day trial activation key.
             </p>
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="text-xs text-gray-500 mb-1">Your Trial License Key</p>

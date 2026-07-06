@@ -193,7 +193,7 @@ export default function DownloadPage() {
             <div><span className="font-medium text-white">Version:</span> v{version}</div>
             <div><span className="font-medium text-white">File Size:</span> ~150MB (compressed)</div>
             <div><span className="font-medium text-white">Release Date:</span> {downloadInfo?.publishedAt ? new Date(downloadInfo.publishedAt).toLocaleDateString() : 'June 2026'}</div>
-            <div><span className="font-medium text-white">License:</span> 14-day free trial included</div>
+            <div><span className="font-medium text-white">License:</span> 3-day free trial included</div>
           </div>
         </div>
 

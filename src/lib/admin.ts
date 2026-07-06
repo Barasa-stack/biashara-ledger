@@ -27,7 +27,7 @@ export async function createClientDatabase(email: string, companyName: string, m
 
     const clientResult = await adminQuery(
       `INSERT INTO admin_clients (company_name, email, database_name, license_key, max_users, trial_start_date, trial_end_date, expires_at, is_active, is_trial)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '14 days', $6::timestamptz, true, false)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '3 days', $6::timestamptz, true, false)
        RETURNING id, company_name, email, license_key`,
       [companyName, email, databaseName, licenseKey, maxUsers, expiresAt]
     );
