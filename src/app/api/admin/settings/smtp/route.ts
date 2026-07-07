@@ -10,9 +10,7 @@ export async function GET() {
   try {
     const settings = await adminGet<{
       smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
-    }>(
-      "SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM company_settings WHERE company_name = 'BiasharaLedger' LIMIT 1"
-    );
+    }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM company_settings LIMIT 1');
 
     return NextResponse.json({
       settings: {
@@ -34,8 +32,7 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   try {
-    const body = await req.json();
-    const { smtp_host, smtp_port, smtp_user, smtp_pass } = body;
+    const { smtp_host, smtp_port, smtp_user, smtp_pass } = await req.json();
 
     if (smtp_port) {
       const portNum = parseInt(smtp_port);
@@ -44,20 +41,23 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Use a fixed admin tenant ID for global settings
-    const adminTenantId = '00000000-0000-0000-0000-000000000001';
-    await adminRun(
-      'INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [adminTenantId, 'BiasharaLedger']
-    );
+    const existing = await adminGet('SELECT tenant_id FROM company_settings LIMIT 1') as any;
 
-    // UPDATE the existing admin row (already created on first save)
-    await adminRun(
-      `UPDATE company_settings SET
-        smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4
-       WHERE company_name = 'BiasharaLedger'`,
-      [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
-    );
+    if (!existing?.tenant_id) {
+      const uuid = crypto.randomUUID();
+      await adminRun('INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [uuid, 'BiasharaLedger']);
+      await adminRun(
+        `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
+         VALUES ($1, 'BiasharaLedger', $2, $3, $4, $5)`,
+        [uuid, smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
+      );
+    } else {
+      await adminRun(
+        `UPDATE company_settings SET smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4
+         WHERE tenant_id = $5`,
+        [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '', existing.tenant_id]
+      );
+    }
 
     return NextResponse.json({ success: true, message: 'SMTP settings updated' });
   } catch (error) {
