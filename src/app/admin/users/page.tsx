@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, UserCircle, CheckCircle2, XCircle, Clock, Loader2,
-  Mail, Key, Calendar, ChevronDown
+  Mail, Key, Calendar, ChevronDown, RefreshCw
 } from 'lucide-react';
 
 export default function UsersPage() {
@@ -138,6 +138,7 @@ export default function UsersPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Activity</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Active</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -188,6 +189,34 @@ export default function UsersPage() {
                       <Calendar size={10} />
                       {new Date(user.created_at).toLocaleDateString()}
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {user.license_key?.startsWith('TRIAL') && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Generate a new trial key for ' + user.email + '?')) return;
+                          try {
+                            const res = await fetch('/api/admin/users/regenerate-trial-key', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ email: user.email }),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              alert('New key generated and ' + (data.email_sent ? 'sent to user!' : 'ready!'));
+                              window.location.reload();
+                            } else {
+                              alert('Error: ' + (data.error || 'Unknown'));
+                            }
+                          } catch {
+                            alert('Network error');
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                      >
+                        <RefreshCw size={12} /> Regenerate
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
