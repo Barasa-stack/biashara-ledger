@@ -15,7 +15,21 @@ function makeSmtpConfig(host: string, port: string, user: string, pass: string, 
 }
 
 export async function getSmtpConfig(tenantId?: string) {
-  // 1. Tenant-specific settings
+  // 1. Environment variables (always available, no DB needed)
+  const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
+    return {
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_PORT === '465',
+      user: process.env.SMTP_USER,
+      pass: smtpPass,
+      fromName: process.env.EMAIL_FROM_NAME || 'BiasharaLedger',
+      fromAddr: process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER,
+    };
+  }
+
+  // 2. Tenant-specific settings
   if (tenantId) {
     try {
       const company = await adminGet<{
@@ -30,7 +44,7 @@ export async function getSmtpConfig(tenantId?: string) {
     } catch {}
   }
 
-  // 2. System-wide admin SMTP from admin_settings
+  // 3. System-wide admin SMTP from admin_settings
   try {
     const smtpRows = await adminQuery<{ key: string; value: string }>(
       "SELECT key, value FROM admin_settings WHERE key IN ('smtp_host','smtp_port','smtp_user','smtp_pass')"
@@ -44,7 +58,7 @@ export async function getSmtpConfig(tenantId?: string) {
     }
   } catch {}
 
-  // 3. Fallback to any company_settings row with SMTP configured
+  // 4. Fallback to any company_settings row with SMTP configured
   try {
     const fallback = await adminGet<{
       smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
@@ -55,19 +69,6 @@ export async function getSmtpConfig(tenantId?: string) {
       return makeSmtpConfig(fallback.smtp_host, fallback.smtp_port, fallback.smtp_user, fallback.smtp_pass);
     }
   } catch {}
-
-  const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
-    return {
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
-      user: process.env.SMTP_USER,
-      pass: smtpPass,
-      fromName: process.env.EMAIL_FROM_NAME || 'BiasharaLedger',
-      fromAddr: process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER,
-    };
-  }
 
   return null;
 }
