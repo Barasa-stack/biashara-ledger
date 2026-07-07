@@ -22,7 +22,24 @@ export default function UsersPage() {
         return r.json();
       })
       .then(data => {
-        if (data) setUsers(Array.isArray(data) ? data : []);
+        if (data) {
+          const all = [
+            ...(data.real || []).map((u: any) => ({
+              id: u.id,
+              company_name: [u.first_name, u.last_name].filter(Boolean).join(' ') || '—',
+              email: u.email,
+              license_key: u.license_key || '',
+              is_active: u.verified === 1 || u.verified === true,
+              license_active: u.subscription_status === 'active',
+              is_trial: u.license_status === 'trial' || u.subscription_plan === 'trial',
+              activity_count: 0,
+              last_active: null,
+              created_at: u.created_at,
+            })),
+            ...(data.managed || []),
+          ];
+          setUsers(all);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
