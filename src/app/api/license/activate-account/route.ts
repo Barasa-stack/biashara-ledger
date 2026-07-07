@@ -12,10 +12,27 @@ export async function POST(req: Request) {
     const key = licenseKey.trim();
 
     // Look up the license in admin_license_keys
-    const license = await adminGet<any>(
+    let license = await adminGet<any>(
       `SELECT id, license_key, plan, is_active, expires_at FROM admin_license_keys WHERE LOWER(license_key) = LOWER($1) LIMIT 1`,
       [key]
     );
+
+    // Fallback: check users table (trial and self-generated keys)
+    if (!license) {
+      const userLicense = await adminGet<any>(
+        `SELECT id, license_key, subscription_plan as plan, subscription_expiry as expires_at FROM users WHERE LOWER(license_key) = LOWER($1) AND license_status = 'trial' LIMIT 1`,
+        [key]
+      );
+      if (userLicense) {
+        license = {
+          id: userLicense.id,
+          license_key: userLicense.license_key,
+          plan: userLicense.plan || 'trial',
+          is_active: true,
+          expires_at: userLicense.expires_at,
+        };
+      }
+    }
 
     if (!license) {
       return NextResponse.json({ error: 'Invalid license key. Please check and try again.' }, { status: 404 });
