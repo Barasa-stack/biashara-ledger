@@ -7,6 +7,15 @@ export async function GET() {
   if (error) return error;
 
   try {
+    // Ensure admin_settings table exists
+    await adminRun(
+      `CREATE TABLE IF NOT EXISTS public.admin_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL DEFAULT '',
+        updated_at TIMESTAMP DEFAULT NOW()
+      )`
+    );
+
     // Read from admin_settings first
     const rows = await adminQuery('SELECT key, value FROM admin_settings WHERE key LIKE \'smtp_%\'');
     const adminSmtp: Record<string, string> = {};
@@ -56,6 +65,15 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   try {
+    // Ensure admin_settings table exists
+    await adminRun(
+      `CREATE TABLE IF NOT EXISTS public.admin_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL DEFAULT '',
+        updated_at TIMESTAMP DEFAULT NOW()
+      )`
+    );
+
     const { smtp_host, smtp_port, smtp_user, smtp_pass } = await req.json();
 
     if (smtp_port) {
