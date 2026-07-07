@@ -14,7 +14,7 @@ export default function ActivateLicensePage() {
   const formatKey = (val: string) => {
     const cleaned = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const groups = [];
-    for (let i = 0; i < cleaned.length; i += 4) {
+    for (let i = 0; i < cleaned.length && groups.length < 4; i += 4) {
       groups.push(cleaned.slice(i, i + 4));
     }
     return groups.join('-');
@@ -22,15 +22,14 @@ export default function ActivateLicensePage() {
 
   const handleChange = (val: string) => {
     const formatted = formatKey(val);
-    if (formatted.replace(/-/g, '').length <= 20) {
+    if (formatted.replace(/-/g, '').length <= 16) {
       setLicenseKey(formatted);
     }
   };
 
   const handleActivate = async () => {
     if (!email.trim()) { setError('Please enter your email address'); return; }
-    const clean = licenseKey.replace(/-/g, '');
-    if (clean.length < 16) { setError('Please enter a valid license key (16 characters)'); return; }
+    if (licenseKey.replace(/-/g, '').length < 16) { setError('Please enter a valid license key (16 characters)'); return; }
 
     setStep('activating');
     setError('');
@@ -107,9 +106,9 @@ export default function ActivateLicensePage() {
                   onChange={e => handleChange(e.target.value)}
                   className="w-full border border-border rounded-lg px-3 py-2.5 text-sm text-gray-800 tracking-widest font-mono text-center focus:outline-none focus:ring-2 focus:ring-brand"
                   placeholder="XXXX-XXXX-XXXX-XXXX"
-                  maxLength={29}
+                  maxLength={19}
                 />
-                <p className="text-xs text-gray-400 mt-1">Enter the full key from your email (e.g. XXXX-XXXX-XXXX-XXXX or TRIAL-XXXXXXXX-XXXXXXXX)</p>
+                <p className="text-xs text-gray-400 mt-1">Format: XXXX-XXXX-XXXX-XXXX</p>
               </div>
               {error && (
                 <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
