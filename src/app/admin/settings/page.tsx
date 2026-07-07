@@ -13,7 +13,7 @@ type Tab = 'general' | 'branding' | 'smtp' | 'security' | 'plans' | 'payment' | 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'general', label: 'General', icon: <Settings size={16} /> },
   { id: 'branding', label: 'Branding', icon: <Palette size={16} /> },
-  { id: 'smtp', label: 'SMTP / Email', icon: <Mail size={16} /> },
+  { id: 'smtp', label: 'SMTP Settings', icon: <Mail size={16} /> },
   { id: 'security', label: 'Security', icon: <Shield size={16} /> },
   { id: 'plans', label: 'Subscription Plans', icon: <FileText size={16} /> },
   { id: 'payment', label: 'Payment Gateway', icon: <Database size={16} /> },
@@ -439,28 +439,14 @@ export default function SettingsPage() {
                   placeholder="smtp.gmail.com"
                   className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Port</label>
-                  <input type="text" value={smtpSettings.smtp_port}
-                    onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_port: e.target.value }))}
-                    placeholder="587"
-                    className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Encryption</label>
-                  <select
-                    value={smtpSettings.smtp_port === '465' ? 'SSL' : smtpSettings.smtp_port === '587' ? 'TLS' : 'None'}
-                    onChange={(e) => {
-                      const port = e.target.value === 'SSL' ? '465' : e.target.value === 'TLS' ? '587' : '25';
-                      setSmtpSettings(s => ({ ...s, smtp_port: port }));
-                    }}
-                    className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand">
-                    <option value="TLS">TLS (587)</option>
-                    <option value="SSL">SSL (465)</option>
-                    <option value="None">None (25)</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Port</label>
+                <input type="text" value={smtpSettings.smtp_port}
+                  onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_port: e.target.value }))}
+                  placeholder="587"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+              </div>
+
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Username / Email</label>
