@@ -65,9 +65,8 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Send OTP error:', error);
-    // error already logged above
-    const __eMsg = e instanceof Error ? e.message : String(e);
-    console.error('[api]', __eMsg);
-    return NextResponse.json({ error: __eMsg }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[api]', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
