@@ -33,6 +33,12 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   try {
+    // Ensure SMTP columns exist on company_settings
+    await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_host TEXT DEFAULT ''`);
+    await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_port TEXT DEFAULT '587'`);
+    await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_user TEXT DEFAULT ''`);
+    await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_pass TEXT DEFAULT ''`);
+
     const { smtp_host, smtp_port, smtp_user, smtp_pass } = await req.json();
 
     if (smtp_port) {
