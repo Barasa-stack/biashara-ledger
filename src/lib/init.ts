@@ -58,6 +58,17 @@ export async function ensureDbInitialized() {
       await exec(`UPDATE users SET subscription_plan = 'Premium', subscription_status = 'active', license_status = 'active' WHERE email = 'mambombaya1992@gmail.com' AND subscription_plan = 'trial'`);
     } catch {}
 
+    // Ensure admin_settings table exists
+    try {
+      await exec(`
+        CREATE TABLE IF NOT EXISTS public.admin_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL DEFAULT '',
+          updated_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+    } catch {}
+
     // Always add missing columns to core auth tables (safe to run repeatedly)
     const migrateCols = [
       `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'KE'`,
