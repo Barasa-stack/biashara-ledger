@@ -50,16 +50,21 @@ export async function PUT(req: NextRequest) {
       'INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [adminTenantId, 'BiasharaLedger']
     );
-    await adminRun(
-      `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
-       VALUES ($1, 'BiasharaLedger', $2, $3, $4, $5)
-       ON CONFLICT (tenant_id) DO UPDATE SET
-         smtp_host = EXCLUDED.smtp_host,
-         smtp_port = EXCLUDED.smtp_port,
-         smtp_user = EXCLUDED.smtp_user,
-         smtp_pass = EXCLUDED.smtp_pass`,
-      [adminTenantId, smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
+
+    // Manual UPSERT: try UPDATE first, then INSERT if no row matched
+    const result = await adminRun(
+      `UPDATE company_settings SET
+        smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4
+       WHERE tenant_id = $5`,
+      [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '', adminTenantId]
     );
+    if (result.rowCount === 0) {
+      await adminRun(
+        `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
+         VALUES ($1, 'BiasharaLedger', $2, $3, $4, $5)`,
+        [adminTenantId, smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
+      );
+    }
 
     return NextResponse.json({ success: true, message: 'SMTP settings updated' });
   } catch (error) {
