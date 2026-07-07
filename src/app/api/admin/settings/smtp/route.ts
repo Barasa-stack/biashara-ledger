@@ -33,17 +33,8 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   try {
-    // Ensure SMTP columns exist (safe to run even if DDL not allowed)
-    try {
-      await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_host TEXT DEFAULT ''`);
-      await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_port TEXT DEFAULT '587'`);
-      await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_user TEXT DEFAULT ''`);
-      await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_pass TEXT DEFAULT ''`);
-    } catch (ddlErr) {
-      console.error('DDL migration failed (non-fatal):', ddlErr);
-    }
-
-    const { smtp_host, smtp_port, smtp_user, smtp_pass } = await req.json();
+    const body = await req.json();
+    const { smtp_host, smtp_port, smtp_user, smtp_pass } = body;
 
     if (smtp_port) {
       const portNum = parseInt(smtp_port);
@@ -52,31 +43,22 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Upsert into company_settings with company_name = 'BiasharaLedger'
-    const existing = await adminGet(
-      "SELECT tenant_id FROM company_settings WHERE company_name = 'BiasharaLedger' LIMIT 1"
-    ) as any;
-
-    if (!existing?.tenant_id) {
-      console.log('Creating new BiasharaLedger SMTP row');
-      await adminRun(
-        `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
-         VALUES (gen_random_uuid(), 'BiasharaLedger', $1, $2, $3, $4)`,
-        [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
-      );
-    } else {
-      console.log('Updating existing BiasharaLedger SMTP row', existing.tenant_id);
-      await adminRun(
-        `UPDATE company_settings SET
-          smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4
-         WHERE tenant_id = $5`,
-        [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '', existing.tenant_id]
-      );
-    }
+    // Upsert using company_name as unique identifier
+    await adminRun(
+      `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
+       VALUES (gen_random_uuid(), 'BiasharaLedger', $1, $2, $3, $4)
+       ON CONFLICT (tenant_id) DO UPDATE SET
+         smtp_host = EXCLUDED.smtp_host,
+         smtp_port = EXCLUDED.smtp_port,
+         smtp_user = EXCLUDED.smtp_user,
+         smtp_pass = EXCLUDED.smtp_pass`,
+      [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
+    );
 
     return NextResponse.json({ success: true, message: 'SMTP settings updated' });
   } catch (error) {
-    console.error('Error saving SMTP settings:', error);
-    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Error saving SMTP settings:', msg);
+    return NextResponse.json({ error: 'Failed to save settings: ' + msg }, { status: 500 });
   }
 }
