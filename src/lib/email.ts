@@ -2,30 +2,53 @@ import nodemailer from 'nodemailer';
 import { adminGet, adminRun } from './db';
 import { logInfo, logError } from './logger';
 
+function formatSmtpConfig(company: {
+  smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string; company_name: string;
+}) {
+  return {
+    host: company.smtp_host,
+    port: parseInt(company.smtp_port || '587'),
+    secure: company.smtp_port === '465',
+    user: company.smtp_user,
+    pass: company.smtp_pass,
+    fromName: company.company_name || 'BiasharaLedger',
+    fromAddr: company.smtp_user,
+  };
+}
+
 export async function getSmtpConfig(tenantId?: string) {
   try {
-    const query = tenantId
-      ? 'SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings WHERE tenant_id = $1 LIMIT 1'
-      : 'SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings LIMIT 1';
-    const params = tenantId ? [tenantId] : [];
-    const company = await adminGet<{
-      smtp_host: string;
-      smtp_port: string;
-      smtp_user: string;
-      smtp_pass: string;
-      company_name: string;
-    }>(query, params);
+    if (tenantId) {
+      const company = await adminGet<{
+        smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string; company_name: string;
+      }>(
+        'SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings WHERE tenant_id = $1 LIMIT 1',
+        [tenantId]
+      );
+      if (company?.smtp_host && company?.smtp_user && company?.smtp_pass) {
+        return formatSmtpConfig(company);
+      }
+    }
 
-    if (company?.smtp_host && company?.smtp_user && company?.smtp_pass) {
-      return {
-        host: company.smtp_host,
-        port: parseInt(company.smtp_port || '587'),
-        secure: company.smtp_port === '465',
-        user: company.smtp_user,
-        pass: company.smtp_pass,
-        fromName: company.company_name || 'BiasharaLedger',
-        fromAddr: company.smtp_user,
-      };
+    // Prefer system-wide admin SMTP settings first
+    const adminRow = await adminGet<{
+      smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string; company_name: string;
+    }>(
+      `SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings
+       WHERE company_name = 'BiasharaLedger' AND smtp_host IS NOT NULL AND smtp_host != '' LIMIT 1`
+    );
+    if (adminRow?.smtp_host && adminRow?.smtp_user && adminRow?.smtp_pass) {
+      return formatSmtpConfig(adminRow);
+    }
+
+    // Fallback to any company_settings row
+    const fallback = await adminGet<{
+      smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string; company_name: string;
+    }>(
+      'SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings WHERE smtp_host IS NOT NULL AND smtp_host != \'\' LIMIT 1'
+    );
+    if (fallback?.smtp_host && fallback?.smtp_user && fallback?.smtp_pass) {
+      return formatSmtpConfig(fallback);
     }
   } catch {
   }
