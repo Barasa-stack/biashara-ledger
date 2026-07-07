@@ -49,11 +49,11 @@ export async function POST(req: NextRequest) {
     try {
       const transporter = await createTransporter();
       if (transporter) {
-        const activateUrl = `https://biashara-ledger.vercel.app/activate-license`;
+        const activateUrl = `https://biasharaledger.qzz.io/activate-license`;
         await transporter.sendMail({
           from: `"BiasharaLedger" <${(transporter as any).options?.auth?.user || 'noreply@biasharaledger.com'}>`,
           to: normalizedEmail,
-          subject: 'Your 14-Day Free Trial License Key',
+          subject: 'Your 3-Day Free Trial License Key',
           html: `
             <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
               <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:28px;text-align:center;border-radius:8px 8px 0 0;">
