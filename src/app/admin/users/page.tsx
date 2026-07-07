@@ -208,19 +208,46 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {user.license_key?.startsWith('TRIAL') && (
+                    <div className="flex items-center gap-1.5">
+                      {user.license_key?.startsWith('TRIAL') && (
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Generate a new trial key for ' + user.email + '?')) return;
+                            try {
+                              const res = await fetch('/api/admin/users/regenerate-trial-key', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: user.email }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                alert('New key generated and ' + (data.email_sent ? 'sent to user!' : 'ready!'));
+                                window.location.reload();
+                              } else {
+                                alert('Error: ' + (data.error || 'Unknown'));
+                              }
+                            } catch {
+                              alert('Network error');
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                        >
+                          <RefreshCw size={12} />
+                        </button>
+                      )}
                       <button
                         onClick={async () => {
-                          if (!confirm('Generate a new trial key for ' + user.email + '?')) return;
+                          if (!confirm('Delete user ' + user.email + '? This cannot be undone.')) return;
+                          if (!confirm('Are you sure? All data will be permanently removed.')) return;
                           try {
-                            const res = await fetch('/api/admin/users/regenerate-trial-key', {
+                            const res = await fetch('/api/admin/real-users', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ email: user.email }),
+                              body: JSON.stringify({ action: 'delete', userId: user.id }),
                             });
                             const data = await res.json();
                             if (data.success) {
-                              alert('New key generated and ' + (data.email_sent ? 'sent to user!' : 'ready!'));
+                              alert('User deleted successfully');
                               window.location.reload();
                             } else {
                               alert('Error: ' + (data.error || 'Unknown'));
@@ -229,17 +256,17 @@ export default function UsersPage() {
                             alert('Network error');
                           }
                         }}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
                       >
-                        <RefreshCw size={12} /> Regenerate
+                        <XCircle size={12} />
                       </button>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
                     No users found
                   </td>
                 </tr>

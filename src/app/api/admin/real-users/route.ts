@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminQuery, adminRun } from '@/lib/db';
+import { adminQuery, adminRun, run, withTenantContext } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
 
 export async function GET() {
@@ -42,8 +42,17 @@ export async function POST(req: Request) {
     }
 
     if (action === 'delete') {
-      await adminRun(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
-      await adminRun(`DELETE FROM users WHERE id = $1`, [userId]);
+      const user = await adminQuery(`SELECT tenant_id FROM users WHERE id = $1`, [userId]) as any;
+      const tenantId = user?.[0]?.tenant_id;
+      if (tenantId) {
+        await withTenantContext(tenantId, async () => {
+          await run(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
+          await run(`DELETE FROM users WHERE id = $1`, [userId]);
+        });
+      } else {
+        await adminRun(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
+        await adminRun(`DELETE FROM users WHERE id = $1`, [userId]);
+      }
       return NextResponse.json({ success: true, message: 'User deleted' });
     }
 
