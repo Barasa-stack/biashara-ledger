@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminRun, adminGet } from '@/lib/db';
+import { adminRun, adminGet, run, withTenantContext } from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
@@ -66,15 +66,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This email already has a different license key assigned. Please contact support.' }, { status: 409 });
     }
 
+    // Get user's tenant_id for context-scoped update
+    const user = await adminGet<any>(
+      `SELECT id, tenant_id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      [normalizedEmail]
+    );
+
     // Update the user's license
     const today = new Date().toISOString();
     const plan = license.plan || 'Premium';
     const expiresAt = license.expires_at || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
-    await adminRun(
-      `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active' WHERE LOWER(email) = LOWER($4)`,
-      [key, plan, expiresAt, normalizedEmail]
-    );
+    if (user?.tenant_id) {
+      await withTenantContext(user.tenant_id, async () => {
+        await run(
+          `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active' WHERE LOWER(email) = LOWER($4)`,
+          [key, plan, expiresAt, normalizedEmail]
+        );
+      });
+    } else {
+      await adminRun(
+        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active' WHERE LOWER(email) = LOWER($4)`,
+        [key, plan, expiresAt, normalizedEmail]
+      );
+    }
 
     // Mark license as used
     await adminRun(
