@@ -32,8 +32,8 @@ const emptyForm = {
   status: 'pending',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const PAYMENT_METHODS = ['Bank Transfer', 'Cash', 'Cheque', 'Mobile Money'];
 const STATUSES = ['paid', 'pending'];
@@ -207,7 +207,7 @@ export default function SalariesPage() {
                   <tr key={s.id} className="hover:bg-surface/50 transition-colors">
                     <td className="py-3 pr-4 text-gray-400 w-8">{salaries.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{s.employee_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(s.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(s.amount)}</td>
                     <td className="py-3 pr-4 text-gray-700">{s.pay_date ? new Date(s.pay_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
@@ -262,7 +262,7 @@ export default function SalariesPage() {
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
                 <Field label="Pay Date" value={form.pay_date} onChange={set('pay_date')} type="date" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

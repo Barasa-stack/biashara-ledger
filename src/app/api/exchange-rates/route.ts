@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const result = await withTenantContext(session.tenant_id!, async () => {
       return await insertReturning<{ id: string }>(
         `INSERT INTO exchange_rates (tenant_id, source_currency, target_currency, rate, rate_date) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [session.tenant_id, body.source_currency, body.target_currency || 'USD', Number(body.rate) || 1, body.rate_date || new Date().toISOString().split('T')[0]]
+        [session.tenant_id, body.source_currency, body.target_currency || 'KES', Number(body.rate) || 1, body.rate_date || new Date().toISOString().split('T')[0]]
       );
     });
     return NextResponse.json({ id: result.id }, { status: 201 });

@@ -25,8 +25,8 @@ const emptyForm = {
   reference: '',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const TYPES = [
   { value: 'CAPITAL_INJECTION', label: 'Capital Contribution', icon: TrendingUp },
@@ -99,7 +99,7 @@ export default function CapitalTransactionsPage() {
   };
 
   const handleDelete = async (t: CapitalTransaction) => {
-    if (!await confirm(`Delete ${t.type === 'CAPITAL_INJECTION' ? 'contribution' : 'withdrawal'} of ${fmtUSD(t.amount)}?`)) return;
+    if (!await confirm(`Delete ${t.type === 'CAPITAL_INJECTION' ? 'contribution' : 'withdrawal'} of ${fmtKES(t.amount)}?`)) return;
     try {
       const res = await fetch('/api/capital-transactions', {
         method: 'DELETE',
@@ -119,9 +119,9 @@ export default function CapitalTransactionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#000000]">Capital Transactions</h1>
           <p className="text-sm text-[#000000]">
-            Contributions: <span className="text-red-600 font-medium">{fmtUSD(totalInjections)}</span> &middot;
-            Withdrawals: <span className="text-red-500 font-medium">{fmtUSD(totalWithdrawals)}</span> &middot;
-            Net: <span className={netEquity >= 0 ? 'text-red-600 font-medium' : 'text-red-500 font-medium'}>{fmtUSD(netEquity)}</span>
+            Contributions: <span className="text-red-600 font-medium">{fmtKES(totalInjections)}</span> &middot;
+            Withdrawals: <span className="text-red-500 font-medium">{fmtKES(totalWithdrawals)}</span> &middot;
+            Net: <span className={netEquity >= 0 ? 'text-red-600 font-medium' : 'text-red-500 font-medium'}>{fmtKES(netEquity)}</span>
           </p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium hover:bg-brand/90 transition-colors">
@@ -181,7 +181,7 @@ export default function CapitalTransactionsPage() {
                       <td className="px-4 py-3 text-gray-500 max-w-[250px] truncate">{t.description || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{t.reference || '—'}</td>
                       <td className={`px-4 py-3 text-right font-medium ${isInjection ? 'text-red-600' : 'text-red-500'}`}>
-                        {isInjection ? '' : '('}{fmtUSD(t.amount)}{isInjection ? '' : ')'}
+                        {isInjection ? '' : '('}{fmtKES(t.amount)}{isInjection ? '' : ')'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button onClick={() => handleDelete(t)} className="p-1.5 hover:bg-red-50 rounded transition-colors" title="Delete">
@@ -205,7 +205,7 @@ export default function CapitalTransactionsPage() {
           { key: 'reference', label: 'Reference' },
           { key: 'amount', label: 'Amount' },
         ];
-        const capData = filtered.map(r => ({ ...r, type_label: r.type === 'CAPITAL_INJECTION' ? 'Contribution' : 'Withdrawal', amount: fmtUSD(r.amount) }));
+        const capData = filtered.map(r => ({ ...r, type_label: r.type === 'CAPITAL_INJECTION' ? 'Contribution' : 'Withdrawal', amount: fmtKES(r.amount) }));
         return (
           <div className="flex items-center gap-2">
             <Download className="h-4 w-4 text-gray-400" />

@@ -165,7 +165,7 @@ export const testimonials = [
 export const pricingPlans = [
   {
     name: 'Basic',
-    price: '5',
+    price: '500',
     period: '/month',
     desc: 'Essential accounting for solopreneurs and small shops.',
     popular: false,
@@ -178,7 +178,7 @@ export const pricingPlans = [
   },
   {
     name: 'Standard',
-    price: '10',
+    price: '1,000',
     period: '/month',
     desc: 'Growing businesses with teams and payroll needs.',
     popular: true,
@@ -192,7 +192,7 @@ export const pricingPlans = [
   },
   {
     name: 'Premium',
-    price: '15',
+    price: '1,500',
     period: '/month',
     desc: 'Full access for established businesses.',
     popular: false,
@@ -211,8 +211,8 @@ export const hostingPlans = [
     name: 'Free Tier',
     storage: '0.5 GB',
     price: 'Free',
-    priceLabel: '$0',
-    overage: '$0.50/GB/month',
+    priceLabel: 'KES 0',
+    overage: 'KES 75/GB/month',
     desc: 'Get started with basic cloud storage for your business data.',
     cta: 'Get Started',
     popular: false,
@@ -220,9 +220,9 @@ export const hostingPlans = [
   {
     name: 'Starter Hosting',
     storage: '5 GB',
-    price: '$5',
-    priceLabel: '$5/month',
-    overage: '$0.50/GB/month overage',
+    price: 'KES 750',
+    priceLabel: 'KES 750/month',
+    overage: 'KES 75/GB/month overage',
     desc: 'Reliable cloud storage for growing businesses.',
     cta: 'Subscribe',
     popular: true,
@@ -230,9 +230,9 @@ export const hostingPlans = [
   {
     name: 'Growth Hosting',
     storage: '20 GB',
-    price: '$15',
-    priceLabel: '$15/month',
-    overage: '$0.50/GB/month overage',
+    price: 'KES 2,250',
+    priceLabel: 'KES 2,250/month',
+    overage: 'KES 75/GB/month overage',
     desc: 'Ample storage for data-driven enterprises.',
     cta: 'Subscribe',
     popular: false,
@@ -252,7 +252,7 @@ export const hostingPlans = [
 export const backupPlans = [
   {
     name: 'Basic Backup',
-    price: '$5',
+    price: 'KES 750',
     period: '/month',
     desc: 'Daily snapshots up to 10 GB',
     features: [
@@ -264,7 +264,7 @@ export const backupPlans = [
   },
   {
     name: 'Advanced Backup',
-    price: '$15',
+    price: 'KES 2,250',
     period: '/month',
     desc: 'Redundant backups across multiple servers',
     features: [

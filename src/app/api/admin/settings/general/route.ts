@@ -16,7 +16,7 @@ export async function GET() {
     return NextResponse.json({
       platform_name: settings.platform_name || 'BiasharaLedger',
       support_email: settings.support_email || 'support@biasharaledger.com',
-      default_currency: settings.default_currency || 'USD',
+      default_currency: settings.default_currency || 'KES',
       timezone: settings.timezone || 'Africa/Nairobi (UTC+3)',
       primary_color: settings.primary_color || '#dc2626',
       logo_url: settings.logo_url || '',

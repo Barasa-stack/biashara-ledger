@@ -52,7 +52,7 @@ export default function SettingsPage() {
   const [general, setGeneral] = useState({
     platform_name: 'BiasharaLedger',
     support_email: 'support@biasharaledger.com',
-    default_currency: 'USD',
+    default_currency: 'KES',
     timezone: 'Africa/Nairobi (UTC+3)',
   });
   const [generalLoading, setGeneralLoading] = useState(false);
@@ -108,7 +108,7 @@ export default function SettingsPage() {
         setGeneral({
           platform_name: data.platform_name || 'BiasharaLedger',
           support_email: data.support_email || 'support@biasharaledger.com',
-          default_currency: data.default_currency || 'USD',
+          default_currency: data.default_currency || 'KES',
           timezone: data.timezone || 'Africa/Nairobi (UTC+3)',
         });
         setBranding({
@@ -367,8 +367,8 @@ export default function SettingsPage() {
                     <select value={general.default_currency}
                       onChange={e => setGeneral(g => ({ ...g, default_currency: e.target.value }))}
                       className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand">
-                      <option value="USD">USD - US Dollar</option>
                       <option value="KES">KES - Kenyan Shilling</option>
+                      <option value="USD">USD - US Dollar</option>
                       <option value="TZS">TZS - Tanzanian Shilling</option>
                       <option value="UGX">UGX - Ugandan Shilling</option>
                     </select>

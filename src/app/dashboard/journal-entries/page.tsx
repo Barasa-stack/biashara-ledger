@@ -47,8 +47,8 @@ const emptyLine = (): JournalLine => ({
   credit_amount: 0,
 });
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function JournalEntriesPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -242,8 +242,8 @@ export default function JournalEntriesPage() {
     { key: 'entry_date', label: 'Date' },
     { key: 'description', label: 'Description' },
     { key: 'reference', label: 'Reference' },
-    { key: 'total_debit', label: 'Total Debit (USD)' },
-    { key: 'total_credit', label: 'Total Credit (USD)' },
+    { key: 'total_debit', label: 'Total Debit (KES)' },
+    { key: 'total_credit', label: 'Total Credit (KES)' },
     { key: 'status', label: 'Status' },
   ];
 
@@ -295,10 +295,10 @@ export default function JournalEntriesPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredEntries, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredEntries, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Journal Entries', filteredEntries, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Journal Entries', filteredEntries, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredEntries, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredEntries, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Journal Entries', filteredEntries, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Journal Entries', filteredEntries, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(statusFilter || searchQuery) && (
@@ -352,8 +352,8 @@ export default function JournalEntriesPage() {
                     <td className="py-3 pr-4 text-gray-700">{entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4 text-gray-700 max-w-[200px] truncate">{entry.description || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{entry.reference || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(entry.total_debit)}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(entry.total_credit)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(entry.total_debit)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(entry.total_credit)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
                         entry.status === 'posted' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
@@ -538,8 +538,8 @@ export default function JournalEntriesPage() {
                     <tfoot>
                       <tr className="bg-surface/50 border-t border-border font-medium">
                         <td colSpan={2} className="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider">Totals</td>
-                        <td className="px-3 py-2 text-right text-sm text-gray-800">{fmtUSD(totalDebit)}</td>
-                        <td className="px-3 py-2 text-right text-sm text-gray-800">{fmtUSD(totalCredit)}</td>
+                        <td className="px-3 py-2 text-right text-sm text-gray-800">{fmtKES(totalDebit)}</td>
+                        <td className="px-3 py-2 text-right text-sm text-gray-800">{fmtKES(totalCredit)}</td>
                         <td></td>
                       </tr>
                       <tr className="bg-surface/50 border-t border-border">
@@ -548,12 +548,12 @@ export default function JournalEntriesPage() {
                             {isBalanced ? (
                               <span className="inline-flex items-center gap-1 text-red-700">
                                 <CheckCircle className="h-3.5 w-3.5" />
-                                Balanced ({fmtUSD(totalDebit)} = {fmtUSD(totalCredit)})
+                                Balanced ({fmtKES(totalDebit)} = {fmtKES(totalCredit)})
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-red-600">
                                 <AlertTriangle className="h-3.5 w-3.5" />
-                                Not balanced — Difference: {fmtUSD(Math.abs(totalDebit - totalCredit))}
+                                Not balanced — Difference: {fmtKES(Math.abs(totalDebit - totalCredit))}
                               </span>
                             )}
                           </div>
@@ -642,19 +642,19 @@ export default function JournalEntriesPage() {
                     {detailEntry.lines.map((line, i) => (
                       <tr key={line.id || i}>
                         <td className="px-3 py-2 text-gray-800 font-medium">
-                          {line.account_code ? `${line.account_code} - ${line.account_name}` : '—'}
+                          {line.account_code ? `KSh {line.account_code} - ${line.account_name}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-gray-700">{line.description || '—'}</td>
-                        <td className="px-3 py-2 text-right text-gray-800">{Number(line.debit_amount) > 0 ? fmtUSD(line.debit_amount) : '—'}</td>
-                        <td className="px-3 py-2 text-right text-gray-800">{Number(line.credit_amount) > 0 ? fmtUSD(line.credit_amount) : '—'}</td>
+                        <td className="px-3 py-2 text-right text-gray-800">{Number(line.debit_amount) > 0 ? fmtKES(line.debit_amount) : '—'}</td>
+                        <td className="px-3 py-2 text-right text-gray-800">{Number(line.credit_amount) > 0 ? fmtKES(line.credit_amount) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="bg-surface/50 border-t border-border font-medium">
                       <td colSpan={2} className="px-3 py-2 text-xs text-gray-500 uppercase tracking-wider">Totals</td>
-                      <td className="px-3 py-2 text-right text-sm text-gray-800">{fmtUSD(detailEntry.lines.reduce((s, l) => s + Number(l.debit_amount), 0))}</td>
-                      <td className="px-3 py-2 text-right text-sm text-gray-800">{fmtUSD(detailEntry.lines.reduce((s, l) => s + Number(l.credit_amount), 0))}</td>
+                      <td className="px-3 py-2 text-right text-sm text-gray-800">{fmtKES(detailEntry.lines.reduce((s, l) => s + Number(l.debit_amount), 0))}</td>
+                      <td className="px-3 py-2 text-right text-sm text-gray-800">{fmtKES(detailEntry.lines.reduce((s, l) => s + Number(l.credit_amount), 0))}</td>
                     </tr>
                   </tfoot>
                 </table>

@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const result = await withTenantContext(session.tenant_id!, async () => {
       return await insertReturning<{ id: string }>(
         `INSERT INTO projects (tenant_id, project_name, description, start_date, end_date, budget, currency, customer_id, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-        [session.tenant_id, body.project_name, body.description || '', body.start_date || '', body.end_date || '', Number(body.budget) || 0, body.currency || 'USD', body.customer_id || null, body.status || 'active']
+        [session.tenant_id, body.project_name, body.description || '', body.start_date || '', body.end_date || '', Number(body.budget) || 0, body.currency || 'KES', body.customer_id || null, body.status || 'active']
       );
     });
     return NextResponse.json({ id: result.id }, { status: 201 });

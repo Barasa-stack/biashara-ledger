@@ -39,8 +39,8 @@ const emptyForm = {
   notes: '',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const CATEGORIES = ['Office Supplies', 'Utilities', 'Travel', 'Meals', 'Equipment', 'Rent', 'Transport', 'Maintenance', 'Software', 'Training', 'Marketing', 'Other'];
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Cheque', 'Mobile Money', 'Card'];
@@ -164,7 +164,7 @@ export default function ExpensesPage() {
     { key: 'expense_code', label: 'Code' },
     { key: 'category', label: 'Category' },
     { key: 'description', label: 'Description' },
-    { key: 'amount', label: 'Amount (USD)' },
+    { key: 'amount', label: 'Amount (KES)' },
     { key: 'expense_date', label: 'Date' },
     { key: 'payment_method', label: 'Payment Method' },
     { key: 'status', label: 'Status' },
@@ -224,10 +224,10 @@ export default function ExpensesPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredExpenses, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredExpenses, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Expenses', filteredExpenses, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Expenses', filteredExpenses, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredExpenses, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredExpenses, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Expenses', filteredExpenses, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Expenses', filteredExpenses, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(dateFrom || dateTo || statusFilter || categoryFilter || searchQuery) && (
@@ -281,7 +281,7 @@ export default function ExpensesPage() {
                       )}
                     </td>
                     <td className="py-3 pr-4 text-gray-700 max-w-[200px] truncate">{exp.description || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(exp.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(exp.amount)}</td>
                     <td className="py-3 pr-4 text-gray-700">{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
@@ -343,8 +343,8 @@ export default function ExpensesPage() {
               </div>
               <Field label="Description" value={form.description} onChange={set('description')} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
-                <Field label="Tax/VAT (USD)" value={String(form.tax_vat)} onChange={v => set('tax_vat')(Number(v) || 0)} type="number" />
+                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Tax/VAT (KES)" value={String(form.tax_vat)} onChange={v => set('tax_vat')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Expense Date" value={form.expense_date} onChange={set('expense_date')} type="date" />

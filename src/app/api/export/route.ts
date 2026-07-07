@@ -22,9 +22,9 @@ export async function POST(request: Request) {
     }
 
     const fmtVal = (val: any) => val == null ? '' : String(val);
-    const fmtUSD = (n: any) => {
+    const fmtKES = (n: any) => {
       const num = Number(n || 0);
-      return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      return `KSh ${num.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
     };
 
     if (format === 'xlsx') {
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
         `<tr>${columns.map((c: any) => {
           const val = row[c.key];
           const isAmount = c.key.includes('amount') || c.key === 'salary' || c.key === 'total';
-          return `<td style="border-bottom: 1px solid #eee; padding: 6px 8px; font-size: 10px; ${isAmount ? 'text-align: right;' : ''}">${isAmount ? fmtUSD(val) : fmtVal(val)}</td>`;
+          return `<td style="border-bottom: 1px solid #eee; padding: 6px 8px; font-size: 10px; ${isAmount ? 'text-align: right;' : ''}">${isAmount ? fmtKES(val) : fmtVal(val)}</td>`;
         }).join('')}</tr>`
       ).join('\n');
       const thead = columns.map((c: any) => {

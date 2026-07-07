@@ -25,8 +25,8 @@ const emptyForm = {
   amount: 0,
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const PERIODS = ['MONTHLY', 'QUARTERLY', 'ANNUAL'];
 const CATEGORY_TYPES = [
@@ -143,7 +143,7 @@ export default function BudgetsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#000000]">Budgets</h1>
-          <p className="text-sm text-[#000000]">{filtered.length} line items &middot; {fmtUSD(totalBudget)} total budget</p>
+          <p className="text-sm text-[#000000]">{filtered.length} line items &middot; {fmtKES(totalBudget)} total budget</p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium hover:bg-brand/90 transition-colors">
           <Plus className="h-4 w-4" /> Add Budget Line
@@ -197,7 +197,7 @@ export default function BudgetsPage() {
                     </td>
                     <td className="px-4 py-3">{CATEGORY_TYPES.find(c => c.value === b.category_type)?.label || b.category_type}</td>
                     <td className="px-4 py-3 text-gray-500">{b.category_name || '—'}</td>
-                    <td className="px-4 py-3 text-right font-medium">{fmtUSD(b.amount)}</td>
+                    <td className="px-4 py-3 text-right font-medium">{fmtKES(b.amount)}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => openEdit(b)} className="p-1.5 hover:bg-gray-100 rounded transition-colors" title="Edit"><Pencil className="h-4 w-4 text-gray-500" /></button>
@@ -220,7 +220,7 @@ export default function BudgetsPage() {
           { key: 'category_name', label: 'Category Name' },
           { key: 'amount', label: 'Budget Amount' },
         ];
-        const budgetData = filtered.map(r => ({ ...r, amount: fmtUSD(r.amount) }));
+        const budgetData = filtered.map(r => ({ ...r, amount: fmtKES(r.amount) }));
         return (
           <div className="flex items-center gap-2">
             <Download className="h-4 w-4 text-gray-400" />

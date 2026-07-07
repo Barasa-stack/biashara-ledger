@@ -28,8 +28,8 @@ const emptyForm = {
   unit_cost: 0,
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const CATEGORIES = ['Raw Materials', 'Finished Goods', 'Office Supplies', 'Equipment', 'Merchandise', 'Packaging', 'Other'];
 const UOM = ['pcs', 'kg', 'g', 'l', 'ml', 'm', 'ft', 'box', 'pack', 'dozen', 'unit'];
@@ -135,7 +135,7 @@ export default function InventoryItemsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#000000]">Inventory Items</h1>
-          <p className="text-sm text-[#000000]">{items.length} items · {totalStock} units · {fmtUSD(totalValue)} total value</p>
+          <p className="text-sm text-[#000000]">{items.length} items · {totalStock} units · {fmtKES(totalValue)} total value</p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium hover:bg-brand/90 transition-colors">
           <Plus className="h-4 w-4" /> Add Item
@@ -184,8 +184,8 @@ export default function InventoryItemsPage() {
                     <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-xs bg-brand/10 text-brand">{item.category || 'Uncategorized'}</span></td>
                     <td className="px-4 py-3 text-right">{item.opening_stock} {item.unit_of_measure}</td>
                     <td className="px-4 py-3 text-right font-medium">{item.current_stock} {item.unit_of_measure}</td>
-                    <td className="px-4 py-3 text-right">{fmtUSD(item.unit_cost)}</td>
-                    <td className="px-4 py-3 text-right font-medium">{fmtUSD((item.current_stock || 0) * (item.unit_cost || 0))}</td>
+                    <td className="px-4 py-3 text-right">{fmtKES(item.unit_cost)}</td>
+                    <td className="px-4 py-3 text-right font-medium">{fmtKES((item.current_stock || 0) * (item.unit_cost || 0))}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => openEdit(item)} className="p-1.5 hover:bg-gray-100 rounded transition-colors" title="Edit"><Pencil className="h-4 w-4 text-gray-500" /></button>
@@ -211,7 +211,7 @@ export default function InventoryItemsPage() {
           { key: 'unit_cost', label: 'Unit Cost' },
           { key: 'total_value', label: 'Total Value' },
         ];
-        const invData = filteredItems.map(r => ({ ...r, opening_stock: String(r.opening_stock), current_stock: String(r.current_stock), unit_cost: fmtUSD(r.unit_cost), total_value: fmtUSD((r.current_stock || 0) * (r.unit_cost || 0)) }));
+        const invData = filteredItems.map(r => ({ ...r, opening_stock: String(r.opening_stock), current_stock: String(r.current_stock), unit_cost: fmtKES(r.unit_cost), total_value: fmtKES((r.current_stock || 0) * (r.unit_cost || 0)) }));
         return (
           <div className="flex items-center gap-2">
             <Download className="h-4 w-4 text-gray-400" />

@@ -4,13 +4,12 @@ export type Currency = {
   symbol: string;
   symbolNative: string;
   decimalDigits: number;
+  isDefault?: boolean;
 };
 
 export const currencies: Currency[] = [
+  { code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh', symbolNative: 'KSh', decimalDigits: 2, isDefault: true },
   { code: 'USD', name: 'US Dollar', symbol: '$', symbolNative: '$', decimalDigits: 2 },
-  { code: 'EUR', name: 'Euro', symbol: '€', symbolNative: '€', decimalDigits: 2 },
-  { code: 'GBP', name: 'British Pound', symbol: '£', symbolNative: '£', decimalDigits: 2 },
-  { code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh', symbolNative: 'KSh', decimalDigits: 2 },
   { code: 'UGX', name: 'Ugandan Shilling', symbol: 'USh', symbolNative: 'USh', decimalDigits: 0 },
   { code: 'TZS', name: 'Tanzanian Shilling', symbol: 'TSh', symbolNative: 'TSh', decimalDigits: 0 },
   { code: 'RWF', name: 'Rwandan Franc', symbol: 'RF', symbolNative: 'RF', decimalDigits: 0 },
@@ -32,9 +31,12 @@ export const currencies: Currency[] = [
   { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', symbolNative: 'C$', decimalDigits: 2 },
 ];
 
-export function getCurrency(code: string): Currency {
-  return currencies.find(c => c.code === code) || currencies[0];
+export function getCurrency(code?: string): Currency {
+  if (!code) return currencies.find(c => c.isDefault) || currencies[0];
+  return currencies.find(c => c.code === code) || currencies.find(c => c.isDefault) || currencies[0];
 }
+
+export const defaultCurrency = currencies.find(c => c.isDefault) || currencies[0];
 
 export function formatCurrency(amount: number, currencyCode: string): string {
   const c = getCurrency(currencyCode);

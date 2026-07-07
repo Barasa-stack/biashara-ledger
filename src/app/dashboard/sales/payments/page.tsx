@@ -16,8 +16,8 @@ type Payment = {
   notes: string;
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -57,7 +57,7 @@ export default function PaymentsPage() {
     { key: 'id', label: 'Payment ID' },
     { key: 'invoice_number', label: 'Invoice #' },
     { key: 'customer_name', label: 'Customer' },
-    { key: 'amount', label: 'Amount (USD)' },
+    { key: 'amount', label: 'Amount (KES)' },
     { key: 'payment_method', label: 'Method' },
     { key: 'payment_date', label: 'Date' },
     { key: 'notes', label: 'Notes' },
@@ -129,10 +129,10 @@ export default function PaymentsPage() {
         Export
       </button>
       <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-        <button onClick={() => exportCSV(filteredPayments, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-        <button onClick={() => exportExcel(filteredPayments, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-        <button onClick={() => exportPDF('Payments', filteredPayments, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-        <button onClick={() => exportWord('Payments', filteredPayments, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+        <button onClick={() => exportCSV(filteredPayments, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+        <button onClick={() => exportExcel(filteredPayments, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+        <button onClick={() => exportPDF('Payments', filteredPayments, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+        <button onClick={() => exportWord('Payments', filteredPayments, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
       </div>
     </div>
     {(dateFrom || dateTo || statusFilter || searchQuery) && (
@@ -183,7 +183,7 @@ export default function PaymentsPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredPayments.length - i}</td>
                     <td className="py-3 pr-4 text-gray-700">{p.invoice_number || `#${p.invoice_id}`}</td>
                     <td className="py-3 pr-4 text-gray-700">{p.customer_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(p.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(p.amount)}</td>
                     <td className="py-3 pr-4">{methodBadge(p.payment_method)}</td>
                     <td className="py-3 pr-4">{statusBadge()}</td>
                     <td className="py-3 pr-4 text-gray-700">{p.payment_date?.split('T')[0] || '—'}</td>

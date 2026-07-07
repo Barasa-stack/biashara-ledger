@@ -757,7 +757,7 @@ export async function GET(request: Request) {
       return { activeCount: Number(activeProjects[0]?.count || 0), totalBudget: Number(pf.total_budget), totalRevenue: Number(pf.total_revenue), totalExpenses: Number(pf.total_expenses) };
     })(),
     // Currency info
-    baseCurrency: (companySettings as any)?.base_currency || 'USD',
+    baseCurrency: (companySettings as any)?.base_currency || 'KES',
   });
 });
   return reportData;

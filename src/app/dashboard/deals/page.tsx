@@ -46,8 +46,8 @@ const emptyForm = {
 
 const getStage = (key: string) => PIPELINE_STAGES.find(s => s.key === key) || PIPELINE_STAGES[0];
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const STAGE_COLORS: Record<string, string> = {
   lead: 'bg-gray-100 text-gray-700',
@@ -232,10 +232,10 @@ export default function DealsPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredDeals, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredDeals, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Deals', filteredDeals, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Deals', filteredDeals, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredDeals, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredDeals, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Deals', filteredDeals, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Deals', filteredDeals, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(stageFilter || statusFilter || searchQuery) && (
@@ -249,7 +249,7 @@ export default function DealsPage() {
           <div className="flex items-center gap-6 text-sm">
             <div>
               <span className="text-gray-500">Total Pipeline Value</span>
-              <p className="text-lg font-semibold text-gray-800">{fmtUSD(totalValue)}</p>
+              <p className="text-lg font-semibold text-gray-800">{fmtKES(totalValue)}</p>
             </div>
             <div>
               <span className="text-gray-500">Deals</span>
@@ -305,7 +305,7 @@ export default function DealsPage() {
                           <span className="opacity-70">({stage.probability}%)</span>
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(d.deal_value)}</td>
+                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(d.deal_value)}</td>
                       <td className="py-3 pr-4 text-gray-700">{d.expected_close_date ? new Date(d.expected_close_date).toLocaleDateString('en-US') : '—'}</td>
                       <td className="py-3 pr-4">
                         <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${

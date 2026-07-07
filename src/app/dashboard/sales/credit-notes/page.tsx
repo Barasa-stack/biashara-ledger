@@ -60,8 +60,8 @@ const emptyForm = {
   reason: '', payment_terms: '', issue_date: '',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function CreditNotesPage() {
   const [notes, setNotes] = useState<CreditNote[]>([]);
@@ -120,7 +120,7 @@ export default function CreditNotesPage() {
     { key: 'id', label: 'Note ID' },
     { key: 'credit_note_number', label: 'Credit Note #' },
     { key: 'customer_name', label: 'Customer' },
-    { key: 'amount', label: 'Amount (USD)' },
+    { key: 'amount', label: 'Amount (KES)' },
     { key: 'reason', label: 'Reason' },
     { key: 'issue_date', label: 'Issue Date' },
   ];
@@ -287,10 +287,10 @@ export default function CreditNotesPage() {
         Export
       </button>
       <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-        <button onClick={() => exportCSV(filteredNotes, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-        <button onClick={() => exportExcel(filteredNotes, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-        <button onClick={() => exportPDF('Credit Notes', filteredNotes, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-        <button onClick={() => exportWord('Credit Notes', filteredNotes, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+        <button onClick={() => exportCSV(filteredNotes, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+        <button onClick={() => exportExcel(filteredNotes, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+        <button onClick={() => exportPDF('Credit Notes', filteredNotes, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+        <button onClick={() => exportWord('Credit Notes', filteredNotes, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
       </div>
     </div>
     {(dateFrom || dateTo || searchQuery) && (
@@ -348,7 +348,7 @@ export default function CreditNotesPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredNotes.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{n.credit_note_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{n.customer_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(n.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(n.amount)}</td>
                     <td className="py-3 pr-4 text-gray-700 max-w-[200px] truncate">{n.reason || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{n.issue_date?.split('T')[0] || '—'}</td>
                     <td className="py-3 text-right">
@@ -414,16 +414,16 @@ export default function CreditNotesPage() {
                 <Field label="Customer Name" value={form.customer_name} onChange={set('customer_name')} required />
                 <Field label="Customer Email" value={form.customer_email} onChange={set('customer_email')} />
                 <Field label="Issue Date" value={form.issue_date} onChange={set('issue_date')} type="date" />
-                <Field label="Amount (USD)" value={String(form.amount)} onChange={set('amount')} type="number" required />
+                <Field label="Amount (KES)" value={String(form.amount)} onChange={set('amount')} type="number" required />
                 <Field label="Payment Terms" value={form.payment_terms} onChange={set('payment_terms')} />
               </div>
               {(form.subtotal > 0 || form.tax_vat > 0) && (
                 <div className="bg-surface rounded-lg p-3 border border-border">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">VAT Breakdown</p>
                   <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div><span className="text-gray-500">Subtotal:</span> <span className="font-medium">{fmtUSD(form.subtotal)}</span></div>
-                    <div><span className="text-gray-500">{getVatRate(form.customer_country).label} ({form.vat_rate}%):</span> <span className="font-medium">{fmtUSD(form.tax_vat)}</span></div>
-                    <div><span className="text-gray-500">Total incl. VAT:</span> <span className="font-bold text-brand">{fmtUSD(Number(form.subtotal) + Number(form.tax_vat))}</span></div>
+                    <div><span className="text-gray-500">Subtotal:</span> <span className="font-medium">{fmtKES(form.subtotal)}</span></div>
+                    <div><span className="text-gray-500">{getVatRate(form.customer_country).label} ({form.vat_rate}%):</span> <span className="font-medium">{fmtKES(form.tax_vat)}</span></div>
+                    <div><span className="text-gray-500">Total incl. VAT:</span> <span className="font-bold text-brand">{fmtKES(Number(form.subtotal) + Number(form.tax_vat))}</span></div>
                   </div>
                 </div>
               )}

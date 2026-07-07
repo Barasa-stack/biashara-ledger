@@ -42,8 +42,8 @@ const emptyForm = {
   customer_country: '',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const STATUSES = ['draft', 'sent', 'unpaid', 'paid', 'partially_paid', 'overdue', 'declined', 'cancelled'];
 const PAYMENT_TERMS = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90'];
@@ -335,7 +335,7 @@ export default function InvoicesPage() {
       const result = await res.json();
       fetchInvoices();
       setPaymentModal(null);
-      const paidLabel = `Invoice "${paymentModal.invoice.invoice_number}" ${paymentModal.paymentType === 'partial' ? `partially paid (${fmtUSD(paidAmount)})` : 'marked as paid'}`;
+      const paidLabel = `Invoice "${paymentModal.invoice.invoice_number}" ${paymentModal.paymentType === 'partial' ? `partially paid (${fmtKES(paidAmount)})` : 'marked as paid'}`;
       const receiptMsg = result.emailSent ? '. Receipt emailed to customer.' : result.emailError ? `. Receipt email failed: ${result.emailError}` : '';
       setToast({ message: paidLabel + receiptMsg, type: result.emailError ? 'warning' : 'success' });
     } catch (e: any) {
@@ -409,16 +409,16 @@ export default function InvoicesPage() {
               <tr>
                 <td>${inv.description || '—'}</td>
                 <td style="text-align:right">${inv.quantity}</td>
-                <td style="text-align:right">${fmtUSD(inv.unit_price)}</td>
-                <td style="text-align:right">${fmtUSD(inv.subtotal)}</td>
+                <td style="text-align:right">${fmtKES(inv.unit_price)}</td>
+                <td style="text-align:right">${fmtKES(inv.subtotal)}</td>
               </tr>
             </tbody>
           </table>
           <div class="totals">
-            <div><span>Subtotal</span><span>${fmtUSD(inv.subtotal)}</span></div>
-            <div><span>${vatLabel}</span><span>${fmtUSD(inv.tax_vat)}</span></div>
-            <div><span>Discounts</span><span>${fmtUSD(inv.discounts)}</span></div>
-            <div class="grand"><span>Total (incl. VAT)</span><span>${fmtUSD(inv.amount)}</span></div>
+            <div><span>Subtotal</span><span>${fmtKES(inv.subtotal)}</span></div>
+            <div><span>${vatLabel}</span><span>${fmtKES(inv.tax_vat)}</span></div>
+            <div><span>Discounts</span><span>${fmtKES(inv.discounts)}</span></div>
+            <div class="grand"><span>Total (incl. VAT)</span><span>${fmtKES(inv.amount)}</span></div>
           </div>
           <script>window.print();<\/script>
         </body>
@@ -535,10 +535,10 @@ export default function InvoicesPage() {
                 Export
               </button>
               <div className="absolute right-0 top-full mt-1 bg-white border border-border rounded-lg shadow-lg z-50 min-w-[140px] hidden group-hover:block">
-                <button onClick={() => exportCSV(filteredInvoices, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-                <button onClick={() => exportExcel(filteredInvoices, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-                <button onClick={() => exportPDF('Sales Invoices', filteredInvoices, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-                <button onClick={() => exportWord('Sales Invoices', filteredInvoices, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+                <button onClick={() => exportCSV(filteredInvoices, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+                <button onClick={() => exportExcel(filteredInvoices, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+                <button onClick={() => exportPDF('Sales Invoices', filteredInvoices, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+                <button onClick={() => exportWord('Sales Invoices', filteredInvoices, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
               </div>
             </div>
           </div>
@@ -595,7 +595,7 @@ export default function InvoicesPage() {
                     <td className="py-3 pr-4 font-medium text-gray-800">{inv.invoice_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{inv.customer_name || '—'}</td>
                     <td className="py-3 pr-4 text-gray-500 text-xs">{inv.customer_country || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(inv.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(inv.amount)}</td>
                     <td className="py-3 pr-4">{statusBadge(inv.status)}</td>
                     <td className="py-3 pr-4 text-gray-700">{inv.issue_date?.split('T')[0] || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{inv.due_date?.split('T')[0] || '—'}</td>
@@ -716,33 +716,33 @@ export default function InvoicesPage() {
               <Field label="Item/Service Description" value={form.description} onChange={set('description')} textarea />
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <Field label="Quantity" value={String(form.quantity)} onChange={set('quantity')} type="number" />
-                <Field label="Unit Price (USD)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
+                <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{activeVatLabel}</label>
                   <div className="w-full border border-border bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-600 cursor-not-allowed">
-                    {fmtUSD(form.tax_vat)}
+                    {fmtKES(form.tax_vat)}
                   </div>
                 </div>
-                <Field label="Discounts (USD)" value={String(form.discounts)} onChange={set('discounts')} type="number" />
+                <Field label="Discounts (KES)" value={String(form.discounts)} onChange={set('discounts')} type="number" />
               </div>
               <div className="bg-surface rounded-lg p-4 border border-border space-y-2 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">Subtotal</span>
-                  <span className="font-medium text-gray-800">{fmtUSD(form.subtotal)}</span>
+                  <span className="font-medium text-gray-800">{fmtKES(form.subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">{activeVatLabel}</span>
-                  <span className="font-medium text-gray-800">{fmtUSD(form.tax_vat)}</span>
+                  <span className="font-medium text-gray-800">{fmtKES(form.tax_vat)}</span>
                 </div>
                 {form.discounts > 0 && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Discounts</span>
-                    <span className="font-medium text-red-500">-{fmtUSD(form.discounts)}</span>
+                    <span className="font-medium text-red-500">-{fmtKES(form.discounts)}</span>
                   </div>
                 )}
                 <div className="border-t border-border pt-2 flex justify-between items-center">
                   <span className="text-gray-700 font-semibold">Total Amount</span>
-                  <span className="font-bold text-brand text-base">{fmtUSD(form.amount)}</span>
+                  <span className="font-bold text-brand text-base">{fmtKES(form.amount)}</span>
                 </div>
               </div>
             </div>
@@ -789,7 +789,7 @@ export default function InvoicesPage() {
               </div>
               <div className="flex justify-between text-sm py-2 border-b border-gray-100">
                 <span className="text-gray-500">Total Amount</span>
-                <span className="font-semibold text-gray-800">{fmtUSD(paymentModal.invoice.amount)}</span>
+                <span className="font-semibold text-gray-800">{fmtKES(paymentModal.invoice.amount)}</span>
               </div>
 
               <div className="space-y-3 pt-2">
@@ -836,7 +836,7 @@ export default function InvoicesPage() {
                     </div>
                     {Number(paymentModal.partialAmount) < paymentModal.invoice.amount && Number(paymentModal.partialAmount) > 0 && (
                       <p className="text-xs text-amber-600 mt-1">
-                        Remaining: {fmtUSD(paymentModal.invoice.amount - Number(paymentModal.partialAmount))}
+                        Remaining: {fmtKES(paymentModal.invoice.amount - Number(paymentModal.partialAmount))}
                       </p>
                     )}
                   </div>

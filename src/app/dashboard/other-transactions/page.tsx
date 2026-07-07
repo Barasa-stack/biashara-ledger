@@ -27,8 +27,8 @@ const emptyForm = {
   notes: '',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const TYPES = [
   { value: 'OTHER_INCOME', label: 'Other Income', icon: TrendingUp },
@@ -120,7 +120,7 @@ export default function OtherTransactionsPage() {
   };
 
   const handleDelete = async (t: OtherTransaction) => {
-    if (!await confirm(`Delete ${t.type === 'OTHER_INCOME' ? 'income' : 'expense'} of ${fmtUSD(t.amount)}?`)) return;
+    if (!await confirm(`Delete ${t.type === 'OTHER_INCOME' ? 'income' : 'expense'} of ${fmtKES(t.amount)}?`)) return;
     try {
       const res = await fetch('/api/other-transactions', {
         method: 'DELETE',
@@ -142,8 +142,8 @@ export default function OtherTransactionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#000000]">Other Income &amp; Expenses</h1>
           <p className="text-sm text-[#000000]">
-            Income: <span className="text-red-600 font-medium">{fmtUSD(totalIncome)}</span> &middot;
-            Expenses: <span className="text-red-500 font-medium">{fmtUSD(totalExpenses)}</span>
+            Income: <span className="text-red-600 font-medium">{fmtKES(totalIncome)}</span> &middot;
+            Expenses: <span className="text-red-500 font-medium">{fmtKES(totalExpenses)}</span>
           </p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium hover:bg-brand/90 transition-colors">
@@ -203,7 +203,7 @@ export default function OtherTransactionsPage() {
                       <td className="px-4 py-3">{t.category || '—'}</td>
                       <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{t.description || '—'}</td>
                       <td className={`px-4 py-3 text-right font-medium ${isIncome ? 'text-red-600' : 'text-red-500'}`}>
-                        {isIncome ? '' : '('}{fmtUSD(t.amount)}{isIncome ? '' : ')'}
+                        {isIncome ? '' : '('}{fmtKES(t.amount)}{isIncome ? '' : ')'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -228,7 +228,7 @@ export default function OtherTransactionsPage() {
           { key: 'description', label: 'Description' },
           { key: 'amount', label: 'Amount' },
         ];
-        const othData = filtered.map(r => ({ ...r, type_label: r.type === 'OTHER_INCOME' ? 'Income' : 'Expense', amount: fmtUSD(r.amount) }));
+        const othData = filtered.map(r => ({ ...r, type_label: r.type === 'OTHER_INCOME' ? 'Income' : 'Expense', amount: fmtKES(r.amount) }));
         return (
           <div className="flex items-center gap-2">
             <Download className="h-4 w-4 text-gray-400" />

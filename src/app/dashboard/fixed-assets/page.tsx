@@ -35,8 +35,8 @@ const emptyForm = {
   notes: '',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function FixedAssetsPage() {
   const [assets, setAssets] = useState<FixedAsset[]>([]);
@@ -132,7 +132,7 @@ export default function FixedAssetsPage() {
   const handleAction = async (asset: FixedAsset, action: 'depreciate' | 'dispose') => {
     try {
       const label = action === 'depreciate' ? 'depreciate' : 'dispose';
-      if (!await confirm(`${action === 'depreciate' ? 'Apply depreciation' : 'Dispose of'} "${asset.asset_name}"?`)) return;
+      if (!await confirm(`KSh {action === 'depreciate' ? 'Apply depreciation' : 'Dispose of'} "${asset.asset_name}"?`)) return;
       const res = await fetch('/api/fixed-assets', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -167,10 +167,10 @@ export default function FixedAssetsPage() {
     { key: 'asset_name', label: 'Asset Name' },
     { key: 'asset_type', label: 'Type' },
     { key: 'purchase_date', label: 'Purchase Date' },
-    { key: 'purchase_cost', label: 'Cost (USD)' },
-    { key: 'salvage_value', label: 'Salvage Value (USD)' },
-    { key: 'accumulated_depreciation', label: 'Accum. Depr. (USD)' },
-    { key: 'book_value', label: 'Book Value (USD)' },
+    { key: 'purchase_cost', label: 'Cost (KES)' },
+    { key: 'salvage_value', label: 'Salvage Value (KES)' },
+    { key: 'accumulated_depreciation', label: 'Accum. Depr. (KES)' },
+    { key: 'book_value', label: 'Book Value (KES)' },
     { key: 'status', label: 'Status' },
   ];
 
@@ -222,15 +222,15 @@ export default function FixedAssetsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-border p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Total Cost</p>
-          <p className="text-2xl font-bold text-gray-800">{fmtUSD(totalCost)}</p>
+          <p className="text-2xl font-bold text-gray-800">{fmtKES(totalCost)}</p>
         </div>
         <div className="bg-white rounded-lg border border-border p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Total Book Value</p>
-          <p className="text-2xl font-bold text-gray-800">{fmtUSD(totalBookValue)}</p>
+          <p className="text-2xl font-bold text-gray-800">{fmtKES(totalBookValue)}</p>
         </div>
         <div className="bg-white rounded-lg border border-border p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Total Depreciation</p>
-          <p className="text-2xl font-bold text-gray-800">{fmtUSD(totalDepreciation)}</p>
+          <p className="text-2xl font-bold text-gray-800">{fmtKES(totalDepreciation)}</p>
         </div>
       </div>
 
@@ -255,10 +255,10 @@ export default function FixedAssetsPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredAssets, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredAssets, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Fixed Assets', filteredAssets, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Fixed Assets', filteredAssets, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredAssets, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredAssets, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Fixed Assets', filteredAssets, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Fixed Assets', filteredAssets, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(dateFrom || dateTo || typeFilter || statusFilter || searchQuery) && (
@@ -312,10 +312,10 @@ export default function FixedAssetsPage() {
                         <span className="inline-block text-xs font-medium bg-brand/10 text-brand px-2 py-0.5 rounded">{a.asset_type}</span>
                       </td>
                       <td className="py-3 pr-4 text-gray-700">{a.purchase_date ? new Date(a.purchase_date).toLocaleDateString('en-US') : '—'}</td>
-                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(a.purchase_cost)}</td>
-                      <td className="py-3 pr-4 text-right text-gray-700">{fmtUSD(a.salvage_value)}</td>
-                      <td className="py-3 pr-4 text-right text-gray-700">{fmtUSD(a.accumulated_depreciation)}</td>
-                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(bv)}</td>
+                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(a.purchase_cost)}</td>
+                      <td className="py-3 pr-4 text-right text-gray-700">{fmtKES(a.salvage_value)}</td>
+                      <td className="py-3 pr-4 text-right text-gray-700">{fmtKES(a.accumulated_depreciation)}</td>
+                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(bv)}</td>
                       <td className="py-3 pr-4">{statusBadge(a.status)}</td>
                       <td className="py-3 text-right">
                         <div className="inline-flex items-center gap-1">
@@ -375,10 +375,10 @@ export default function FixedAssetsPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Purchase Date" value={form.purchase_date} onChange={set('purchase_date')} type="date" />
-                <Field label="Purchase Cost (USD)" value={String(form.purchase_cost)} onChange={v => set('purchase_cost')(Number(v) || 0)} type="number" />
+                <Field label="Purchase Cost (KES)" value={String(form.purchase_cost)} onChange={v => set('purchase_cost')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Salvage Value (USD)" value={String(form.salvage_value)} onChange={v => set('salvage_value')(Number(v) || 0)} type="number" />
+                <Field label="Salvage Value (KES)" value={String(form.salvage_value)} onChange={v => set('salvage_value')(Number(v) || 0)} type="number" />
                 <Field label="Useful Life (Years)" value={String(form.useful_life_years)} onChange={v => set('useful_life_years')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

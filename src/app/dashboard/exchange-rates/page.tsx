@@ -18,14 +18,14 @@ type ExchangeRate = {
 };
 
 const emptyForm = {
-  source_currency: 'USD',
-  target_currency: 'USD',
+  source_currency: 'KES',
+  target_currency: 'KES',
   rate: 0,
   rate_date: new Date().toISOString().split('T')[0],
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 6 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 6 })}`;
 
 export default function ExchangeRatesPage() {
   const [rates, setRates] = useState<ExchangeRate[]>([]);
@@ -159,10 +159,10 @@ export default function ExchangeRatesPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredRates, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredRates, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Exchange Rates', filteredRates, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Exchange Rates', filteredRates, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredRates, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredRates, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Exchange Rates', filteredRates, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Exchange Rates', filteredRates, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {searchQuery && (
@@ -207,7 +207,7 @@ export default function ExchangeRatesPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredRates.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{rate.source_currency}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{rate.target_currency}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(rate.rate)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(rate.rate)}</td>
                     <td className="py-3 pr-4 text-gray-700">{rate.rate_date ? new Date(rate.rate_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 text-right">
                       <div className="inline-flex items-center gap-1">

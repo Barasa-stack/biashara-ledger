@@ -25,8 +25,8 @@ const emptyForm = {
   date: new Date().toISOString().split('T')[0],
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function DebitNotesPage() {
   const [notes, setNotes] = useState<DebitNote[]>([]);
@@ -73,7 +73,7 @@ export default function DebitNotesPage() {
   const exportColumns = [
     { key: 'note_number', label: 'Note#' },
     { key: 'supplier', label: 'Supplier' },
-    { key: 'amount', label: 'Amount (USD)' },
+    { key: 'amount', label: 'Amount (KES)' },
     { key: 'reason', label: 'Reason' },
     { key: 'date', label: 'Date' },
   ];
@@ -183,10 +183,10 @@ export default function DebitNotesPage() {
               <Download className="h-4 w-4" /> Export
             </button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredNotes, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredNotes, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Debit Notes', filteredNotes, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Debit Notes', filteredNotes, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredNotes, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredNotes, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Debit Notes', filteredNotes, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Debit Notes', filteredNotes, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(dateFrom || dateTo || searchQuery) && (
@@ -232,7 +232,7 @@ export default function DebitNotesPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredNotes.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{n.note_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{n.supplier || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(n.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(n.amount)}</td>
                     <td className="py-3 pr-4 text-gray-700 max-w-[200px] truncate">{n.reason || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{n.date ? new Date(n.date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 text-right">
@@ -271,7 +271,7 @@ export default function DebitNotesPage() {
                 <Field label="Supplier" value={form.supplier} onChange={set('supplier')} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
                 <Field label="Date" value={form.date} onChange={set('date')} type="date" />
               </div>
               <Field label="Reason" value={form.reason} onChange={set('reason')} />

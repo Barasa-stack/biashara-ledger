@@ -57,8 +57,8 @@ const emptyForm = {
   vat_rate: 0,
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const STATUSES = ['Draft', 'Sent', 'Approved', 'Partial', 'Paid', 'Overdue', 'Cancelled'];
 const PAYMENT_TERMS = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90'];
@@ -116,7 +116,7 @@ export default function PurchaseInvoicesPage() {
   const exportColumns = [
     { key: 'invoice_number', label: 'Invoice #' },
     { key: 'client_name', label: 'Supplier' },
-    { key: 'amount', label: 'Amount (USD)' },
+    { key: 'amount', label: 'Amount (KES)' },
     { key: 'status', label: 'Status' },
     { key: 'issue_date', label: 'Issue Date' },
     { key: 'due_date', label: 'Due Date' },
@@ -255,10 +255,10 @@ export default function PurchaseInvoicesPage() {
               <Download className="h-4 w-4" /> Export
             </button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredInvoices, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredInvoices, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Purchase Invoices', filteredInvoices, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Purchase Invoices', filteredInvoices, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredInvoices, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredInvoices, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Purchase Invoices', filteredInvoices, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Purchase Invoices', filteredInvoices, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(dateFrom || dateTo || statusFilter || searchQuery) && (
@@ -305,7 +305,7 @@ export default function PurchaseInvoicesPage() {
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredInvoices.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{inv.invoice_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{inv.client_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(inv.amount)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(inv.amount)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
                         inv.status === 'Paid' ? 'bg-red-100 text-red-700' :
@@ -382,18 +382,18 @@ export default function PurchaseInvoicesPage() {
               <Field label="Description" value={form.description} onChange={set('description')} />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Field label="Quantity" value={String(form.quantity)} onChange={v => set('quantity')(Number(v) || 0)} type="number" />
-                <Field label="Unit Price (USD)" value={String(form.unit_price)} onChange={v => set('unit_price')(Number(v) || 0)} type="number" />
-                <Field label="Subtotal (USD)" value={String(form.subtotal)} onChange={set('subtotal')} type="number" />
+                <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={v => set('unit_price')(Number(v) || 0)} type="number" />
+                <Field label="Subtotal (KES)" value={String(form.subtotal)} onChange={set('subtotal')} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    {form.client_country ? `${getVatRate(form.client_country).label} (${getVatRate(form.client_country).rate}%)` : 'Tax/VAT'}
+                    {form.client_country ? `KSh {getVatRate(form.client_country).label} (${getVatRate(form.client_country).rate}%)` : 'Tax/VAT'}
                   </label>
                   <input type="number" value={String(form.tax_vat)} readOnly className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 bg-gray-50 focus:outline-none" />
                 </div>
-                <Field label="Discounts (USD)" value={String(form.discounts)} onChange={v => set('discounts')(Number(v) || 0)} type="number" />
-                <Field label="Amount (USD)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
+                <Field label="Discounts (KES)" value={String(form.discounts)} onChange={v => set('discounts')(Number(v) || 0)} type="number" />
+                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

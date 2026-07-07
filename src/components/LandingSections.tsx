@@ -441,7 +441,7 @@ export default function LandingSections() {
                     <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
                     <p className="text-sm text-white/60 mb-6">{plan.desc}</p>
                     <div className="flex items-baseline mb-6">
-                      <span className="text-4xl font-bold text-white">$</span>
+                      <span className="text-4xl font-bold text-white">KSh</span>
                       <span className="text-5xl font-bold text-white ml-1">{plan.price}</span>
                       <span className="text-sm text-white/40 ml-1">{plan.period}</span>
                     </div>

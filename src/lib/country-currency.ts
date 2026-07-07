@@ -148,10 +148,10 @@ export const COUNTRY_CURRENCY_MAP: Record<string, { code: string; symbol: string
 
 export function getCurrencyForCountry(countryCode: string): { code: string; symbol: string; name: string; flag?: string } {
   if (!countryCode) {
-    return { code: 'USD', symbol: '$', name: 'US Dollar', flag: '🇺🇸' };
+    return { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', flag: '🇰🇪' };
   }
   const upperCode = countryCode.toUpperCase();
-  return COUNTRY_CURRENCY_MAP[upperCode] || { code: 'USD', symbol: '$', name: 'US Dollar', flag: '🇺🇸' };
+  return COUNTRY_CURRENCY_MAP[upperCode] || { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', flag: '🇰🇪' };
 }
 
 export function getCurrencyCode(countryCode: string): string {

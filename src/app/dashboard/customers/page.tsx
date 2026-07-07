@@ -32,8 +32,8 @@ const emptyForm = {
   country: '', payment_terms: 'Net 30', credit_limit: 0, notes: '',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -199,10 +199,10 @@ export default function CustomersPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredCustomers, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredCustomers, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Customers', filteredCustomers, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Customers', filteredCustomers, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredCustomers, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredCustomers, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Customers', filteredCustomers, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Customers', filteredCustomers, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {searchQuery && (
@@ -260,7 +260,7 @@ export default function CustomersPage() {
                     <td className="py-3 pr-4 text-gray-700">{c.email_address || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{c.phone_number || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{c.payment_terms}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(c.credit_limit)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(c.credit_limit)}</td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
@@ -336,7 +336,7 @@ export default function CustomersPage() {
                     <option>Due on Receipt</option>
                   </select>
                 </div>
-                <Field label="Credit Limit (USD)" value={String(form.credit_limit)} onChange={set('credit_limit')} type="number" />
+                <Field label="Credit Limit (KES)" value={String(form.credit_limit)} onChange={set('credit_limit')} type="number" />
               </div>
               <Field label="Billing Address" value={form.billing_address} onChange={set('billing_address')} textarea />
               <Field label="Shipping Address" value={form.shipping_address} onChange={set('shipping_address')} textarea />

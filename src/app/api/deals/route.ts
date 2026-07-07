@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       return await insertReturning<{ id: string }>(
         `INSERT INTO deals (tenant_id, deal_name, customer_id, contact_name, contact_email, contact_phone, deal_value, currency, pipeline_stage, probability, expected_close_date, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
         [session.tenant_id, body.deal_name, body.customer_id || null, body.contact_name || '', body.contact_email || '', body.contact_phone || '',
-         Number(body.deal_value) || 0, body.currency || 'USD', body.pipeline_stage || 'lead', Number(body.probability) || 10, body.expected_close_date || '', body.notes || '']
+         Number(body.deal_value) || 0, body.currency || 'KES', body.pipeline_stage || 'lead', Number(body.probability) || 10, body.expected_close_date || '', body.notes || '']
       );
     });
     return NextResponse.json({ id: result.id }, { status: 201 });

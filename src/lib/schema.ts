@@ -99,7 +99,7 @@ export async function initSchema() {
       id UUID DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL,
       amount REAL NOT NULL,
-      currency TEXT DEFAULT 'USD',
+      currency TEXT DEFAULT 'KES',
       plan_name TEXT NOT NULL,
       payment_method TEXT DEFAULT 'mpesa',
       transaction_id TEXT DEFAULT '',
@@ -760,39 +760,39 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // MULTI-CURRENCY — currency fields on all tables
   // ═══════════════════════════════════════════════
-  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS base_currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS base_currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
   await exec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`);
+  await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
   await exec(`
     CREATE TABLE IF NOT EXISTS public.exchange_rates (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
       source_currency TEXT NOT NULL,
-      target_currency TEXT NOT NULL DEFAULT 'USD',
+      target_currency TEXT NOT NULL DEFAULT 'KES',
       rate REAL NOT NULL DEFAULT 1,
       rate_date DATE NOT NULL DEFAULT CURRENT_DATE,
       created_at TIMESTAMP DEFAULT NOW(),
@@ -859,7 +859,7 @@ export async function initSchema() {
       account_name TEXT NOT NULL DEFAULT '',
       account_number TEXT DEFAULT '',
       bank_name TEXT DEFAULT '',
-      currency TEXT DEFAULT 'USD',
+      currency TEXT DEFAULT 'KES',
       opening_balance REAL DEFAULT 0,
       is_active INTEGER DEFAULT 1,
       created_at TIMESTAMP DEFAULT NOW(),
@@ -993,7 +993,7 @@ export async function initSchema() {
       contact_email TEXT DEFAULT '',
       contact_phone TEXT DEFAULT '',
       deal_value REAL DEFAULT 0,
-      currency TEXT DEFAULT 'USD',
+      currency TEXT DEFAULT 'KES',
       pipeline_stage TEXT DEFAULT 'lead',
       probability INTEGER DEFAULT 10,
       expected_close_date TEXT DEFAULT '',
@@ -1016,7 +1016,7 @@ export async function initSchema() {
       start_date TEXT DEFAULT '',
       end_date TEXT DEFAULT '',
       budget REAL DEFAULT 0,
-      currency TEXT DEFAULT 'USD',
+      currency TEXT DEFAULT 'KES',
       customer_id UUID,
       status TEXT DEFAULT 'active',
       created_at TIMESTAMP DEFAULT NOW(),

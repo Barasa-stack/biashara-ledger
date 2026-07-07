@@ -38,8 +38,8 @@ const emptyForm = {
   status: 'active',
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const STATUSES = ['active', 'completed', 'on_hold', 'cancelled'];
 
@@ -212,10 +212,10 @@ export default function ProjectsPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredProjects, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredProjects, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Projects', filteredProjects, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Projects', filteredProjects, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredProjects, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredProjects, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Projects', filteredProjects, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Projects', filteredProjects, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(statusFilter || searchQuery) && (
@@ -266,9 +266,9 @@ export default function ProjectsPage() {
                     <td className="py-3 pr-4 text-gray-700">{p.customer_name || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{p.start_date ? new Date(p.start_date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{p.end_date ? new Date(p.end_date).toLocaleDateString('en-US') : '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(p.budget)}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-red-600">{fmtUSD(p.revenue)}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-red-600">{fmtUSD(p.expenses)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(p.budget)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-red-600">{fmtKES(p.revenue)}</td>
+                    <td className="py-3 pr-4 text-right font-medium text-red-600">{fmtKES(p.expenses)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-700'}`}>
                         {p.status ? p.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Active'}
@@ -333,7 +333,7 @@ export default function ProjectsPage() {
                 <Field label="End Date" value={form.end_date} onChange={set('end_date')} type="date" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Budget (USD)" value={String(form.budget)} onChange={v => set('budget')(Number(v) || 0)} type="number" />
+                <Field label="Budget (KES)" value={String(form.budget)} onChange={v => set('budget')(Number(v) || 0)} type="number" />
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
                   <select

@@ -1,8 +1,8 @@
-export function fmtUSD(n: number | string | null | undefined): string {
-  return `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+export function fmtKES(n: number | string | null | undefined): string {
+  return `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 }
 
-export function fmtUSDShort(n: number | string | null | undefined): string {
+export function fmtKESShort(n: number | string | null | undefined): string {
   const num = Number(n || 0);
-  return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  return `KSh ${num.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 }

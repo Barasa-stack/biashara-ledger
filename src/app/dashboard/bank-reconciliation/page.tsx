@@ -37,8 +37,8 @@ const emptyForm = {
   statement_balance: 0,
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function BankReconciliationPage() {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
@@ -135,9 +135,9 @@ export default function BankReconciliationPage() {
     return {
       account: acc?.account_name || '—',
       period: r.period,
-      statement_balance: fmtUSD(r.statement_balance),
-      system_balance: fmtUSD(r.system_balance),
-      difference: fmtUSD(r.difference),
+      statement_balance: fmtKES(r.statement_balance),
+      system_balance: fmtKES(r.system_balance),
+      difference: fmtKES(r.difference),
       matched_count: r.matched_count,
       unmatched_count: r.unmatched_count,
       status: r.status,
@@ -209,10 +209,10 @@ export default function BankReconciliationPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(exportData, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(exportData, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Bank Reconciliation', exportData, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Bank Reconciliation', exportData, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(exportData, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(exportData, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Bank Reconciliation', exportData, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Bank Reconciliation', exportData, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(statusFilter || searchQuery) && (
@@ -263,10 +263,10 @@ export default function BankReconciliationPage() {
                       <td className="py-3 pr-4 text-gray-400 w-8">{filteredReconciliations.length - i}</td>
                       <td className="py-3 pr-4 font-medium text-gray-800">{acc?.account_name || '—'}</td>
                       <td className="py-3 pr-4 text-gray-700">{r.period}</td>
-                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(r.statement_balance)}</td>
-                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtUSD(r.system_balance)}</td>
+                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(r.statement_balance)}</td>
+                      <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(r.system_balance)}</td>
                       <td className={`py-3 pr-4 text-right font-medium ${r.difference === 0 ? 'text-red-600' : 'text-red-600'}`}>
-                        {fmtUSD(r.difference)}
+                        {fmtKES(r.difference)}
                       </td>
                       <td className="py-3 pr-4 text-center text-gray-700">{r.matched_count}</td>
                       <td className="py-3 pr-4 text-center text-gray-700">{r.unmatched_count}</td>

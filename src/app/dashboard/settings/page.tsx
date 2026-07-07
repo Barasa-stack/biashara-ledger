@@ -40,7 +40,7 @@ const emptyForm: Company = {
   branch_code: '', bank_code: '', swift_code: '',
   terms_conditions: '', invoice_prefix: 'INV', quotation_prefix: 'QTN',
   smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', vat_rate: 16,
-  income_tax_rate: 0, tax_filing_frequency: 'monthly', base_currency: 'USD',
+  income_tax_rate: 0, tax_filing_frequency: 'monthly', base_currency: 'KES',
 };
 
 function Section({ icon: Icon, title, desc, children }: { icon: any; title: string; desc?: string; children: React.ReactNode }) {
@@ -232,8 +232,8 @@ export default function SettingsPage() {
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Base Currency</label>
                 <select value={form.base_currency} onChange={e => setForm(prev => ({ ...prev, base_currency: e.target.value }))}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white">
-                  <option value="USD">USD ($)</option>
                   <option value="KES">KES (KSh)</option>
+                  <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="GBP">GBP (£)</option>
                   <option value="NGN">NGN (₦)</option>

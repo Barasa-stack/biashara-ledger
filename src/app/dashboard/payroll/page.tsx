@@ -52,8 +52,8 @@ const emptyForm = {
   salary: 0,
 };
 
-const fmtUSD = (n: number | string | null | undefined) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmtKES = (n: number | string | null | undefined) =>
+  `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 const EMPLOYMENT_TYPES = ['full-time', 'part-time', 'contract'];
 
@@ -185,7 +185,7 @@ export default function PayrollPage() {
     { key: 'department', label: 'Department' },
     { key: 'job_title', label: 'Job Title' },
     { key: 'employment_type', label: 'Employment Type' },
-    { key: 'salary', label: 'Salary (USD)' },
+    { key: 'salary', label: 'Salary (KES)' },
     { key: 'status', label: 'Status' },
     { key: 'phone', label: 'Phone' },
     { key: 'email', label: 'Email' },
@@ -241,10 +241,10 @@ export default function PayrollPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredEmployees, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredEmployees, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Employees', filteredEmployees, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Employees', filteredEmployees, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredEmployees, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredEmployees, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Employees', filteredEmployees, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Employees', filteredEmployees, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(dateFrom || dateTo || departmentFilter || searchQuery) && (
@@ -368,7 +368,7 @@ export default function PayrollPage() {
                     {EMPLOYMENT_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace('-', ' ')}</option>)}
                   </select>
                 </div>
-                <Field label="Salary (USD)" value={String(form.salary)} onChange={v => set('salary')(Number(v) || 0)} type="number" />
+                <Field label="Salary (KES)" value={String(form.salary)} onChange={v => set('salary')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Bank Name" value={form.bank_name} onChange={set('bank_name')} />
