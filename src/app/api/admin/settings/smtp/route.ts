@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { adminGuard } from '@/lib/admin';
 import { adminGet, adminRun } from '@/lib/db';
 
@@ -43,16 +44,21 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Upsert using company_name as unique identifier
+    // Use a fixed admin tenant ID for global settings
+    const adminTenantId = '00000000-0000-0000-0000-000000000001';
+    await adminRun(
+      'INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [adminTenantId, 'BiasharaLedger']
+    );
     await adminRun(
       `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
-       VALUES (gen_random_uuid(), 'BiasharaLedger', $1, $2, $3, $4)
+       VALUES ($1, 'BiasharaLedger', $2, $3, $4, $5)
        ON CONFLICT (tenant_id) DO UPDATE SET
          smtp_host = EXCLUDED.smtp_host,
          smtp_port = EXCLUDED.smtp_port,
          smtp_user = EXCLUDED.smtp_user,
          smtp_pass = EXCLUDED.smtp_pass`,
-      [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
+      [adminTenantId, smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
     );
 
     return NextResponse.json({ success: true, message: 'SMTP settings updated' });
