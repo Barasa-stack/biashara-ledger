@@ -51,20 +51,13 @@ export async function PUT(req: NextRequest) {
       [adminTenantId, 'BiasharaLedger']
     );
 
-    // Manual UPSERT: try UPDATE first, then INSERT if no row matched
-    const result = await adminRun(
-      `UPDATE company_settings SET
-        smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4
-       WHERE tenant_id = $5`,
-      [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '', adminTenantId]
+    // Delete existing row, then insert fresh (avoids Nile constraint issues)
+    await adminRun('DELETE FROM company_settings WHERE tenant_id = $1', [adminTenantId]);
+    await adminRun(
+      `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
+       VALUES ($1, 'BiasharaLedger', $2, $3, $4, $5)`,
+      [adminTenantId, smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
     );
-    if (result.rowCount === 0) {
-      await adminRun(
-        `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
-         VALUES ($1, 'BiasharaLedger', $2, $3, $4, $5)`,
-        [adminTenantId, smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
-      );
-    }
 
     return NextResponse.json({ success: true, message: 'SMTP settings updated' });
   } catch (error) {
