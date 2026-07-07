@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, UserCircle, CheckCircle2, XCircle, Clock, Loader2,
-  Mail, Key, Calendar, ChevronDown, RefreshCw
+  Mail, Key, Calendar, ChevronDown, RefreshCw, DollarSign
 } from 'lucide-react';
 
 export default function UsersPage() {
@@ -29,11 +29,14 @@ export default function UsersPage() {
               company_name: [u.first_name, u.last_name].filter(Boolean).join(' ') || '—',
               email: u.email,
               license_key: u.license_key || '',
+              subscription_plan: u.subscription_plan || '',
+              subscription_expiry: u.subscription_expiry || '',
               is_active: u.verified === 1 || u.verified === true,
               license_active: u.subscription_status === 'active',
               is_trial: u.license_status === 'trial' || u.subscription_plan === 'trial',
               activity_count: 0,
-              last_active: null,
+              last_active: u.last_login || null,
+              last_ip: u.last_ip || '',
               created_at: u.created_at,
             })),
             ...(data.managed || []),
@@ -140,6 +143,23 @@ export default function UsersPage() {
           </select>
           <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
+        <button
+          onClick={() => {
+            const csv = [['Name','Email','License Key','Plan','Status','Expiry','Created'], ...filtered.map((u: any) => [
+              u.company_name, u.email, u.license_key, u.subscription_plan || '—',
+              u.is_active && u.license_active ? 'Active' : u.is_trial ? 'Trial' : 'Inactive',
+              u.subscription_expiry ? new Date(u.subscription_expiry).toLocaleDateString() : '—',
+              u.created_at ? new Date(u.created_at).toLocaleDateString() : '—',
+            ])].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'users-export.csv'; a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Export CSV
+        </button>
       </div>
 
       {/* Users table */}
@@ -151,9 +171,9 @@ export default function UsersPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Company</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">License</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Plan</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Expiry</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Activity</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Active</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -182,6 +202,21 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                      user.subscription_plan === 'Premium' ? 'bg-violet-50 text-violet-700' :
+                      user.subscription_plan === 'Standard' ? 'bg-blue-50 text-blue-700' :
+                      user.subscription_plan === 'trial' || user.is_trial ? 'bg-orange-50 text-orange-700' :
+                      'bg-gray-50 text-gray-700'
+                    }`}>
+                      {user.subscription_plan || (user.is_trial ? 'Trial' : '—')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs text-gray-600">
+                      {user.subscription_expiry ? new Date(user.subscription_expiry).toLocaleDateString() : '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
                     {user.is_active && user.license_active ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-brand bg-brand-light px-2 py-1 rounded-full">
                         <CheckCircle2 size={10} /> Active
@@ -208,7 +243,35 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {user.is_trial && (
+                        <button
+                          onClick={async () => {
+                            const days = prompt('Extend trial by how many days?', '7');
+                            if (!days || isNaN(parseInt(days))) return;
+                            try {
+                              const res = await fetch('/api/admin/real-users', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'extend_trial', userId: user.id, days: parseInt(days) }),
+                              });
+                              const data = await res.json();
+                              if (data.success) { alert('Trial extended!'); window.location.reload(); }
+                              else { alert('Error: ' + (data.error || 'Unknown')); }
+                            } catch { alert('Network error'); }
+                          }}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                          title="Extend Trial"
+                        ><Clock size={12} /> Extend</button>
+                      )}
+                      {user.is_trial && !user.license_active && (
+                        <a
+                          href={`https://biasharaledger.qzz.io/payment?email=${encodeURIComponent(user.email)}`}
+                          target="_blank"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                          title="Send Payment Link"
+                        ><DollarSign size={12} /> Pay</a>
+                      )}
                       {user.license_key?.startsWith('TRIAL') && (
                         <button
                           onClick={async () => {

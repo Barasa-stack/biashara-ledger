@@ -56,6 +56,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'User deleted' });
     }
 
+    if (action === 'extend_trial') {
+      const { days } = await req.json();
+      const targetUser = await adminQuery(`SELECT tenant_id FROM users WHERE id = $1`, [userId]) as any;
+      const tenantId = targetUser?.[0]?.tenant_id;
+      if (tenantId) {
+        await withTenantContext(tenantId, async () => {
+          await run(
+            `UPDATE users SET subscription_expiry = COALESCE(subscription_expiry, NOW()) + INTERVAL '1 day' * $1, license_status = 'trial' WHERE id = $2`,
+            [days || 7, userId]
+          );
+        });
+      } else {
+        await adminRun(
+          `UPDATE users SET subscription_expiry = COALESCE(subscription_expiry, NOW()) + INTERVAL '1 day' * $1, license_status = 'trial' WHERE id = $2`,
+          [days || 7, userId]
+        );
+      }
+      return NextResponse.json({ success: true, message: `Trial extended by ${days || 7} days` });
+    }
+
     if (action === 'update') {
       const { first_name, last_name, role, subscription_plan } = await req.json();
       await adminRun(

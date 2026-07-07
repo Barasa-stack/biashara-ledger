@@ -26,7 +26,8 @@ export async function GET() {
       `),
       adminQuery(`
         SELECT id, email, first_name, last_name, role, subscription_plan, subscription_status,
-               license_status, license_key, verified, created_at, country
+               license_status, license_key, subscription_expiry, verified, created_at, country,
+               last_login, last_ip
         FROM users ORDER BY created_at DESC
       `),
     ]);

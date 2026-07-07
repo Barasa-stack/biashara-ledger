@@ -1,45 +1,36 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { getSmtpConfig } from '@/lib/email';
 
 export async function GET() {
-  const config = await getSmtpConfig();
-  if (!config) {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASSWORD;
+  const port = process.env.SMTP_PORT || '587';
+
+  if (!host || !user || !pass) {
     return NextResponse.json({
-      found: false,
-      env_smtp_host: process.env.SMTP_HOST ? `set (${process.env.SMTP_HOST.length} chars)` : '(not set)',
-      env_smtp_user: process.env.SMTP_USER ? `set (${process.env.SMTP_USER.length} chars)` : '(not set)',
-      env_smtp_pass: process.env.SMTP_PASSWORD ? `set (${process.env.SMTP_PASSWORD.length} chars)` : '(not set)',
-      env_smtp_port: process.env.SMTP_PORT || '(not set)',
+      error: 'Missing SMTP env vars',
+      host: host ? 'ok' : 'missing',
+      user: user ? 'ok' : 'missing',
+      pass: pass ? `ok (${pass.length} chars)` : 'missing',
     });
   }
 
   const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: { user: config.user, pass: config.pass },
+    host,
+    port: parseInt(port),
+    secure: port === '465',
+    auth: { user, pass },
   });
 
   try {
     await transporter.verify();
-    return NextResponse.json({
-      found: true,
-      host: config.host,
-      port: config.port,
-      user: config.user,
-      pass_len: config.pass.length,
-      verified: true,
-    });
+    return NextResponse.json({ success: true, message: 'SMTP connection verified!' });
   } catch (err: any) {
     return NextResponse.json({
-      found: true,
-      host: config.host,
-      port: config.port,
-      user: config.user,
-      pass_len: config.pass.length,
-      verified: false,
+      success: false,
       error: err.message.split('\n')[0],
+      code: err.code,
     });
   }
 }

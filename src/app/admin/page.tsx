@@ -101,6 +101,23 @@ function ActivityItem({ activity }: { activity: Activity }) {
   );
 }
 
+function ExpiringUsersWidget() {
+  const [data, setData] = useState<any>(null);
+  useEffect(() => {
+    fetch('/api/admin/expiring-users').then(r => r.json()).then(d => setData(d)).catch(() => {});
+  }, []);
+  if (!data) return <div className="text-xs text-gray-400 py-4 text-center">Loading...</div>;
+  const { expired = [], in1d = [], in3d = [], in7d = [] } = data.expiring || {};
+  return (
+    <div className="grid grid-cols-4 gap-4 mb-4">
+      <div className="text-center p-3 bg-red-50 rounded-lg"><p className="text-xl font-bold text-red-600">{expired.length}</p><p className="text-xs text-red-700">Expired</p></div>
+      <div className="text-center p-3 bg-orange-50 rounded-lg"><p className="text-xl font-bold text-orange-600">{in1d.length}</p><p className="text-xs text-orange-700">Next 24h</p></div>
+      <div className="text-center p-3 bg-yellow-50 rounded-lg"><p className="text-xl font-bold text-yellow-600">{in3d.length}</p><p className="text-xs text-yellow-700">Next 3 days</p></div>
+      <div className="text-center p-3 bg-blue-50 rounded-lg"><p className="text-xl font-bold text-blue-600">{in7d.length}</p><p className="text-xs text-blue-700">Next 7 days</p></div>
+    </div>
+  );
+}
+
 function QuickActionBtn({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
     <button
@@ -382,6 +399,15 @@ function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Expiring Users */}
+      <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">⚠️ Expiring Trials</h3>
+          <a href="/admin/users" className="text-xs text-brand hover:text-brand font-medium">Manage Users →</a>
+        </div>
+        <ExpiringUsersWidget />
       </div>
 
       {/* Offline + Activity + Quick Actions row */}

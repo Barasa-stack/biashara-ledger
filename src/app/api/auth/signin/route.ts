@@ -120,6 +120,12 @@ export async function POST(req: NextRequest) {
       );
     });
 
+    // Track last login
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    await withTenantContext(tenantId, async () => {
+      await run(`UPDATE users SET last_login = NOW(), last_ip = $1 WHERE id = $2`, [ip, user.id]);
+    });
+
     const sessionToken = crypto.randomUUID();
     const sessionId = Math.floor(Math.random() * 2147483647) + 1;
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
