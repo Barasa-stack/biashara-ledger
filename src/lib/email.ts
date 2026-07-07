@@ -15,9 +15,9 @@ function makeSmtpConfig(host: string, port: string, user: string, pass: string, 
 }
 
 export async function getSmtpConfig(tenantId?: string) {
-  try {
-    // 1. Tenant-specific settings
-    if (tenantId) {
+  // 1. Tenant-specific settings
+  if (tenantId) {
+    try {
       const company = await adminGet<{
         smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
       }>(
@@ -27,9 +27,11 @@ export async function getSmtpConfig(tenantId?: string) {
       if (company?.smtp_host && company?.smtp_user && company?.smtp_pass) {
         return makeSmtpConfig(company.smtp_host, company.smtp_port, company.smtp_user, company.smtp_pass);
       }
-    }
+    } catch {}
+  }
 
-    // 2. System-wide admin SMTP from admin_settings (key-value table)
+  // 2. System-wide admin SMTP from admin_settings
+  try {
     const smtpRows = await adminQuery<{ key: string; value: string }>(
       "SELECT key, value FROM admin_settings WHERE key IN ('smtp_host','smtp_port','smtp_user','smtp_pass')"
     );
@@ -40,8 +42,10 @@ export async function getSmtpConfig(tenantId?: string) {
     if (smtp.smtp_host && smtp.smtp_user && smtp.smtp_pass) {
       return makeSmtpConfig(smtp.smtp_host, smtp.smtp_port || '587', smtp.smtp_user, smtp.smtp_pass);
     }
+  } catch {}
 
-    // 3. Fallback to any company_settings row with SMTP configured
+  // 3. Fallback to any company_settings row with SMTP configured
+  try {
     const fallback = await adminGet<{
       smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
     }>(
@@ -50,8 +54,7 @@ export async function getSmtpConfig(tenantId?: string) {
     if (fallback?.smtp_host && fallback?.smtp_user && fallback?.smtp_pass) {
       return makeSmtpConfig(fallback.smtp_host, fallback.smtp_port, fallback.smtp_user, fallback.smtp_pass);
     }
-  } catch {
-  }
+  } catch {}
 
   const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
   if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
