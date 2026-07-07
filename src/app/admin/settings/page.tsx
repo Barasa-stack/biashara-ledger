@@ -438,15 +438,12 @@ export default function SettingsPage() {
                   onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_host: e.target.value }))}
                   placeholder="smtp.gmail.com"
                   className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
-              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Port</label>
                 <input type="text" value={smtpSettings.smtp_port}
                   onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_port: e.target.value }))}
                   placeholder="587"
                   className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
-              </div>
-
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Username / Email</label>
