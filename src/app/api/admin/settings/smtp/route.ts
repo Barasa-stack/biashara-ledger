@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminGuard } from '@/lib/admin';
-import { adminGet, adminRun } from '@/lib/db';
+import { adminQuery, adminGet, adminRun } from '@/lib/db';
 
 export async function GET() {
   const { error } = await adminGuard();
