@@ -33,11 +33,15 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   try {
-    // Ensure SMTP columns exist on company_settings
-    await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_host TEXT DEFAULT ''`);
-    await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_port TEXT DEFAULT '587'`);
-    await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_user TEXT DEFAULT ''`);
-    await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_pass TEXT DEFAULT ''`);
+    // Ensure SMTP columns exist (safe to run even if DDL not allowed)
+    try {
+      await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_host TEXT DEFAULT ''`);
+      await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_port TEXT DEFAULT '587'`);
+      await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_user TEXT DEFAULT ''`);
+      await adminRun(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_pass TEXT DEFAULT ''`);
+    } catch (ddlErr) {
+      console.error('DDL migration failed (non-fatal):', ddlErr);
+    }
 
     const { smtp_host, smtp_port, smtp_user, smtp_pass } = await req.json();
 
@@ -54,12 +58,14 @@ export async function PUT(req: NextRequest) {
     ) as any;
 
     if (!existing?.tenant_id) {
+      console.log('Creating new BiasharaLedger SMTP row');
       await adminRun(
         `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
          VALUES (gen_random_uuid(), 'BiasharaLedger', $1, $2, $3, $4)`,
         [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
       );
     } else {
+      console.log('Updating existing BiasharaLedger SMTP row', existing.tenant_id);
       await adminRun(
         `UPDATE company_settings SET
           smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4
