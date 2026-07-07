@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     // Create user with trial license
     // Provide both plaintext password (for Nile) and bcrypt hash (for our auth)
-    const userId = crypto.randomUUID();
+    const userId = Math.floor(Math.random() * 2147483647) + 1;
     await adminRun(
       `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, last_name, phone, country, role, verified,
         subscription_plan, subscription_status, subscription_expiry, license_key, license_status)
