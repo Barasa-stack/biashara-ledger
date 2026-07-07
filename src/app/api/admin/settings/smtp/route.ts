@@ -51,12 +51,12 @@ export async function PUT(req: NextRequest) {
       [adminTenantId, 'BiasharaLedger']
     );
 
-    // Delete existing row, then insert fresh (avoids Nile constraint issues)
-    await adminRun('DELETE FROM company_settings WHERE tenant_id = $1', [adminTenantId]);
+    // UPDATE the existing admin row (already created on first save)
     await adminRun(
-      `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
-       VALUES ($1, 'BiasharaLedger', $2, $3, $4, $5)`,
-      [adminTenantId, smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
+      `UPDATE company_settings SET
+        smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4
+       WHERE company_name = 'BiasharaLedger'`,
+      [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
     );
 
     return NextResponse.json({ success: true, message: 'SMTP settings updated' });
