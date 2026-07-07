@@ -15,21 +15,7 @@ function makeSmtpConfig(host: string, port: string, user: string, pass: string, 
 }
 
 export async function getSmtpConfig(tenantId?: string) {
-  // 1. Environment variables (always available, no DB needed)
-  const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
-    return {
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
-      user: process.env.SMTP_USER,
-      pass: smtpPass,
-      fromName: process.env.EMAIL_FROM_NAME || 'BiasharaLedger',
-      fromAddr: process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER,
-    };
-  }
-
-  // 2. Tenant-specific settings
+  // 1. Tenant-specific settings
   if (tenantId) {
     try {
       const company = await adminGet<{
@@ -44,21 +30,19 @@ export async function getSmtpConfig(tenantId?: string) {
     } catch {}
   }
 
-  // 3. System-wide admin SMTP from admin_settings
+  // 2. Admin SMTP — stored in company_settings with company_name = 'BiasharaLedger'
   try {
-    const smtpRows = await adminQuery<{ key: string; value: string }>(
-      "SELECT key, value FROM admin_settings WHERE key IN ('smtp_host','smtp_port','smtp_user','smtp_pass')"
+    const admin = await adminGet<{
+      smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
+    }>(
+      "SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM company_settings WHERE company_name = 'BiasharaLedger' LIMIT 1"
     );
-    const smtp: Record<string, string> = {};
-    for (const row of smtpRows) {
-      smtp[row.key] = row.value;
-    }
-    if (smtp.smtp_host && smtp.smtp_user && smtp.smtp_pass) {
-      return makeSmtpConfig(smtp.smtp_host, smtp.smtp_port || '587', smtp.smtp_user, smtp.smtp_pass);
+    if (admin?.smtp_host && admin?.smtp_user && admin?.smtp_pass) {
+      return makeSmtpConfig(admin.smtp_host, admin.smtp_port, admin.smtp_user, admin.smtp_pass);
     }
   } catch {}
 
-  // 4. Fallback to any company_settings row with SMTP configured
+  // 3. Fallback to any company_settings row with SMTP configured
   try {
     const fallback = await adminGet<{
       smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
@@ -69,6 +53,20 @@ export async function getSmtpConfig(tenantId?: string) {
       return makeSmtpConfig(fallback.smtp_host, fallback.smtp_port, fallback.smtp_user, fallback.smtp_pass);
     }
   } catch {}
+
+  // 4. Environment variables fallback
+  const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
+    return {
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_PORT === '465',
+      user: process.env.SMTP_USER,
+      pass: smtpPass,
+      fromName: process.env.EMAIL_FROM_NAME || 'BiasharaLedger',
+      fromAddr: process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER,
+    };
+  }
 
   return null;
 }

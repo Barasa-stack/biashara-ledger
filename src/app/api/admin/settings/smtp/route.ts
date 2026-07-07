@@ -1,56 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminGuard } from '@/lib/admin';
-import { adminQuery, adminGet, adminRun } from '@/lib/db';
+import { adminGet, adminRun } from '@/lib/db';
 
 export async function GET() {
   const { error } = await adminGuard();
   if (error) return error;
 
   try {
-    // Ensure admin_settings table exists
-    await adminRun(
-      `CREATE TABLE IF NOT EXISTS public.admin_settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL DEFAULT '',
-        updated_at TIMESTAMP DEFAULT NOW()
-      )`
+    const settings = await adminGet<{
+      smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
+    }>(
+      "SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM company_settings WHERE company_name = 'BiasharaLedger' LIMIT 1"
     );
-
-    // Read from admin_settings first
-    const rows = await adminQuery('SELECT key, value FROM admin_settings WHERE key LIKE \'smtp_%\'');
-    const adminSmtp: Record<string, string> = {};
-    for (const row of rows) {
-      adminSmtp[row.key] = row.value;
-    }
-
-    if (adminSmtp.smtp_host && adminSmtp.smtp_user) {
-      return NextResponse.json({
-        settings: {
-          smtp_host: adminSmtp.smtp_host,
-          smtp_port: adminSmtp.smtp_port || '587',
-          smtp_user: adminSmtp.smtp_user,
-          smtp_pass: adminSmtp.smtp_pass || '',
-          company_name: 'BiasharaLedger',
-        },
-      });
-    }
-
-    // Fallback to company_settings
-    const company = await adminGet<{
-      smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string; company_name: string;
-    }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass, company_name FROM company_settings LIMIT 1');
-
-    const host = company?.smtp_host || adminSmtp.smtp_host || 'smtp.gmail.com';
-    const port = company?.smtp_port || adminSmtp.smtp_port || '587';
-    const user = company?.smtp_user || adminSmtp.smtp_user || '';
-    const pass = company?.smtp_pass || adminSmtp.smtp_pass || '';
 
     return NextResponse.json({
       settings: {
-        smtp_host: host,
-        smtp_port: port,
-        smtp_user: user,
-        smtp_pass: pass,
+        smtp_host: settings?.smtp_host || '',
+        smtp_port: settings?.smtp_port || '587',
+        smtp_user: settings?.smtp_user || '',
+        smtp_pass: settings?.smtp_pass || '',
         company_name: 'BiasharaLedger',
       },
     });
@@ -65,15 +33,6 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   try {
-    // Ensure admin_settings table exists
-    await adminRun(
-      `CREATE TABLE IF NOT EXISTS public.admin_settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL DEFAULT '',
-        updated_at TIMESTAMP DEFAULT NOW()
-      )`
-    );
-
     const { smtp_host, smtp_port, smtp_user, smtp_pass } = await req.json();
 
     if (smtp_port) {
@@ -83,44 +42,23 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Store in admin_settings (system-wide, not tied to any tenant)
-    const pairs: Record<string, string> = {
-      smtp_host: smtp_host || 'smtp.gmail.com',
-      smtp_port: smtp_port || '587',
-      smtp_user: smtp_user || '',
-      smtp_pass: smtp_pass || '',
-    };
-    for (const [key, value] of Object.entries(pairs)) {
-      await adminRun(
-        `INSERT INTO admin_settings (key, value) VALUES ($1, $2)
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-        [key, value]
-      );
-    }
+    // Upsert into company_settings with company_name = 'BiasharaLedger'
+    const existing = await adminGet(
+      "SELECT tenant_id FROM company_settings WHERE company_name = 'BiasharaLedger' LIMIT 1"
+    ) as any;
 
-    // Also save to company_settings for backward compatibility
-    const existing = await adminGet('SELECT tenant_id FROM company_settings LIMIT 1') as any;
     if (!existing?.tenant_id) {
       await adminRun(
         `INSERT INTO company_settings (tenant_id, company_name, smtp_host, smtp_port, smtp_user, smtp_pass)
          VALUES (gen_random_uuid(), 'BiasharaLedger', $1, $2, $3, $4)`,
-        [smtp_host || 'smtp.gmail.com', smtp_port || '587', smtp_user || '', smtp_pass || '']
+        [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '']
       );
     } else {
       await adminRun(
         `UPDATE company_settings SET
-          smtp_host = COALESCE(NULLIF($1, ''), smtp_host),
-          smtp_port = COALESCE(NULLIF($2, ''), smtp_port),
-          smtp_user = COALESCE(NULLIF($3, ''), smtp_user),
-          smtp_pass = COALESCE(NULLIF($4, ''), smtp_pass)
-        WHERE tenant_id = $5`,
-        [
-          smtp_host || '',
-          smtp_port || '587',
-          smtp_user || '',
-          smtp_pass || '',
-          existing.tenant_id,
-        ]
+          smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4
+         WHERE tenant_id = $5`,
+        [smtp_host || '', smtp_port || '587', smtp_user || '', smtp_pass || '', existing.tenant_id]
       );
     }
 
