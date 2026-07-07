@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
       [email, purpose]
     );
 
+    const vcId = Math.floor(Math.random() * 2147483647) + 1;
     await run(
-      'INSERT INTO verification_codes (email, code, purpose, expires_at) VALUES ($1, $2, $3, $4)',
-      [email, code, purpose, expiresAt]
+      'INSERT INTO verification_codes (id, email, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)',
+      [vcId, email, code, purpose, expiresAt]
     );
 
     const result = await sendOTPEmail(email, code);
