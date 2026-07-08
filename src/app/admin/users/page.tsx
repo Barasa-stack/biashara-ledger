@@ -31,12 +31,13 @@ export default function UsersPage() {
               license_key: u.license_key || '',
               subscription_plan: u.subscription_plan || '',
               subscription_expiry: u.subscription_expiry || '',
-              is_active: u.verified === 1 || u.verified === true,
-              license_active: u.subscription_status === 'active',
+              is_active: (u.verified === 1 || u.verified === true) && u.license_status === 'active',
+              license_active: u.license_status === 'active',
               is_trial: u.license_status === 'trial' || u.subscription_plan === 'trial',
               activity_count: 0,
               last_active: u.last_login || null,
               last_ip: u.last_ip || '',
+              user_agent: u.user_agent || '',
               created_at: u.created_at,
             })),
             ...(data.managed || []),
@@ -231,9 +232,16 @@ export default function UsersPage() {
                     <span className="text-xs text-gray-600">{user.activity_count || 0} actions</span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                      <Clock size={10} />
-                      {user.last_active ? new Date(user.last_active).toLocaleDateString() : 'Never'}
+                    <div className="flex flex-col gap-0.5 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Clock size={10} />
+                        {user.last_active ? new Date(user.last_active).toLocaleDateString() : 'Never'}
+                      </div>
+                      {user.last_ip && (
+                        <div className="flex items-center gap-1" title={user.user_agent || 'Device info not captured'}>
+                          IP: {user.last_ip}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">

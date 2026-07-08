@@ -86,6 +86,7 @@ export async function ensureDbInitialized() {
       `ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS client_db TEXT DEFAULT ''`,
       `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ`,
       `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_ip TEXT DEFAULT ''`,
+      `ALTER TABLE public.users ADD COLUMN IF NOT EXISTS user_agent TEXT DEFAULT ''`,
       `ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_host TEXT DEFAULT ''`,
       `ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_port TEXT DEFAULT '587'`,
       `ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS smtp_user TEXT DEFAULT ''`,

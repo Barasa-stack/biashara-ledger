@@ -38,6 +38,8 @@ export async function initSchema() {
       trial_used INTEGER DEFAULT 0,
       license_status TEXT DEFAULT 'trial',
       license_key TEXT DEFAULT '',
+      last_ip TEXT DEFAULT '',
+      user_agent TEXT DEFAULT '',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       PRIMARY KEY (tenant_id, id),
       UNIQUE (tenant_id, email)

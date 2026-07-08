@@ -10,6 +10,8 @@ export async function POST(req: Request) {
 
     const normalizedEmail = email.toLowerCase().trim();
     const key = licenseKey.trim();
+    const activationIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
+    const userAgent = req.headers.get('user-agent') || '';
 
     // Look up the license in admin_license_keys
     let license = await adminGet<any>(
@@ -99,14 +101,14 @@ export async function POST(req: Request) {
     if (user?.tenant_id) {
       await withTenantContext(user.tenant_id, async () => {
         await run(
-          `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active' WHERE LOWER(email) = LOWER($4)`,
-          [key, plan, expiresAt, normalizedEmail]
+          `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', last_login = NOW(), last_ip = $4, user_agent = $5 WHERE LOWER(email) = LOWER($6)`,
+          [key, plan, expiresAt, activationIp, userAgent, normalizedEmail]
         );
       });
     } else {
       await adminRun(
-        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active' WHERE LOWER(email) = LOWER($4)`,
-        [key, plan, expiresAt, normalizedEmail]
+        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', last_login = NOW(), last_ip = $4, user_agent = $5 WHERE LOWER(email) = LOWER($6)`,
+        [key, plan, expiresAt, activationIp, userAgent, normalizedEmail]
       );
     }
 
