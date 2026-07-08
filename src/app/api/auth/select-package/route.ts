@@ -4,9 +4,8 @@ import { requireSubscription } from '@/lib/auth-guard';
 import { normalizePlan } from '@/lib/feature-gate';
 
 const PLAN_CONFIG: Record<string, { days: number; amount: number }> = {
-  Basic: { days: 30, amount: 5 },
-  Standard: { days: 30, amount: 10 },
-  Premium: { days: 30, amount: 15 },
+  monthly: { days: 30, amount: 500 },
+  yearly: { days: 365, amount: 5000 },
 };
 
 export async function POST(request: Request) {

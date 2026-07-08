@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     await adminRun(
       `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, last_name, phone, country, role, verified,
         subscription_plan, subscription_status, subscription_expiry, license_key, license_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'user', true, 'trial', 'trial', $10, $11, 'trial')`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'user', true, 'Premium', 'trial', $10, $11, 'trial')`,
       [userId, tenantUuid, normalizedEmail, password, hashedPassword, firstName || '', lastName || '', phone || '', country || 'KE', trialExpiry, trialKey]
     );
 
