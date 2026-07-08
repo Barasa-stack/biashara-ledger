@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { adminQuery } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
+import { ensureDbInitialized } from '@/lib/init';
 
 export async function GET() {
   const { error } = await adminGuard();
   if (error) return error;
 
   try {
+    await ensureDbInitialized();
     const [managedUsers, realUsers] = await Promise.all([
       adminQuery(`
         SELECT
@@ -27,7 +29,7 @@ export async function GET() {
       adminQuery(`
         SELECT id, email, first_name, last_name, role, subscription_plan, subscription_status,
                license_status, license_key, subscription_expiry, verified, created_at, country,
-               last_login, last_ip, user_agent
+               last_login, last_ip
         FROM users ORDER BY created_at DESC
       `),
     ]);
