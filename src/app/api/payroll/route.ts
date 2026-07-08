@@ -5,11 +5,11 @@ import { encryptField } from '@/lib/encryption';
 
 export async function GET() {
   try {
-    const { session, role } = await requireRole('admin', 'hr_manager');
+    const { session, role } = await requireRole('admin', 'hr_manager', 'user');
     const employees = await withTenantContext(session.tenant_id!, async () => {
       return await query('SELECT * FROM employees ORDER BY created_at DESC');
     });
-    if (role === 'hr_manager') {
+    if (role !== 'admin') {
       const masked = (employees as any[]).map(e => ({
         ...e,
         national_id: e.national_id_encrypted ? '[ENCRYPTED]' : e.national_id,
@@ -24,16 +24,15 @@ export async function GET() {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
-    // error already logged above
-    const __eMsg = e instanceof Error ? e.message : String(e);
-    console.error('[api]', __eMsg);
-    return NextResponse.json({ error: __eMsg }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[api]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const { session } = await requireRole('admin', 'hr_manager');
+    const { session } = await requireRole('admin', 'hr_manager', 'user');
     const body = await request.json();
     const { type } = body;
 
@@ -64,16 +63,15 @@ export async function POST(request: Request) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
-    // error already logged above
-    const __eMsg = e instanceof Error ? e.message : String(e);
-    console.error('[api]', __eMsg);
-    return NextResponse.json({ error: __eMsg }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[api]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function PUT(request: Request) {
   try {
-    const { session } = await requireRole('admin', 'hr_manager');
+    const { session } = await requireRole('admin', 'hr_manager', 'user');
     const body = await request.json();
     return await withTenantContext(session.tenant_id!, async () => {
       if (body.type === 'employee') {
@@ -99,16 +97,15 @@ export async function PUT(request: Request) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
-    // error already logged above
-    const __eMsg = e instanceof Error ? e.message : String(e);
-    console.error('[api]', __eMsg);
-    return NextResponse.json({ error: __eMsg }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[api]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    const { session } = await requireRole('admin', 'hr_manager');
+    const { session } = await requireRole('admin', 'hr_manager', 'user');
     const { id, type } = await request.json();
     return await withTenantContext(session.tenant_id!, async () => {
       if (type === 'employee') {
@@ -120,9 +117,8 @@ export async function DELETE(request: Request) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
-    // error already logged above
-    const __eMsg = e instanceof Error ? e.message : String(e);
-    console.error('[api]', __eMsg);
-    return NextResponse.json({ error: __eMsg }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[api]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
