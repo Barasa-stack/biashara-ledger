@@ -19,18 +19,37 @@ export async function POST(req: Request) {
 
     // Fallback: check users table (trial and self-generated keys)
     if (!license) {
-      const userLicense = await adminGet<any>(
-        `SELECT id, license_key, subscription_plan as plan, subscription_expiry as expires_at FROM users WHERE LOWER(license_key) = LOWER($1) AND license_status = 'trial' LIMIT 1`,
-        [key]
+      // Try 1: find by email (proven to work via adminGet in signin), then JS-verify key + status
+      const userRecord = await adminGet<any>(
+        `SELECT id, license_key, subscription_plan, subscription_expiry, license_status FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+        [normalizedEmail]
       );
-      if (userLicense) {
+      if (userRecord && userRecord.license_key &&
+          userRecord.license_key.toLowerCase() === key.toLowerCase() &&
+          userRecord.license_status === 'trial') {
         license = {
-          id: userLicense.id,
-          license_key: userLicense.license_key,
-          plan: userLicense.plan || 'trial',
+          id: userRecord.id,
+          license_key: userRecord.license_key,
+          plan: userRecord.subscription_plan || 'trial',
           is_active: true,
-          expires_at: userLicense.expires_at,
+          expires_at: userRecord.subscription_expiry,
         };
+      }
+      // Try 2: fallback to key-only lookup (broader search for cross-user scenarios)
+      if (!license) {
+        const userLicense = await adminGet<any>(
+          `SELECT id, license_key, subscription_plan as plan, subscription_expiry as expires_at FROM users WHERE LOWER(license_key) = LOWER($1) AND license_status = 'trial' LIMIT 1`,
+          [key]
+        );
+        if (userLicense) {
+          license = {
+            id: userLicense.id,
+            license_key: userLicense.license_key,
+            plan: userLicense.plan || 'trial',
+            is_active: true,
+            expires_at: userLicense.expires_at,
+          };
+        }
       }
     }
 

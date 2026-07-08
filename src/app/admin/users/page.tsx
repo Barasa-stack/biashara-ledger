@@ -272,7 +272,7 @@ export default function UsersPage() {
                           title="Send Payment Link"
                         ><DollarSign size={12} /> Pay</a>
                       )}
-                      {user.license_key?.startsWith('TRIAL') && (
+                      {user.is_trial && (
                         <button
                           onClick={async () => {
                             if (!confirm('Generate a new trial key for ' + user.email + '?')) return;
