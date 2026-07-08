@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     // Use let instead of const so we can reassign
     let user = await adminGet(
       `SELECT id, tenant_id, email, password_hash, first_name, last_name, verified,
-              subscription_plan, subscription_status, license_status, country
+               subscription_plan, subscription_status, license_status, license_key, country
        FROM users
        WHERE LOWER(email) = LOWER($1)
        ORDER BY
@@ -51,14 +51,14 @@ export async function POST(req: NextRequest) {
       const pwHash = hashedPw;
       await withTenantContext(tenantUuid, async () => {
         await run(
-          `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, country, role)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-          [userId, tenantUuid, email.toLowerCase().trim(), pwHash, pwHash, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya', true, 'Premium', 'active', 'active', 'KE', 'admin']
+          `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [userId, tenantUuid, email.toLowerCase().trim(), pwHash, pwHash, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya', true, 'Premium', 'active', 'active', 'Premium-' + email, 'KE', 'admin']
         );
       });
       user = await adminGet(
         `SELECT id, tenant_id, email, password_hash, first_name, last_name, verified,
-                subscription_plan, subscription_status, license_status, country
+                subscription_plan, subscription_status, license_status, license_key, country
          FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
         [email.toLowerCase().trim()]
       ) as any;
