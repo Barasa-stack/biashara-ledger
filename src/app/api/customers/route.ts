@@ -68,6 +68,7 @@ export async function PUT(request: Request) {
     if (!session) throw new Error('Unauthorized');
     const body = await request.json();
     const errors = validateBody(body, {
+      id: { type: 'string', required: true },
       customer_name: { type: 'string', required: true },
       email_address: { type: 'string', required: true },
     });
@@ -77,7 +78,7 @@ export async function PUT(request: Request) {
     await withTenantContext(session.tenant_id!, async () => {
       await run(
         'UPDATE customers SET customer_name=$1, company_name=$2, contact_person=$3, email_address=$4, phone_number=$5, billing_address=$6, shipping_address=$7, tax_id=$8, country=$9, payment_terms=$10, credit_limit=$11, notes=$12 WHERE id=$13',
-        [body.customer_name || ' ', body.company_name || ' ', body.contact_person || '', body.email_address || '',
+        [body.customer_name, body.company_name || '', body.contact_person || '', body.email_address || '',
           body.phone_number || '', body.billing_address || '', body.shipping_address || '', body.tax_id || '',
           body.country || '', body.payment_terms || 'Net 30', body.credit_limit ?? 0, body.notes || '', body.id]
       );

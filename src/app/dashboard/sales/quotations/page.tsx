@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
-import { Plus, Pencil, Trash2, X, FileText, Download, Search, Filter, Printer, XCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, FileText, Download, Search, Filter, Printer, XCircle, Mail } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -26,6 +26,7 @@ type Quotation = {
   issue_date: string;
   due_date: string;
   customer_country?: string;
+  vat_rate?: number;
 };
 
 type Customer = {
@@ -39,7 +40,7 @@ const emptyForm = {
   quotation_number: '', customer_id: '', customer_name: '', description: '',
   quantity: 1, unit_price: 0, subtotal: 0, tax_vat: 0, discounts: 0,
   amount: 0, payment_terms: 'Net 30', status: 'draft', issue_date: '', due_date: '',
-  customer_country: '',
+  customer_country: '', vat_rate: 16,
 };
 
 const fmtKES = (n: number | string | null | undefined) =>
@@ -62,6 +63,8 @@ export default function QuotationsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sendConfirm, setSendConfirm] = useState<{ to: string; subject: string; item: any } | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
   const { confirm, dialog } = useConfirm();
@@ -132,18 +135,19 @@ export default function QuotationsPage() {
   }, [form.customer_country, vatRate]);
 
   const activeVatLabel = useMemo(() => {
+    const rate = form.vat_rate ?? (form.customer_country ? getVatRate(form.customer_country).rate : vatRate);
+    if (rate === 0) return 'VAT (0%)';
     if (form.customer_country) {
-      const r = getVatRate(form.customer_country);
-      return `VAT (${r.rate}%${r.rate > 0 ? '' : ' — No VAT'}${r.code !== 'XX' ? `, ${r.code}` : ''})`;
+      return `VAT (${rate}%)`;
     }
-    return `VAT (${vatRate}%)`;
-  }, [form.customer_country, vatRate]);
+    return `VAT (${rate}%)`;
+  }, [form.vat_rate, form.customer_country, vatRate]);
 
   const recalc = (f: typeof form) => {
     const qty = Number(f.quantity) || 0;
     const price = Number(f.unit_price) || 0;
     const subtotal = qty * price;
-    const rate = f.customer_country ? getVatRate(f.customer_country).rate : vatRate;
+    const rate = f.vat_rate !== undefined ? Number(f.vat_rate) : (f.customer_country ? getVatRate(f.customer_country).rate : vatRate);
     const vat = subtotal * rate / 100;
     const disc = Number(f.discounts) || 0;
     const amount = subtotal + vat - disc;
@@ -184,6 +188,7 @@ export default function QuotationsPage() {
       issue_date: q.issue_date?.split('T')[0] || '',
       due_date: q.due_date?.split('T')[0] || '',
       customer_country: q.customer_country || '',
+      vat_rate: q.vat_rate ?? (q.customer_country ? getVatRate(q.customer_country).rate : vatRate),
     }));
     setModalOpen(true);
   };
@@ -198,7 +203,7 @@ export default function QuotationsPage() {
     try {
       const url = '/api/sales/quotations';
       const method = editing ? 'PUT' : 'POST';
-      const payload = { ...recalc(form), vat_rate: activeVatRate };
+      const payload = { ...recalc(form) };
       const body = editing ? { ...payload, id: editing.id } : payload;
       const res = await fetch(url, {
         method,
@@ -208,43 +213,7 @@ export default function QuotationsPage() {
       if (!res.ok) throw new Error('Save failed');
       setModalOpen(false);
       fetchQuotations();
-
-      if (!editing) {
-        const customer = customers.find(c => c.id === form.customer_id);
-        const customerEmail = customer?.email_address;
-        if (customerEmail && await confirm(`Send quotation "${form.quotation_number}" to ${customerEmail}?`)) {
-          try {
-            const emailRes = await fetch('/api/send-email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: customerEmail,
-                subject: `Quotation ${form.quotation_number} from Vibe`,
-                message: 'Please find your quotation attached.',
-                item: form,
-                type: 'Quotation',
-              }),
-            });
-            if (emailRes.ok) {
-              const emailData = await emailRes.json().catch(() => ({}));
-              if (emailData.pdfError) {
-                setToast({ type: 'warning', message: `Quotation created and emailed (PDF not attached: ${emailData.pdfError})` });
-              } else {
-                setToast({ type: 'success', message: 'Quotation created and emailed' });
-              }
-            } else {
-              const errData = await emailRes.json().catch(() => ({}));
-              setToast({ type: 'error', message: `Quotation created but email failed: ${errData.error || 'Unknown error'}` });
-            }
-          } catch (e: any) {
-            setToast({ type: 'error', message: `Quotation created but email failed: ${e.message || 'Unknown error'}` });
-          }
-        } else {
-          setToast({ type: 'success', message: 'Quotation created' });
-        }
-      } else {
-        setToast({ type: 'success', message: 'Quotation updated' });
-      }
+      setToast({ type: 'success', message: editing ? 'Quotation updated' : 'Quotation created' });
     } catch (e: any) {
       setToast({ type: 'error', message: e.message || 'Save failed' });
     } finally {
@@ -347,6 +316,54 @@ export default function QuotationsPage() {
       </html>
     `);
     w.document.close();
+  };
+
+  const handleSendClick = async (q: Quotation) => {
+    const customer = customers.find(c => c.id === q.customer_id);
+    const email = customer?.email_address;
+    if (!email) {
+      setToast({ type: 'warning', message: 'No email address on file for this customer' });
+      return;
+    }
+    setSendConfirm({
+      to: email,
+      subject: `Quotation ${q.quotation_number}`,
+      item: q,
+    });
+  };
+
+  const handleSendEmail = async () => {
+    if (!sendConfirm) return;
+    setSendingEmail(true);
+    try {
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: sendConfirm.to,
+          subject: `Quotation ${sendConfirm.subject} from BiasharaLedger`,
+          message: 'Please find your quotation attached.',
+          item: sendConfirm.item,
+          type: 'Quotation',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.pdfError) {
+          setToast({ type: 'warning', message: `Quotation emailed (PDF not attached: ${data.pdfError})` });
+        } else {
+          setToast({ type: 'success', message: 'Quotation emailed successfully' });
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setToast({ type: 'error', message: `Email failed: ${errData.error || 'Unknown error'}` });
+      }
+    } catch (e: any) {
+      setToast({ type: 'error', message: `Email failed: ${e.message || 'Unknown error'}` });
+    } finally {
+      setSendingEmail(false);
+      setSendConfirm(null);
+    }
   };
 
   const statusBadge = (s: string) => {
@@ -498,6 +515,9 @@ export default function QuotationsPage() {
                           <button onClick={() => handleDecline(q)} className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Decline"><XCircle className="h-4 w-4" /></button>
                         )}
                         <button onClick={() => handlePrint(q)} className="p-1.5 rounded-md text-gray-400 hover:text-brand hover:bg-brand/5 transition-colors" title="Print"><Printer className="h-4 w-4" /></button>
+                        {(q.status !== 'cancelled' && q.status !== 'declined') && (
+                          <button onClick={() => handleSendClick(q)} className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Email to customer"><Mail className="h-4 w-4" /></button>
+                        )}
                         <button onClick={() => handleDelete(q)} className="p-1.5 rounded-md text-gray-400 hover:text-brand hover:bg-brand/5 transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </td>
@@ -566,8 +586,18 @@ export default function QuotationsPage() {
                 <Field label="Quantity" value={String(form.quantity)} onChange={set('quantity')} type="number" />
                 <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{activeVatLabel}</label>
-                  <input type="number" value={String(Math.round(form.tax_vat * 100) / 100)} readOnly className="w-full border border-border bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-600 cursor-not-allowed" />
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">VAT Rate</label>
+                  <select
+                    value={form.vat_rate ?? 16}
+                    onChange={e => {
+                      const rate = Number(e.target.value);
+                      setForm(prev => recalc({ ...prev, vat_rate: rate }));
+                    }}
+                    className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value={0}>0% (Zero Rated)</option>
+                    <option value={16}>16% VAT</option>
+                  </select>
                 </div>
                 <Field label="Discounts (KES)" value={String(form.discounts)} onChange={set('discounts')} type="number" />
               </div>
@@ -611,6 +641,41 @@ export default function QuotationsPage() {
                   </>
                 ) : (
                   editing ? 'Update Quotation' : 'Create Quotation'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {sendConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg border border-border w-full max-w-md mx-4 p-6">
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Send Quotation via Email?</h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Send quotation <strong>{sendConfirm.subject}</strong> to <strong>{sendConfirm.to}</strong>?
+            </p>
+            <p className="text-xs text-gray-500 mb-4 p-3 bg-gray-50 rounded-lg">
+              Make sure the quotation details are correct before sending.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setSendConfirm(null)}
+                className="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendEmail}
+                disabled={sendingEmail}
+                className="inline-flex items-center gap-1.5 bg-brand hover:bg-brand-hover disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                {sendingEmail ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Quotation'
                 )}
               </button>
             </div>

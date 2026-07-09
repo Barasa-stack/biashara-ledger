@@ -6,6 +6,9 @@ import { normalizePlan } from './feature-gate';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
+const sessionCache = new Map<string, { data: any; expiresAt: number }>();
+const SESSION_CACHE_TTL_MS = 120_000; // 2 minutes
+
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
@@ -29,6 +32,10 @@ export async function createSession(userId: string, tenantId: string): Promise<{
 }
 
 export async function getSession(token: string) {
+  const now = Date.now();
+  const cached = sessionCache.get(token);
+  if (cached && cached.expiresAt > now) return cached.data;
+
   const session = await adminGet(
     `SELECT COALESCE(u.tenant_id, s.tenant_id) as tenant_id, s.id as session_id, s.token, s.expires_at,
             u.id as user_id, u.email, u.first_name, u.last_name, u.phone, u.country,
@@ -42,10 +49,15 @@ export async function getSession(token: string) {
     [token]
   );
 
-  return session || null;
+  const data = session || null;
+  if (data) {
+    sessionCache.set(token, { data, expiresAt: now + SESSION_CACHE_TTL_MS });
+  }
+  return data;
 }
 
 export async function deleteSession(token: string) {
+  sessionCache.delete(token);
   await adminRun('DELETE FROM sessions WHERE token = $1', [token]);
 }
 

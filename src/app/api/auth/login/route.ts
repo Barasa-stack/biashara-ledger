@@ -3,10 +3,35 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { adminGet, adminRun, adminQuery } from '@/lib/db';
+import { verifyTOTP } from '@/lib/totp';
+
+const PENDING_2FA_SECRET = process.env.LICENSE_SECRET || 'biashara-ledger-2fa-pending';
+
+function createPendingToken(userId: number, tenantId: string): string {
+  const payload = JSON.stringify({ uid: userId, tid: tenantId, exp: Date.now() + 5 * 60 * 1000 });
+  const encoded = Buffer.from(payload).toString('base64url');
+  const sig = crypto.createHmac('sha256', PENDING_2FA_SECRET).update(encoded).digest('hex');
+  return `${encoded}.${sig}`;
+}
+
+function verifyPendingToken(token: string): { uid: number; tid: string } | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [encoded, sig] = parts;
+    const expectedSig = crypto.createHmac('sha256', PENDING_2FA_SECRET).update(encoded).digest('hex');
+    if (sig !== expectedSig) return null;
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString());
+    if (payload.exp < Date.now()) return null;
+    return { uid: payload.uid, tid: payload.tid };
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    const { email, password, code } = await req.json();
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
     const rl = await checkRateLimit(`admin-login:${email ?? 'unknown'}:${ip}`, 5, 60 * 1000);
@@ -41,14 +66,13 @@ export async function POST(req: NextRequest) {
     }
 
     let adminUser = await adminGet(
-      'SELECT id, tenant_id, email, password_hash, role FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      'SELECT id, tenant_id, email, password_hash, role, two_factor_enabled FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
       [normalizedEmail]
     );
 
-    // Fall back to admin_users table
     if (!adminUser) {
       adminUser = await adminGet(
-        'SELECT id, tenant_id, email, password_hash, role FROM admin_users WHERE email = $1 LIMIT 1',
+        'SELECT id, tenant_id, email, password_hash, role, two_factor_enabled FROM admin_users WHERE email = $1 LIMIT 1',
         [normalizedEmail]
       );
     }
@@ -68,9 +92,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use the existing user id and tenant_id for session creation
-    const appUser = adminUser;
+    const appUser = adminUser as any;
+    const twoFactorEnabled = !!(appUser.two_factor_enabled);
 
+    // If 2FA is enabled and no code provided, ask for code
+    if (twoFactorEnabled && !code) {
+      const pendingToken = createPendingToken(appUser.id, appUser.tenant_id);
+      return NextResponse.json({ requires_2fa: true, pending_token: pendingToken });
+    }
+
+    // If 2FA is enabled and code is provided, verify it
+    if (twoFactorEnabled && code) {
+      const stored = await adminGet<{ value: string }>(
+        "SELECT value FROM admin_settings WHERE key = 'admin_totp_secret'"
+      );
+      const totpSecret = (stored as any)?.value;
+      if (!totpSecret || !verifyTOTP(code, totpSecret)) {
+        return NextResponse.json({ error: 'Invalid two-factor authentication code' }, { status: 401 });
+      }
+    }
+
+    // Create session
     const sessionToken = crypto.randomUUID();
     const sessionId = Math.floor(Math.random() * 2147483647) + 1;
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();

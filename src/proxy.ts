@@ -5,7 +5,7 @@ const ADMIN_PATH = '/admin';
 const ADMIN_LOGIN_PATH = '/admin/login';
 const ADMIN_API_PREFIX = '/api/admin';
 
-const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https:; frame-ancestors 'none'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
+const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https:; frame-ancestors 'none'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
 
 const DASHBOARD_PATH = '/dashboard';
 const DASHBOARD_LOGIN_PATH = '/sign-in';
@@ -49,6 +49,7 @@ export function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_APP_URL || `http://localhost:3000`,
     'https://biashara-ledger.vercel.app',
     'https://biasharaledger.com',
+    'https://biasharaledger.qzz.io',
   ].filter(Boolean);
 
   const getCorsHeaders = (origin: string | null) => ({

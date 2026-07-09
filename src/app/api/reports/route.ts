@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import { query as dbQuery, get as dbGet, run as dbRun, withTenantContext } from '@/lib/db';
 import { requireSubscription, AuthError } from '@/lib/auth-guard';
 
+const reportCache = new Map<string, any>();
+const CACHE_TTL = 60_000;
+
+function getCached(key: string): any | undefined {
+  const entry = reportCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.ts > CACHE_TTL) { reportCache.delete(key); return undefined; }
+  return entry.data;
+}
+
+function setCache(key: string, data: any) {
+  if (reportCache.size > 50) {
+    const oldest = reportCache.keys().next().value;
+    if (oldest) reportCache.delete(oldest);
+  }
+  reportCache.set(key, { data, ts: Date.now() });
+}
+
 async function safeQuery<T extends object = any>(sql: string, params: any[] = []): Promise<T[]> {
   try {
     return await dbQuery<T>(sql, params);
@@ -36,6 +54,10 @@ export async function GET(request: Request) {
   const year = new Date().getFullYear();
   const from = searchParams.get('from') || `${year}-01-01`;
   const to = searchParams.get('to') || new Date().toISOString().split('T')[0];
+
+  const cacheKey = `reports:${session.tenant_id}:${from}:${to}`;
+  const cached = getCached(cacheKey);
+  if (cached) return NextResponse.json(cached);
 
   const reportData = await withTenantContext(session.tenant_id!, async () => {
 
@@ -299,31 +321,31 @@ export async function GET(request: Request) {
   const cashOperatingOutflow = periodExpensePayments.total + periodSalaryPayments.total + periodSupplierPayments.total;
   const netOperatingCashFlow = cashOperatingInflow - cashOperatingOutflow;
 
-  // Monthly cash flow
-  const monthlyCash = [];
-  for (let m = 0; m < 12; m++) {
-    const dt = new Date(year, m, 1);
-    const monthStart = `${year}-${String(m + 1).padStart(2, '0')}-01`;
-    const monthEnd = new Date(year, m + 1, 0).toISOString().slice(0, 10);
-    const inc = await safeGet(
-      'SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE payment_date BETWEEN $1 AND $2',
-      [monthStart, monthEnd]
-    ) as { total: number };
-    const out = await safeGet(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM (
-        SELECT amount FROM supplier_payments WHERE payment_date BETWEEN $1 AND $2
-        UNION ALL SELECT amount FROM expenses WHERE status='approved' AND expense_date BETWEEN $3 AND $4
-        UNION ALL SELECT amount FROM salaries WHERE status='paid' AND pay_date BETWEEN $5 AND $6
-      ) AS combined`,
-      [monthStart, monthEnd, monthStart, monthEnd, monthStart, monthEnd]
-    ) as { total: number };
-    monthlyCash.push({
-      month: dt.toLocaleString('en-US', { month: 'short' }),
-      incoming: inc.total,
-      outgoing: out.total,
-      profit: inc.total - out.total,
-    });
-  }
+  // Monthly cash flow — single GROUP BY queries (replaced N+1 loop)
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthlyInflow = await safeQuery(
+    `SELECT EXTRACT(MONTH FROM payment_date) as m, COALESCE(SUM(amount),0) as total FROM payments 
+     WHERE payment_date BETWEEN $1 AND $2 GROUP BY m ORDER BY m`,
+    [from, to]
+  ) as { m: number; total: number }[];
+  const monthlyOutflow = await safeQuery(
+    `SELECT EXTRACT(MONTH FROM date) as m, COALESCE(SUM(amount),0) as total FROM (
+      SELECT payment_date as date, amount FROM supplier_payments
+      UNION ALL SELECT expense_date, amount FROM expenses WHERE status='approved'
+      UNION ALL SELECT pay_date, amount FROM salaries WHERE status='paid'
+    ) c WHERE date BETWEEN $1 AND $2 GROUP BY m ORDER BY m`,
+    [from, to]
+  ) as { m: number; total: number }[];
+  const inflowByMonth: Record<number, number> = {};
+  const outflowByMonth: Record<number, number> = {};
+  for (const r of monthlyInflow) inflowByMonth[r.m] = r.total;
+  for (const r of monthlyOutflow) outflowByMonth[r.m] = r.total;
+  const monthlyCash = months.map((month, i) => {
+    const m = i + 1;
+    const inc = inflowByMonth[m] || 0;
+    const out = outflowByMonth[m] || 0;
+    return { month, incoming: inc, outgoing: out, profit: inc - out };
+  });
 
   // ═══════════════════════════════════════════════
   // TRIAL BALANCE (cumulative)
@@ -596,7 +618,7 @@ export async function GET(request: Request) {
 
   // ═══════════════════════════════════════════════
 
-  return NextResponse.json({
+  return {
     // P&L — full accounting formula
     grossSales: grossSales.total,
     salesReturns: salesReturns.total,
@@ -758,9 +780,10 @@ export async function GET(request: Request) {
     })(),
     // Currency info
     baseCurrency: (companySettings as any)?.base_currency || 'KES',
-  });
+  };
 });
-  return reportData;
+  setCache(cacheKey, reportData);
+  return NextResponse.json(reportData);
 } catch (err: any) {
   if (err instanceof AuthError) {
     return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });

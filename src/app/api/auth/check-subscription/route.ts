@@ -39,7 +39,7 @@ export async function GET() {
   } catch (error) {
     console.error('Subscription status error:', error);
     // error already logged above
-    const __eMsg = e instanceof Error ? e.message : String(e);
+    const __eMsg = error instanceof Error ? error.message : String(error);
     console.error('[api]', __eMsg);
     return NextResponse.json({ error: __eMsg }, { status: 500 });
   }

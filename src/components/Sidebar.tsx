@@ -49,7 +49,11 @@ const navItems = [
     icon: UsersRound,
     children: [
       { href: '/dashboard/payroll', label: 'Employees' },
+      { href: '/dashboard/payroll/attendance', label: 'Attendance' },
+      { href: '/dashboard/payroll/leave', label: 'Leave' },
       { href: '/dashboard/payroll/salaries', label: 'Salaries' },
+      { href: '/dashboard/payroll/payslips', label: 'Payslips' },
+      { href: '/dashboard/payroll/reports', label: 'Payroll Reports' },
     ],
   },
   { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt },

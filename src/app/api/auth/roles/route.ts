@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
     // error already logged above
-    const __eMsg = e instanceof Error ? e.message : String(e);
+    const __eMsg = err instanceof Error ? err.message : String(err);
     console.error('[api]', __eMsg);
     return NextResponse.json({ error: __eMsg }, { status: 500 });
   }
@@ -36,7 +36,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
     }
     // error already logged above
-    const __eMsg = e instanceof Error ? e.message : String(e);
+    const __eMsg = err instanceof Error ? err.message : String(err);
     console.error('[api]', __eMsg);
     return NextResponse.json({ error: __eMsg }, { status: 500 });
   }

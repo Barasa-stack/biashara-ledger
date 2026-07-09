@@ -35,7 +35,6 @@
     "postinstall": "node -e \"try{require('electron-rebuild')}catch(e){}\""
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.1.0",
     "@niledatabase/nextjs": "^5.3.1",
     "@niledatabase/server": "^5.3.1",
     "bcryptjs": "^3.0.3",

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Pencil, Trash2, X, DollarSign } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, DollarSign, Calculator } from 'lucide-react';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/components/Toast';
 
@@ -9,6 +9,11 @@ type Salary = {
   id: string;
   employee_id: string;
   employee_name: string;
+  basic_salary: number;
+  allowances: number;
+  deductions: number;
+  overtime: number;
+  bonuses: number;
   amount: number;
   pay_date: string;
   payment_method: string;
@@ -23,8 +28,28 @@ type Employee = {
   employee_code: string;
 };
 
+type DeductionBreakdown = {
+  basic_salary: number;
+  allowances: number;
+  bonuses: number;
+  overtime: number;
+  gross_pay: number;
+  nssf_employee: number;
+  nhif: number;
+  paye: number;
+  other_deductions: number;
+  total_deductions: number;
+  net_pay: number;
+  employer_nssf: number;
+};
+
 const emptyForm = {
   employee_id: '',
+  basic_salary: 0,
+  allowances: 0,
+  deductions: 0,
+  overtime: 0,
+  bonuses: 0,
   amount: 0,
   pay_date: new Date().toISOString().split('T')[0],
   payment_method: 'Bank Transfer',
@@ -47,6 +72,9 @@ export default function SalariesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Salary | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [computed, setComputed] = useState<DeductionBreakdown | null>(null);
+  const [calculating, setCalculating] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const { confirm, dialog } = useConfirm();
   const { toast } = useToast();
 
@@ -84,6 +112,8 @@ export default function SalariesPage() {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
+    setComputed(null);
+    setShowBreakdown(false);
     setShowModal(true);
   };
 
@@ -91,13 +121,46 @@ export default function SalariesPage() {
     setEditing(s);
     setForm({
       employee_id: s.employee_id,
+      basic_salary: s.basic_salary,
+      allowances: s.allowances,
+      deductions: s.deductions,
+      overtime: s.overtime,
+      bonuses: s.bonuses,
       amount: s.amount,
       pay_date: s.pay_date?.split('T')[0] || '',
       payment_method: s.payment_method,
       payslip_reference: s.payslip_reference,
       status: s.status,
     });
+    setComputed(null);
+    setShowBreakdown(false);
     setShowModal(true);
+  };
+
+  const computeBreakdown = async () => {
+    setCalculating(true);
+    try {
+      const res = await fetch('/api/payroll/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          basic_salary: form.basic_salary,
+          allowances: form.allowances,
+          deductions: form.deductions,
+          overtime: form.overtime,
+          bonuses: form.bonuses,
+        }),
+      });
+      if (!res.ok) throw new Error('Calculation failed');
+      const data: DeductionBreakdown = await res.json();
+      setComputed(data);
+      setForm(prev => ({ ...prev, amount: data.net_pay }));
+      setShowBreakdown(true);
+    } catch (e: any) {
+      toast(e.message || 'Error calculating');
+    } finally {
+      setCalculating(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -139,15 +202,22 @@ export default function SalariesPage() {
   const set = (field: string) => (v: string | number) =>
     setForm(prev => ({ ...prev, [field]: v }));
 
+  const totals = useMemo(() => {
+    const paid = salaries.filter(s => s.status === 'paid');
+    return {
+      totalPaid: paid.reduce((sum, s) => sum + Number(s.amount || 0), 0),
+      totalPending: salaries.filter(s => s.status !== 'paid').reduce((sum, s) => sum + Number(s.amount || 0), 0),
+      count: salaries.length,
+    };
+  }, [salaries]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-brand font-medium mb-2">Failed to load salaries</p>
           <p className="text-sm text-gray-600">{error}</p>
-          <button onClick={fetchSalaries} className="mt-4 text-sm text-brand font-medium hover:text-gray-800 transition-colors">
-            Retry
-          </button>
+          <button onClick={fetchSalaries} className="mt-4 text-sm text-brand font-medium hover:text-gray-800 transition-colors">Retry</button>
         </div>
       </div>
     );
@@ -169,6 +239,21 @@ export default function SalariesPage() {
           <Plus className="h-4 w-4" />
           Process Salary
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Paid</p>
+          <p className="text-xl font-bold text-gray-800 mt-1">{fmtKES(totals.totalPaid)}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Pending</p>
+          <p className="text-xl font-bold text-yellow-700 mt-1">{fmtKES(totals.totalPending)}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-border p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Total Records</p>
+          <p className="text-xl font-bold text-gray-800 mt-1">{totals.count}</p>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border border-border p-5">
@@ -195,10 +280,11 @@ export default function SalariesPage() {
                 <tr className="border-b border-border">
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4 w-8">#</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Employee</th>
-                  <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Amount</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Pay Date</th>
+                  <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Basic</th>
+                  <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Allowances</th>
+                  <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Deductions</th>
+                  <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Net Pay</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Status</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Reference</th>
                   <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3">Actions</th>
                 </tr>
               </thead>
@@ -207,16 +293,17 @@ export default function SalariesPage() {
                   <tr key={s.id} className="hover:bg-surface/50 transition-colors">
                     <td className="py-3 pr-4 text-gray-400 w-8">{salaries.length - i}</td>
                     <td className="py-3 pr-4 font-medium text-gray-800">{s.employee_name || '—'}</td>
-                    <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(s.amount)}</td>
-                    <td className="py-3 pr-4 text-gray-700">{s.pay_date ? new Date(s.pay_date).toLocaleDateString('en-US') : '—'}</td>
+                    <td className="py-3 pr-4 text-right text-gray-800">{fmtKES(s.basic_salary)}</td>
+                    <td className="py-3 pr-4 text-right text-gray-800">{fmtKES(s.allowances)}</td>
+                    <td className="py-3 pr-4 text-right text-gray-800">{fmtKES(s.deductions)}</td>
+                    <td className="py-3 pr-4 text-right font-semibold text-gray-800">{fmtKES(s.amount)}</td>
                     <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
-                        s.status === 'paid' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                        s.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                       }`}>
                         {s.status === 'paid' ? 'Paid' : 'Pending'}
                       </span>
                     </td>
-                    <td className="py-3 pr-4 text-gray-700">{s.payslip_reference || '—'}</td>
                     <td className="py-3 text-right">
                       <div className="inline-flex items-center gap-1">
                         <button onClick={() => openEdit(s)} className="p-1.5 text-gray-400 hover:text-brand hover:bg-brand/5 rounded transition-colors" title="Edit">
@@ -237,7 +324,7 @@ export default function SalariesPage() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 pb-10 bg-black/40 overflow-y-auto">
-          <div className="bg-white rounded-lg border border-border w-full max-w-lg mx-4 shadow-xl">
+          <div className="bg-white rounded-lg border border-border w-full max-w-xl mx-4 shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-gray-800">
                 {editing ? 'Edit Salary' : 'Process Salary'}
@@ -247,7 +334,7 @@ export default function SalariesPage() {
               </button>
             </div>
 
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
               <div>
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Employee</label>
                 <select
@@ -255,17 +342,48 @@ export default function SalariesPage() {
                   onChange={e => set('employee_id')(e.target.value)}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white"
                 >
-                    <option value="">Select employee</option>
+                  <option value="">Select employee</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.name}{emp.employee_code ? ` (${emp.employee_code})` : ''}</option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Amount (KES)" value={String(form.amount)} onChange={v => set('amount')(Number(v) || 0)} type="number" />
-                <Field label="Pay Date" value={form.pay_date} onChange={set('pay_date')} type="date" />
+                <Field label="Basic Salary (KES)" value={String(form.basic_salary)} onChange={v => set('basic_salary')(Number(v) || 0)} type="number" />
+                <Field label="Allowances (KES)" value={String(form.allowances)} onChange={v => set('allowances')(Number(v) || 0)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Deductions (KES)" value={String(form.deductions)} onChange={v => set('deductions')(Number(v) || 0)} type="number" />
+                <Field label="Overtime (KES)" value={String(form.overtime)} onChange={v => set('overtime')(Number(v) || 0)} type="number" />
+              </div>
+              <Field label="Bonuses (KES)" value={String(form.bonuses)} onChange={v => set('bonuses')(Number(v) || 0)} type="number" />
+
+              <button
+                onClick={computeBreakdown}
+                disabled={calculating}
+                className="w-full inline-flex items-center justify-center gap-1.5 bg-brand/5 text-brand text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand/10 transition-colors"
+              >
+                <Calculator className="h-4 w-4" />
+                {calculating ? 'Calculating...' : 'Auto-Calculate Net Pay'}
+              </button>
+
+              {showBreakdown && computed && (
+                <div className="bg-gray-50 rounded-lg border border-border p-4 space-y-2 text-sm">
+                  <h3 className="font-semibold text-gray-800 mb-2">Salary Breakdown</h3>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    <span className="text-gray-500">Gross Pay:</span><span className="text-right font-medium">{fmtKES(computed.gross_pay)}</span>
+                    <span className="text-gray-500">PAYE (Income Tax):</span><span className="text-right text-red-600">-{fmtKES(computed.paye)}</span>
+                    <span className="text-gray-500">NSSF (Employee):</span><span className="text-right text-red-600">-{fmtKES(computed.nssf_employee)}</span>
+                    <span className="text-gray-500">NHIF:</span><span className="text-right text-red-600">-{fmtKES(computed.nhif)}</span>
+                    <span className="text-gray-500">Other Deductions:</span><span className="text-right text-red-600">-{fmtKES(computed.other_deductions)}</span>
+                    <span className="text-gray-500 border-t pt-1 font-semibold">Net Pay:</span><span className="text-right border-t pt-1 font-bold text-green-700">{fmtKES(computed.net_pay)}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">Employer NSSF contribution: {fmtKES(computed.employer_nssf)}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Pay Date" value={form.pay_date} onChange={set('pay_date')} type="date" />
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Payment Method</label>
                   <select
@@ -276,6 +394,8 @@ export default function SalariesPage() {
                     {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
                   <select
@@ -286,8 +406,8 @@ export default function SalariesPage() {
                     {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                   </select>
                 </div>
+                <Field label="Payslip Reference" value={form.payslip_reference} onChange={set('payslip_reference')} />
               </div>
-              <Field label="Payslip Reference" value={form.payslip_reference} onChange={set('payslip_reference')} />
             </div>
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
@@ -318,24 +438,13 @@ export default function SalariesPage() {
 }
 
 function Field({ label, value, onChange, type, required }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  required?: boolean;
+  label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean;
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-        {label}
-      </label>
-      <input
-        type={type || 'text'}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        required={required}
-        className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
-      />
+      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">{label}</label>
+      <input type={type || 'text'} value={value} onChange={e => onChange(e.target.value)} required={required}
+        className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand" />
     </div>
   );
 }

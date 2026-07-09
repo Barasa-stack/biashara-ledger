@@ -83,15 +83,15 @@ export async function POST(req: NextRequest) {
       const licenseStatus = user.license_status;
       const expiry = user.subscription_expiry ? new Date(user.subscription_expiry) : null;
 
-      if (!licenseKey || !licenseStatus || licenseStatus !== 'active') {
+      if (!licenseKey || !licenseStatus || (licenseStatus !== 'active' && licenseStatus !== 'trial')) {
         return NextResponse.json({
           error: 'No active license found. Please contact your administrator to activate your account.',
         }, { status: 403 });
       }
 
-      if (expiry && expiry < new Date()) {
+      if (expiry && expiry < new Date() && licenseStatus !== 'active') {
         return NextResponse.json({
-          error: 'Your license has expired. Please contact your administrator to renew.',
+          error: 'Your trial has expired. Please select a plan to continue using BiasharaLedger.',
         }, { status: 403 });
       }
     }
@@ -101,8 +101,8 @@ export async function POST(req: NextRequest) {
     // Ensure company_settings exists for this tenant
     try {
       await adminRun(
-        `INSERT INTO company_settings (tenant_id, company_name, email) 
-         VALUES ($1, $2, $3) 
+        `INSERT INTO company_settings (tenant_id, company_name, email, base_currency) 
+         VALUES ($1, $2, $3, 'KES') 
          ON CONFLICT (tenant_id) DO NOTHING`,
         [tenantId, user.first_name || user.last_name || 'Business', user.email]
       );

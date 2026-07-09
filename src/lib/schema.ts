@@ -353,6 +353,68 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
 
+    CREATE TABLE IF NOT EXISTS public.leave_requests (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      employee_id UUID NOT NULL,
+      employee_name TEXT DEFAULT '',
+      leave_type TEXT NOT NULL DEFAULT 'annual',
+      reason TEXT DEFAULT '',
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      days REAL NOT NULL DEFAULT 1,
+      status TEXT DEFAULT 'pending',
+      approved_by TEXT DEFAULT '',
+      approved_at TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+
+    CREATE TABLE IF NOT EXISTS public.attendance (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      employee_id UUID NOT NULL,
+      employee_name TEXT DEFAULT '',
+      date TEXT NOT NULL,
+      clock_in TEXT DEFAULT '',
+      clock_out TEXT DEFAULT '',
+      hours REAL DEFAULT 0,
+      overtime_hours REAL DEFAULT 0,
+      status TEXT DEFAULT 'present',
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+
+    CREATE TABLE IF NOT EXISTS public.payslips (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      salary_id UUID,
+      employee_id UUID NOT NULL,
+      employee_name TEXT NOT NULL,
+      payslip_reference TEXT NOT NULL DEFAULT '',
+      basic_salary REAL DEFAULT 0,
+      allowances REAL DEFAULT 0,
+      deductions REAL DEFAULT 0,
+      overtime REAL DEFAULT 0,
+      bonuses REAL DEFAULT 0,
+      gross_pay REAL DEFAULT 0,
+      nssf_employee REAL DEFAULT 0,
+      nhif REAL DEFAULT 0,
+      paye REAL DEFAULT 0,
+      employer_nssf REAL DEFAULT 0,
+      net_pay REAL NOT NULL DEFAULT 0,
+      pay_date TEXT NOT NULL,
+      payment_method TEXT DEFAULT 'bank',
+      period_start TEXT DEFAULT '',
+      period_end TEXT DEFAULT '',
+      status TEXT DEFAULT 'generated',
+      emailed INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+
     CREATE TABLE IF NOT EXISTS public.company_settings (
       tenant_id UUID UNIQUE NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1389,6 +1451,12 @@ export async function initSchema() {
     { table: 'admin_notifications', column: 'created_at', name: 'idx_admin_notif_date' },
     { table: 'admin_audit_log', column: 'created_at', name: 'idx_admin_audit_date' },
     { table: 'admin_audit_log', column: 'admin_email', name: 'idx_admin_audit_email' },
+    { table: 'leave_requests', column: 'employee_id', name: 'idx_lr_employee' },
+    { table: 'leave_requests', column: 'status', name: 'idx_lr_status' },
+    { table: 'attendance', column: 'employee_id', name: 'idx_att_employee' },
+    { table: 'attendance', column: 'date', name: 'idx_att_date' },
+    { table: 'payslips', column: 'employee_id', name: 'idx_ps_employee' },
+    { table: 'payslips', column: 'pay_date', name: 'idx_ps_date' },
   ];
   for (const { table, column, name } of indexColumns) {
     try {
@@ -1400,7 +1468,7 @@ export async function initSchema() {
   const allTables = [
     'inventory_items', 'inventory_transactions', 'fixed_assets', 'journal_entries',
     'chart_of_accounts', 'budgets', 'bank_accounts', 'bank_statements',
-    'reconciliations', 'employees', 'salaries', 'approval_workflows',
+    'reconciliations', 'employees', 'salaries', 'leave_requests', 'attendance', 'payslips', 'approval_workflows',
     'approval_requests', 'recurring_templates', 'notifications', 'api_keys',
     'exchange_rates', 'project_transactions', 'articles',
   ];

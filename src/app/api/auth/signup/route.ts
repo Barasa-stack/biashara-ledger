@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const tenantUuid = crypto.randomUUID();
 
     // Generate trial license key (standard XXXX-XXXX-XXXX-XXXX format)
-    const hash = crypto.createHash('sha256').update(normalizedEmail + 'trial' + process.env.LICENSE_SECRET || 'default').digest('hex');
+    const hash = crypto.createHash('sha256').update(normalizedEmail + 'trial' + (process.env.LICENSE_SECRET || 'default')).digest('hex');
     const trialKey = `${hash.substring(0, 4).toUpperCase()}-${hash.substring(4, 8).toUpperCase()}-${hash.substring(8, 12).toUpperCase()}-${hash.substring(12, 16).toUpperCase()}`;
     const trialExpiry = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 

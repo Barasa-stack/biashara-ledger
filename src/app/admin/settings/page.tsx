@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Settings, Shield, Mail, Key, Palette, Server, Database,
-  FileText, LogOut, Save, Loader2, Eye, EyeOff,
+  FileText, LogOut, Save, Loader2, Eye, EyeOff, Lock,
   CheckCircle2, AlertTriangle, RefreshCw, Plus, Trash2
 } from 'lucide-react';
 
@@ -13,7 +13,7 @@ type Tab = 'general' | 'branding' | 'smtp' | 'security' | 'plans' | 'payment' | 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'general', label: 'General', icon: <Settings size={16} /> },
   { id: 'branding', label: 'Branding', icon: <Palette size={16} /> },
-  { id: 'smtp', label: 'SMTP Settings', icon: <Mail size={16} /> },
+  { id: 'smtp', label: 'Vendor SMTP Settings', icon: <Mail size={16} /> },
   { id: 'security', label: 'Security', icon: <Shield size={16} /> },
   { id: 'plans', label: 'Subscription Plans', icon: <FileText size={16} /> },
   { id: 'payment', label: 'Payment Gateway', icon: <Database size={16} /> },
@@ -25,6 +25,8 @@ type SmtpSettings = {
   smtp_port: string;
   smtp_user: string;
   smtp_pass: string;
+  smtp_from_name: string;
+  smtp_from_address: string;
   company_name: string;
 };
 
@@ -70,15 +72,26 @@ export default function SettingsPage() {
     smtp_port: '587',
     smtp_user: '',
     smtp_pass: '',
+    smtp_from_name: 'BiasharaLedger',
+    smtp_from_address: '',
     company_name: 'BiasharaLedger',
   });
   const [smtpLoading, setSmtpLoading] = useState(false);
   const [smtpError, setSmtpError] = useState('');
+  const [smtpLocked, setSmtpLocked] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   // Security
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [twoFactorSetupUrl, setTwoFactorSetupUrl] = useState('');
+  const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [twoFactorVerifyCode, setTwoFactorVerifyCode] = useState('');
+  const [twoFactorError, setTwoFactorError] = useState('');
+  const [twoFactorMessage, setTwoFactorMessage] = useState('');
+  const [twoFactorShowSetup, setTwoFactorShowSetup] = useState(false);
+  const [twoFactorDisablePassword, setTwoFactorDisablePassword] = useState('');
+  const [twoFactorShowDisable, setTwoFactorShowDisable] = useState(false);
 
   // Plans
   const [plans, setPlans] = useState<any[]>([]);
@@ -161,9 +174,12 @@ export default function SettingsPage() {
           smtp_port: data.settings.smtp_port || '587',
           smtp_user: data.settings.smtp_user || '',
           smtp_pass: data.settings.smtp_pass || '',
+          smtp_from_name: data.settings.smtp_from_name || 'BiasharaLedger',
+          smtp_from_address: data.settings.smtp_from_address || data.settings.smtp_user || '',
           company_name: data.settings.company_name || 'BiasharaLedger',
         });
       }
+      if (data.locked !== undefined) setSmtpLocked(data.locked);
     } catch (err: any) {
       setSmtpError(err.message);
     } finally {
@@ -183,7 +199,11 @@ export default function SettingsPage() {
       case 'security':
         fetch('/api/admin/settings/security')
           .then(r => r.ok ? r.json() : { enabled: false })
-          .then(d => setTwoFactorEnabled(d.enabled))
+          .then(d => {
+            setTwoFactorEnabled(d.enabled);
+            setTwoFactorSetupUrl(d.setup_url || '');
+            setTwoFactorSecret(d.secret || '');
+          })
           .catch(() => {});
         break;
       case 'plans':
@@ -198,19 +218,59 @@ export default function SettingsPage() {
     }
   }, [activeTab, loadGeneral, loadSmtpSettings, loadPlans, loadPayment, loadAuditLog]);
 
-  const toggle2FA = async () => {
+  const handle2FAEnable = async () => {
+    if (!twoFactorVerifyCode || twoFactorVerifyCode.length !== 6) {
+      setTwoFactorError('Enter a valid 6-digit code from your authenticator app');
+      return;
+    }
     setTwoFactorLoading(true);
+    setTwoFactorError('');
+    setTwoFactorMessage('');
     try {
       const res = await fetch('/api/admin/settings/security', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !twoFactorEnabled }),
+        body: JSON.stringify({ action: 'enable', code: twoFactorVerifyCode }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setTwoFactorEnabled(data.enabled);
+      const data = await res.json();
+      if (!res.ok) {
+        setTwoFactorError(data.error || 'Failed to enable 2FA');
+      } else {
+        setTwoFactorEnabled(true);
+        setTwoFactorShowSetup(false);
+        setTwoFactorVerifyCode('');
+        setTwoFactorMessage(data.message);
+        setTimeout(() => setTwoFactorMessage(''), 5000);
       }
-    } catch {}
+    } catch { setTwoFactorError('Network error'); }
+    setTwoFactorLoading(false);
+  };
+
+  const handle2FADisable = async () => {
+    if (!twoFactorDisablePassword) {
+      setTwoFactorError('Enter your password to disable 2FA');
+      return;
+    }
+    setTwoFactorLoading(true);
+    setTwoFactorError('');
+    setTwoFactorMessage('');
+    try {
+      const res = await fetch('/api/admin/settings/security', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disable', password: twoFactorDisablePassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTwoFactorError(data.error || 'Failed to disable 2FA');
+      } else {
+        setTwoFactorEnabled(false);
+        setTwoFactorShowDisable(false);
+        setTwoFactorDisablePassword('');
+        setTwoFactorMessage(data.message);
+        setTimeout(() => setTwoFactorMessage(''), 5000);
+      }
+    } catch { setTwoFactorError('Network error'); }
     setTwoFactorLoading(false);
   };
 
@@ -236,6 +296,8 @@ export default function SettingsPage() {
               smtp_port: smtpSettings.smtp_port,
               smtp_user: smtpSettings.smtp_user,
               smtp_pass: smtpSettings.smtp_pass,
+              smtp_from_name: smtpSettings.smtp_from_name,
+              smtp_from_address: smtpSettings.smtp_from_address,
             }),
           });
           if (!res.ok) {
@@ -432,6 +494,12 @@ export default function SettingsPage() {
                   <RefreshCw size={14} className={smtpLoading ? 'animate-spin' : ''} />
                 </button>
               </div>
+              {smtpLocked && (
+                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <Lock size={14} className="text-amber-600 shrink-0" />
+                  <p className="text-xs text-amber-700 font-medium">Admin SMTP settings are locked. Only Super Admin can change them.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">SMTP Host</label>
                 <input type="text" value={smtpSettings.smtp_host}
@@ -467,22 +535,157 @@ export default function SettingsPage() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">For Gmail, use an App Password (not your account password).</p>
               </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">From Name</label>
+                <input type="text" value={smtpSettings.smtp_from_name}
+                  onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_from_name: e.target.value }))}
+                  placeholder="BiasharaLedger"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">From Address</label>
+                <input type="text" value={smtpSettings.smtp_from_address}
+                  onChange={(e) => setSmtpSettings(s => ({ ...s, smtp_from_address: e.target.value }))}
+                  placeholder="noreply@biasharaledger.com"
+                  className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand" />
+                <p className="text-xs text-gray-400 mt-1">Defaults to SMTP username if left empty.</p>
+              </div>
             </div>
           )}
 
           {/* ── SECURITY ── */}
           {activeTab === 'security' && (
             <div className="space-y-5 max-w-lg">
+              {twoFactorMessage && (
+                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                  <CheckCircle2 size={16} />
+                  {twoFactorMessage}
+                </div>
+              )}
+              {twoFactorError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  <AlertTriangle size={16} />
+                  {twoFactorError}
+                </div>
+              )}
+
+              {/* 2FA Status Card */}
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-gray-900">Two-Factor Authentication</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Add an extra layer of security to your admin account</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {twoFactorEnabled
+                      ? 'Your account is protected with an authenticator app'
+                      : 'Add an extra layer of security to your admin account'}
+                  </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" checked={twoFactorEnabled} onChange={toggle2FA} disabled={twoFactorLoading} />
-                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
-                </label>
+                {twoFactorEnabled ? (
+                  <button
+                    onClick={() => { setTwoFactorShowDisable(true); setTwoFactorError(''); }}
+                    className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    Disable
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setTwoFactorShowSetup(true); setTwoFactorError(''); }}
+                    disabled={twoFactorLoading}
+                    className="px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand-light rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {twoFactorLoading ? 'Setting up...' : 'Enable'}
+                  </button>
+                )}
               </div>
+
+              {/* 2FA Setup Flow */}
+              {twoFactorShowSetup && !twoFactorEnabled && (
+                <div className="space-y-4 p-4 bg-white border border-gray-200 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-900 mb-3">Scan with Authenticator App</p>
+                    {twoFactorSetupUrl && (
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(twoFactorSetupUrl)}`}
+                        alt="QR Code for 2FA setup"
+                        className="mx-auto w-48 h-48 border border-gray-200 rounded-lg"
+                      />
+                    )}
+                    <p className="text-xs text-gray-500 mt-3">
+                      Scan this QR code with Google Authenticator, Authy, or any TOTP app
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Or enter this key manually:</p>
+                    <p className="text-sm font-mono font-bold text-gray-800 tracking-wider select-all">
+                      {twoFactorSecret}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                      Verification Code
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="000000"
+                      maxLength={6}
+                      value={twoFactorVerifyCode}
+                      onChange={e => setTwoFactorVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="w-full px-3 py-2.5 text-center text-lg tracking-[0.3em] font-mono bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Enter the 6-digit code from your authenticator app to verify
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setTwoFactorShowSetup(false); setTwoFactorVerifyCode(''); setTwoFactorError(''); }}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handle2FAEnable}
+                      disabled={twoFactorLoading || twoFactorVerifyCode.length !== 6}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-white bg-brand hover:bg-brand-hover rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {twoFactorLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                      {twoFactorLoading ? 'Verifying...' : 'Verify & Enable'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2FA Disable Confirmation */}
+              {twoFactorShowDisable && twoFactorEnabled && (
+                <div className="space-y-4 p-4 bg-white border border-red-200 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900">Disable Two-Factor Authentication</p>
+                  <p className="text-xs text-gray-500">Enter your password to confirm disabling 2FA.</p>
+                  <input
+                    type="password"
+                    placeholder="Enter your password"
+                    value={twoFactorDisablePassword}
+                    onChange={e => setTwoFactorDisablePassword(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setTwoFactorShowDisable(false); setTwoFactorDisablePassword(''); setTwoFactorError(''); }}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handle2FADisable}
+                      disabled={twoFactorLoading || !twoFactorDisablePassword}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {twoFactorLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                      {twoFactorLoading ? 'Disabling...' : 'Disable 2FA'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Session Duration</label>
                 <select defaultValue="24 hours" className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand">

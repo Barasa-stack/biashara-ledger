@@ -28,19 +28,22 @@ export async function POST(request: Request) {
 
       const today = new Date().toISOString().split('T')[0];
       const paidAmount = payment_type === 'partial' ? Math.min(Number(body.partial_amount) || 0, invoice.amount) : invoice.amount;
-      const newStatus = paidAmount >= invoice.amount ? 'paid' : 'partially_paid';
-      const remaining = Number(invoice.amount) - paidAmount;
-
+      const totalPaid = (Number(invoice.paid_amount) || 0) + paidAmount;
+      const newRemaining = Number(invoice.amount) - totalPaid;
+      const newStatus = newRemaining <= 0 ? 'paid' : 'partially_paid';
+      // Record the payment
       await run(
         `INSERT INTO payments (tenant_id, invoice_id, customer_id, customer_name, amount, payment_date, payment_method, notes)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [session.tenant_id, invoice.id, invoice.customer_id, invoice.customer_name, paidAmount, today, payment_method,
-         payment_type === 'partial' ? `Partial payment of $${paidAmount.toLocaleString('en-US')}. Remaining: $${remaining.toLocaleString('en-US')}` : 'Auto-recorded from Mark as Paid']
+         payment_type === 'partial'
+           ? `Partial payment for ${invoice.invoice_number}. KES ${paidAmount.toLocaleString('en-US')} received. Total paid: KES ${totalPaid.toLocaleString('en-US')}. Remaining: KES ${newRemaining.toLocaleString('en-US')}`
+           : `Full payment for ${invoice.invoice_number}. KES ${paidAmount.toLocaleString('en-US')} received.`]
       );
+      // Update invoice: only paid_amount and status — amount stays at original total
+      await run('UPDATE sales_invoices SET paid_amount=$1, status=$2 WHERE id=$3', [totalPaid, newStatus, invoice.id]);
 
-      await run('UPDATE sales_invoices SET status=$1 WHERE id=$2', [newStatus, invoice.id]);
-
-      return { invoice, customer, company, today, paidAmount, remaining, newStatus };
+      return { invoice, customer, company, today, paidAmount, remaining: newRemaining, newStatus };
     });
 
     if ('error' in ctx) {
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
           remaining,
         }, company);
 
-        const transporter = await createTransporter();
+        const transporter = await createTransporter(session.tenant_id!);
         if (transporter) {
           let pdfBuffer: Uint8Array | null = null;
           try {
@@ -87,7 +90,7 @@ export async function POST(request: Request) {
           }
 
           const companyName = company?.company_name || 'BiasharaLedger';
-          const smtpConfig = await getSmtpConfig();
+          const smtpConfig = await getSmtpConfig(session.tenant_id!);
           const smtpUser = smtpConfig?.fromAddr || company?.smtp_user || '';
 
           const emailHtml = `
@@ -99,8 +102,8 @@ export async function POST(request: Request) {
                 <p style="font-size:15px;color:#333;">Dear ${invoice.customer_name || 'Valued Customer'},</p>
                 <p style="font-size:14px;color:#444;line-height:1.6;">
                   ${payment_type === 'partial'
-                    ? `We have received your partial payment of <strong>$${paidAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong> for invoice <strong>${invoice.invoice_number}</strong>. Your remaining balance is <strong>$${remaining.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>.`
-                    : `We have received your full payment of <strong>$${paidAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong> for invoice <strong>${invoice.invoice_number}</strong>. Your invoice has been settled in full.`}
+                    ? `We have received your partial payment of <strong>KES ${paidAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong> for invoice <strong>${invoice.invoice_number}</strong>. Your remaining balance is <strong>KES ${remaining.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>.`
+                    : `We have received your full payment of <strong>KES ${paidAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong> for invoice <strong>${invoice.invoice_number}</strong>. Your invoice has been settled in full.`}
                 </p>
                 <p style="font-size:14px;color:#444;line-height:1.6;">Thank you for your business and prompt payment. We truly appreciate your trust.</p>
                 <p style="font-size:14px;color:#444;line-height:1.6;">A receipt is attached to this email for your records.</p>

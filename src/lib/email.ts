@@ -2,34 +2,20 @@ import nodemailer from 'nodemailer';
 import { adminQuery, adminGet, adminRun } from './db';
 import { logInfo, logError } from './logger';
 
-function makeSmtpConfig(host: string, port: string, user: string, pass: string, fromName = 'BiasharaLedger') {
+function makeSmtpConfig(host: string, port: string, user: string, pass: string, fromName?: string, fromAddr?: string) {
   return {
     host,
     port: parseInt(port || '587'),
     secure: port === '465',
     user,
     pass,
-    fromName,
-    fromAddr: user,
+    fromName: fromName || 'BiasharaLedger',
+    fromAddr: fromAddr || user,
   };
 }
 
 export async function getSmtpConfig(tenantId?: string) {
-  // 0. Environment variables (priority — always fresh, no DB dependency)
-  const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && smtpPass) {
-    return {
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
-      user: process.env.SMTP_USER,
-      pass: smtpPass,
-      fromName: process.env.EMAIL_FROM_NAME || 'BiasharaLedger',
-      fromAddr: process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER,
-    };
-  }
-
-  // 1. Tenant-specific settings
+  // 1. Tenant-specific settings (Tenant Company Settings — for invoices, quotes, workflow emails)
   if (tenantId) {
     try {
       const company = await adminGet<{
@@ -39,28 +25,41 @@ export async function getSmtpConfig(tenantId?: string) {
         [tenantId]
       );
       if (company?.smtp_host && company?.smtp_user && company?.smtp_pass) {
+        logInfo('email', 'SMTP source: Tenant Company Settings', { tenantId: tenantId.substring(0, 8) });
         return makeSmtpConfig(company.smtp_host, company.smtp_port, company.smtp_user, company.smtp_pass);
       }
+      // Tenant has no SMTP configured — do NOT fall back to vendor SMTP for tenant emails
+      logInfo('email', 'No tenant SMTP configured — tenant email cannot be sent', { tenantId: tenantId.substring(0, 8) });
+      return null;
     } catch {}
   }
 
-  // 2. Any company_settings row with SMTP configured
+  // 2. Vendor SMTP Settings (manufacturer's own SMTP — ONLY for system emails: OTP, license keys, trials, etc.)
+  // This is NEVER used for tenant invoice/workflow emails
   try {
-    const fallback = await adminGet<{
-      smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
-    }>(
-      "SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM company_settings WHERE smtp_host IS NOT NULL AND smtp_host != '' LIMIT 1"
-    );
-    if (fallback?.smtp_host && fallback?.smtp_user && fallback?.smtp_pass) {
-      return makeSmtpConfig(fallback.smtp_host, fallback.smtp_port, fallback.smtp_user, fallback.smtp_pass);
+    const vendor = await adminGet<{
+      host: string; port: string; username: string; password: string;
+      from_name: string; from_address: string;
+    }>('SELECT host, port, username, password, from_name, from_address FROM vendor_smtp_settings WHERE id = 1');
+    if (vendor && (vendor as any).host && (vendor as any).username && (vendor as any).password) {
+      logInfo('email', 'SMTP source: Vendor SMTP Settings', { host: (vendor as any).host });
+      return makeSmtpConfig(
+        (vendor as any).host,
+        (vendor as any).port || '587',
+        (vendor as any).username,
+        (vendor as any).password,
+        (vendor as any).from_name,
+        (vendor as any).from_address,
+      );
     }
   } catch {}
 
+  logInfo('email', 'SMTP source: none — no SMTP configured');
   return null;
 }
 
-export async function createTransporter() {
-  const config = await getSmtpConfig();
+export async function createTransporter(tenantId?: string) {
+  const config = await getSmtpConfig(tenantId);
   if (!config) {
     if (process.env.NODE_ENV === 'development') {
       try {
@@ -281,7 +280,7 @@ export async function sendWelcomeEmailNewClient(params: {
   const config = await getSmtpConfig();
   const fromName = config?.fromName || 'BiasharaLedger';
   const fromAddr = config?.fromAddr || '';
-  const loginUrl = params.loginUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.biasharaledger.com'}/login`;
+  const loginUrl = params.loginUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.qzz.io'}/login`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -427,7 +426,7 @@ export async function sendExpiryReminderEmail(params: {
   const config = await getSmtpConfig();
   const fromName = config?.fromName || 'BiasharaLedger';
   const fromAddr = config?.fromAddr || '';
-  const pricingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.com'}/pricing`;
+  const pricingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.qzz.io'}/pricing`;
 
   if (params.paymentNotice) {
     const html = `
@@ -467,7 +466,7 @@ export async function sendExpiryReminderEmail(params: {
     }
   }
 
-  const renewalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.biasharaledger.com'}/subscription/renew`;
+  const renewalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.qzz.io'}/subscription/renew`;
 
   const urgent = params.urgent || params.daysRemaining <= 7;
   const bgColor = urgent ? '#dc2626' : '#f59e0b';

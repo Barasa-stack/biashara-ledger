@@ -2,15 +2,19 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Lock, Mail, AlertCircle, Loader2, Shield } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, AlertCircle, Loader2, Shield, KeyRound } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState<'credentials' | '2fa'>('credentials');
+  const [pendingToken, setPendingToken] = useState('');
   const emailRef = useRef<HTMLInputElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -19,10 +23,15 @@ export default function AdminLoginPage() {
     setError('');
 
     try {
+      const body: any = { email, password };
+      if (step === '2fa' && code) {
+        body.code = code.replace(/\s/g, '');
+      }
+
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -30,6 +39,14 @@ export default function AdminLoginPage() {
       if (!res.ok) {
         setError(data.error || data.message || 'Invalid credentials');
         setLoading(false);
+        return;
+      }
+
+      if (data.requires_2fa) {
+        setPendingToken(data.pending_token);
+        setStep('2fa');
+        setLoading(false);
+        setTimeout(() => codeRef.current?.focus(), 100);
         return;
       }
 
@@ -44,6 +61,11 @@ export default function AdminLoginPage() {
       setError('Network error. Could not connect to server.');
       setLoading(false);
     }
+  };
+
+  const handleCodeChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 6);
+    setCode(digits);
   };
 
   return (
@@ -87,82 +109,150 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
-            <p className="text-sm text-gray-500">Sign in to access the admin dashboard</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  ref={emailRef}
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  autoFocus
-                  placeholder="admin@biasharaledger.com"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none transition-all"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
+          {step === 'credentials' ? (
+            <>
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
+                <p className="text-sm text-gray-500">Sign in to access the admin dashboard</p>
               </div>
-            </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  autoComplete="current-password"
-                  placeholder="Enter your password"
-                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none transition-all"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Email address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      ref={emailRef}
+                      id="email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      autoFocus
+                      placeholder="admin@biasharaledger.com"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none transition-all"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      placeholder="Enter your password"
+                      className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none transition-all"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-lg p-3">
+                    <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-red-700 leading-relaxed">{error}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-2.5 bg-brand hover:bg-brand-hover text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="text-center mb-8">
+                <div className="w-14 h-14 bg-brand/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <KeyRound className="h-7 w-7 text-brand" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">Two-Factor Auth</h2>
+                <p className="text-sm text-gray-500">Enter the 6-digit code from your authenticator app</p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div>
+                  <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Authentication Code
+                  </label>
+                  <input
+                    ref={codeRef}
+                    id="code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    required
+                    placeholder="000000"
+                    maxLength={6}
+                    className="w-full px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none transition-all"
+                    value={code}
+                    onChange={e => handleCodeChange(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-400 mt-2 text-center">
+                    Open your authenticator app and enter the code shown
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-lg p-3">
+                    <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-red-700 leading-relaxed">{error}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || code.length !== 6}
+                  className="w-full py-2.5 bg-brand hover:bg-brand-hover text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify & Sign In'
+                  )}
+                </button>
+
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  tabIndex={-1}
+                  onClick={() => { setStep('credentials'); setCode(''); setError(''); }}
+                  className="w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  &larr; Back to sign in
                 </button>
-              </div>
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-lg p-3">
-                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-red-700 leading-relaxed">{error}</p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-brand hover:bg-brand-hover text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </button>
-          </form>
+              </form>
+            </>
+          )}
 
           <div className="mt-8 text-center">
             <a href="/" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">

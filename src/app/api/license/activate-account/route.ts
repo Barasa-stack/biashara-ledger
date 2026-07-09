@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminRun, adminGet } from '@/lib/db';
+import { adminRun, adminGet, withTenantContext, run } from '@/lib/db';
 import { ensureDbInitialized } from '@/lib/init';
 
 export async function POST(req: Request) {
@@ -89,14 +89,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This email already has a different license key assigned. Please contact support.' }, { status: 409 });
     }
 
-    // Update the user's license (using adminRun to match signin's adminGet pool)
+    // Update the user's license
     const plan = license.plan || 'Premium';
     const expiresAt = license.expires_at || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
-    await adminRun(
-      `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', last_login = NOW(), last_ip = $4, user_agent = $5 WHERE LOWER(email) = LOWER($6)`,
-      [key, plan, expiresAt, activationIp, userAgent, normalizedEmail]
+    // Get the user's tenant_id first (Nile requires tenant context for writes to users)
+    const userToActivate = await adminGet<any>(
+      `SELECT id, tenant_id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      [normalizedEmail]
     );
+
+    if (userToActivate?.tenant_id) {
+      await withTenantContext(userToActivate.tenant_id, async () => {
+        await run(
+          `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', last_login = NOW(), last_ip = $4, user_agent = $5 WHERE LOWER(email) = LOWER($6)`,
+          [key, plan, expiresAt, activationIp, userAgent, normalizedEmail]
+        );
+      });
+    } else {
+      // Fallback: direct update in public schema (non-Nile environments)
+      await adminRun(
+        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', last_login = NOW(), last_ip = $4, user_agent = $5 WHERE LOWER(email) = LOWER($6)`,
+        [key, plan, expiresAt, activationIp, userAgent, normalizedEmail]
+      );
+    }
 
     // Mark license as used
     await adminRun(

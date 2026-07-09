@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
-import { Plus, Pencil, Trash2, X, FileText, Download, Search, Filter, CheckCircle, Printer, XCircle } from 'lucide-react';
-import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { Plus, Pencil, Trash2, X, FileText, Download, Search, Filter, CheckCircle, Printer, XCircle, Mail } from 'lucide-react';
+import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils';
+import { buildHtml } from '@/lib/print';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { getVatRate } from '@/lib/vat-rates';
@@ -26,6 +27,7 @@ type Invoice = {
   issue_date: string;
   due_date: string;
   customer_country?: string;
+  vat_rate?: number;
 };
 
 type Customer = {
@@ -39,7 +41,7 @@ const emptyForm = {
   invoice_number: '', customer_id: '', customer_name: '', description: '',
   quantity: 1, unit_price: 0, subtotal: 0, tax_vat: 0, discounts: 0,
   amount: 0, payment_terms: 'Net 30', status: 'draft', issue_date: '', due_date: '',
-  customer_country: '',
+  customer_country: '', vat_rate: 16,
 };
 
 const fmtKES = (n: number | string | null | undefined) =>
@@ -159,18 +161,19 @@ export default function InvoicesPage() {
   }, [form.customer_country, vatRate]);
 
   const activeVatLabel = useMemo(() => {
+    const rate = form.vat_rate ?? (form.customer_country ? getVatRate(form.customer_country).rate : vatRate);
+    if (rate === 0) return 'VAT (0%)';
     if (form.customer_country) {
-      const r = getVatRate(form.customer_country);
-      return `VAT (${r.rate}%${r.rate > 0 ? '' : ' — No VAT'}${r.code !== 'XX' ? `, ${r.code}` : ''})`;
+      return `VAT (${rate}%)`;
     }
-    return `VAT (${vatRate}%)`;
-  }, [form.customer_country, vatRate]);
+    return `VAT (${rate}%)`;
+  }, [form.vat_rate, form.customer_country, vatRate]);
 
   const recalc = (f: typeof form) => {
     const qty = Number(f.quantity) || 0;
     const price = Number(f.unit_price) || 0;
     const subtotal = qty * price;
-    const rate = f.customer_country ? getVatRate(f.customer_country).rate : vatRate;
+    const rate = f.vat_rate !== undefined ? Number(f.vat_rate) : (f.customer_country ? getVatRate(f.customer_country).rate : vatRate);
     const vat = subtotal * rate / 100;
     const disc = Number(f.discounts) || 0;
     const amount = subtotal + vat - disc;
@@ -211,6 +214,7 @@ export default function InvoicesPage() {
       issue_date: inv.issue_date?.split('T')[0] || '',
       due_date: inv.due_date?.split('T')[0] || '',
       customer_country: inv.customer_country || '',
+      vat_rate: inv.vat_rate ?? (inv.customer_country ? getVatRate(inv.customer_country).rate : vatRate),
     }));
     setModalOpen(true);
   };
@@ -237,19 +241,7 @@ export default function InvoicesPage() {
       }
       setModalOpen(false);
       fetchInvoices();
-
-      if (!editing) {
-        const customer = customers.find(c => c.id === form.customer_id);
-        if (customer?.email_address) {
-          setSendConfirm({
-            to: customer.email_address,
-            subject: `Invoice ${form.invoice_number} from ${companyName || 'BiasharaLedger'}`,
-            item: form,
-          });
-        } else {
-          setToast({ message: 'Invoice created', type: 'success' });
-        }
-      }
+      setToast({ message: editing ? 'Invoice updated' : 'Invoice created', type: 'success' });
     } catch (e: any) {
       showToast(e.message || 'Save failed');
     } finally {
@@ -275,16 +267,16 @@ export default function InvoicesPage() {
       if (emailRes.ok) {
         const emailData = await emailRes.json().catch(() => ({}));
         if (emailData.pdfError) {
-          setToast({ message: `Invoice created and emailed (PDF not attached: ${emailData.pdfError})`, type: 'warning' });
+          setToast({ message: `Invoice emailed (PDF not attached: ${emailData.pdfError})`, type: 'warning' });
         } else {
-          setToast({ message: 'Invoice created and emailed', type: 'success' });
+          setToast({ message: 'Invoice emailed successfully', type: 'success' });
         }
       } else {
         const errData = await emailRes.json().catch(() => ({}));
-        setToast({ message: `Invoice created but email failed: ${errData.error || 'Unknown error'}`, type: 'error' });
+        setToast({ message: `Email failed: ${errData.error || 'Unknown error'}`, type: 'error' });
       }
     } catch (e: any) {
-      setToast({ message: `Invoice created but email failed: ${e.message || 'Unknown error'}`, type: 'error' });
+      setToast({ message: `Email failed: ${e.message || 'Unknown error'}`, type: 'error' });
     } finally {
       setSendingEmail(false);
       setSendConfirm(null);
@@ -310,7 +302,23 @@ export default function InvoicesPage() {
   };
 
   const handleMarkPaid = async (inv: Invoice) => {
-    setPaymentModal({ invoice: inv, paymentType: 'full', partialAmount: String(inv.amount) });
+    const remaining = inv.amount - (inv.paid_amount || 0);
+    setPaymentModal({ invoice: inv, paymentType: remaining >= inv.amount ? 'full' : 'partial', partialAmount: '' });
+  };
+
+  const handleSendClick = (inv: Invoice) => {
+    // Find customer email from invoices or customers list
+    const customer = customers.find(c => c.id === inv.customer_id);
+    const email = customer?.email_address || '';
+    if (!email) {
+      setToast({ message: 'No email address on file for this customer', type: 'warning' });
+      return;
+    }
+    setSendConfirm({
+      to: email,
+      subject: `Invoice ${inv.invoice_number} from ${companyName || 'BiasharaLedger'}`,
+      item: inv,
+    });
   };
 
   const handleConfirmPayment = async () => {
@@ -361,70 +369,19 @@ export default function InvoicesPage() {
     }
   };
 
-  const handlePrint = (inv: Invoice) => {
+  const handlePrint = async (inv: Invoice) => {
     const w = window.open('', '_blank');
     if (!w) return;
-    const invVatRate = inv.customer_country ? getVatRate(inv.customer_country) : null;
-    const vatLabel = invVatRate ? `VAT (${invVatRate.rate}%)` : 'VAT';
-    const buyerCountry = inv.customer_country ? getCountryByCode(inv.customer_country) : null;
-    w.document.write(`
-      <html>
-        <head>
-          <title>Invoice ${inv.invoice_number}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 40px; color: #1a1a1a; }
-            .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 40px; }
-            .title { font-size: 24px; font-weight: 700; color: #2563eb; }
-            .details { margin-bottom: 30px; }
-            .details p { margin: 4px 0; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            th { text-align: left; font-size: 12px; text-transform: uppercase; color: #6b7280; border-bottom: 2px solid #e5e7eb; padding: 8px 12px; }
-            td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-            .totals { margin-left: auto; width: 300px; }
-            .totals div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
-            .totals .grand { font-weight: 700; font-size: 16px; border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 4px; }
-            @media print { body { padding: 20px; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">INVOICE</div>
-            <div style="text-align:right">
-              <p style="font-size:18px;font-weight:600">${inv.invoice_number}</p>
-              <p style="font-size:14px;color:#6b7280">${inv.status.toUpperCase()}</p>
-            </div>
-          </div>
-          <div class="details">
-            <p><strong>Customer:</strong> ${inv.customer_name || '—'}</p>
-            ${buyerCountry ? `<p><strong>Country:</strong> ${buyerCountry.flag} ${buyerCountry.name} (${buyerCountry.code})</p>` : ''}
-            <p><strong>Issue Date:</strong> ${inv.issue_date?.split('T')[0] || '—'}</p>
-            <p><strong>Due Date:</strong> ${inv.due_date?.split('T')[0] || '—'}</p>
-            <p><strong>Payment Terms:</strong> ${inv.payment_terms || '—'}</p>
-          </div>
-          <table>
-            <thead>
-              <tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Total</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${inv.description || '—'}</td>
-                <td style="text-align:right">${inv.quantity}</td>
-                <td style="text-align:right">${fmtKES(inv.unit_price)}</td>
-                <td style="text-align:right">${fmtKES(inv.subtotal)}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="totals">
-            <div><span>Subtotal</span><span>${fmtKES(inv.subtotal)}</span></div>
-            <div><span>${vatLabel}</span><span>${fmtKES(inv.tax_vat)}</span></div>
-            <div><span>Discounts</span><span>${fmtKES(inv.discounts)}</span></div>
-            <div class="grand"><span>Total (incl. VAT)</span><span>${fmtKES(inv.amount)}</span></div>
-          </div>
-          <script>window.print();<\/script>
-        </body>
-      </html>
-    `);
-    w.document.close();
+    try {
+      const res = await fetch('/api/company');
+      const company = res.ok ? await res.json() : {};
+      const html = buildHtml('Invoice', inv, company);
+      w.document.write(html);
+      w.document.close();
+    } catch {
+      w.document.write('<p>Failed to load invoice template.</p>');
+      w.document.close();
+    }
   };
 
   const statusBadge = (s: string) => {
@@ -640,6 +597,15 @@ export default function InvoicesPage() {
                         >
                           <Printer className="h-4 w-4" />
                         </button>
+                        {(inv.status !== 'cancelled' && inv.status !== 'declined') && (
+                          <button
+                            onClick={() => handleSendClick(inv)}
+                            className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Email to customer"
+                          >
+                            <Mail className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -718,10 +684,18 @@ export default function InvoicesPage() {
                 <Field label="Quantity" value={String(form.quantity)} onChange={set('quantity')} type="number" />
                 <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">{activeVatLabel}</label>
-                  <div className="w-full border border-border bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-600 cursor-not-allowed">
-                    {fmtKES(form.tax_vat)}
-                  </div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">VAT Rate</label>
+                  <select
+                    value={form.vat_rate ?? 16}
+                    onChange={e => {
+                      const rate = Number(e.target.value);
+                      setForm(prev => recalc({ ...prev, vat_rate: rate }));
+                    }}
+                    className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value={0}>0% (Zero Rated)</option>
+                    <option value={16}>16% VAT</option>
+                  </select>
                 </div>
                 <Field label="Discounts (KES)" value={String(form.discounts)} onChange={set('discounts')} type="number" />
               </div>
@@ -793,52 +767,56 @@ export default function InvoicesPage() {
               </div>
 
               <div className="space-y-3 pt-2">
-                <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-red-50 has-[:checked]:bg-red-50 has-[:checked]:border-red-400">
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    checked={paymentModal.paymentType === 'full'}
-                    onChange={() => setPaymentModal({ ...paymentModal, paymentType: 'full', partialAmount: String(paymentModal.invoice.amount) })}
-                    className="accent-red-600 w-4 h-4"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-gray-800">Full Payment</span>
-                    <p className="text-xs text-gray-500">Pay the full invoice amount</p>
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-red-50 has-[:checked]:bg-red-50 has-[:checked]:border-red-400">
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    checked={paymentModal.paymentType === 'partial'}
-                    onChange={() => setPaymentModal({ ...paymentModal, paymentType: 'partial', partialAmount: String(paymentModal.invoice.amount) })}
-                    className="accent-red-600 w-4 h-4"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-gray-800">Partial Payment</span>
-                    <p className="text-xs text-gray-500">Pay a portion of the amount</p>
-                  </div>
-                </label>
-                {paymentModal.paymentType === 'partial' && (
-                  <div className="pl-7">
-                    <label className="block text-xs text-gray-500 mb-1">Amount Paid</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-                      <input
-                        type="number"
-                        value={paymentModal.partialAmount}
-                        onChange={e => setPaymentModal({ ...paymentModal, partialAmount: e.target.value })}
-                        max={paymentModal.invoice.amount}
-                        min={0}
-                        step="0.01"
-                        className="w-full border border-gray-200 rounded-lg pl-12 pr-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400"
-                      />
+                  <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-red-50 has-[:checked]:bg-red-50 has-[:checked]:border-red-400">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      checked={paymentModal.paymentType === 'full'}
+                      onChange={() => setPaymentModal({ ...paymentModal, paymentType: 'full', partialAmount: String(paymentModal.invoice.amount) })}
+                      className="accent-red-600 w-4 h-4"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Full Payment</span>
+                      <p className="text-xs text-gray-500">Pay the full invoice amount</p>
                     </div>
-                    {Number(paymentModal.partialAmount) < paymentModal.invoice.amount && Number(paymentModal.partialAmount) > 0 && (
-                      <p className="text-xs text-amber-600 mt-1">
-                        Remaining: {fmtKES(paymentModal.invoice.amount - Number(paymentModal.partialAmount))}
-                      </p>
-                    )}
+                  </label>
+                  <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-red-50 has-[:checked]:bg-red-50 has-[:checked]:border-red-400">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      checked={paymentModal.paymentType === 'partial'}
+                      onChange={() => {
+                        setPaymentModal({ ...paymentModal, paymentType: 'partial', partialAmount: '' });
+                      }}
+                      className="accent-red-600 w-4 h-4"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-gray-800">Partial Payment</span>
+                      <p className="text-xs text-gray-500">Pay a portion of the amount</p>
+                    </div>
+                  </label>
+                {paymentModal.paymentType === 'partial' && (
+                  <div className="pl-7 space-y-2">
+                    <div className="flex justify-between text-sm py-1.5 px-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <span className="text-amber-700 font-medium">Outstanding Balance</span>
+                      <span className="text-amber-800 font-bold">{fmtKES(paymentModal.invoice.amount - (paymentModal.invoice.paid_amount || 0))}</span>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Amount to be Paid</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">KES</span>
+                        <input
+                          type="number"
+                          value={paymentModal.partialAmount}
+                          onChange={e => setPaymentModal({ ...paymentModal, partialAmount: e.target.value })}
+                          max={paymentModal.invoice.amount}
+                          min={0}
+                          step="0.01"
+                          placeholder="0.00"
+                          className="w-full border border-gray-200 rounded-lg pl-12 pr-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -877,15 +855,15 @@ export default function InvoicesPage() {
             <p className="text-sm text-gray-600 mb-6">
               Send invoice <strong>{sendConfirm.subject.replace(` from ${companyName || 'BiasharaLedger'}`, '')}</strong> to <strong>{sendConfirm.to}</strong>?
             </p>
+            <div className="text-xs text-gray-500 mb-4 p-3 bg-gray-50 rounded-lg">
+              Make sure the invoice details are correct before sending.
+            </div>
             <div className="flex items-center justify-end gap-3">
               <button
-                onClick={() => {
-                  setToast({ message: 'Invoice created', type: 'success' });
-                  setSendConfirm(null);
-                }}
+                onClick={() => { setSendConfirm(null); }}
                 className="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors"
               >
-                Don't Send
+                Cancel
               </button>
               <button
                 onClick={handleSendEmail}
@@ -898,7 +876,7 @@ export default function InvoicesPage() {
                     Sending...
                   </>
                 ) : (
-                  'Send'
+                  'Send Invoice'
                 )}
               </button>
             </div>

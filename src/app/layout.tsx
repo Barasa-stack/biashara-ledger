@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
-import { ensureDbInitialized } from '@/lib/init';
 
-const baseUrl = 'https://biasharaledsgr.com';
+const baseUrl = 'https://biasharaledger.qzz.io';
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -37,7 +36,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await ensureDbInitialized();
 
   const jsonLd = {
     '@context': 'https://schema.org',

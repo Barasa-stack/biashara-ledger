@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Settings, Building2, Landmark, Mail, FileText, ShieldCheck, Upload, Key } from 'lucide-react';
+import { Settings, Building2, Landmark, Mail, FileText, ShieldCheck, Upload, Key, Palette } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 type Company = {
@@ -31,6 +31,10 @@ type Company = {
   income_tax_rate: number;
   tax_filing_frequency: string;
   base_currency: string;
+  theme_color: string;
+  invoice_footer_text: string;
+  payment_instructions: string;
+  invoice_logo_base64: string;
 };
 
 const emptyForm: Company = {
@@ -41,6 +45,7 @@ const emptyForm: Company = {
   terms_conditions: '', invoice_prefix: 'INV', quotation_prefix: 'QTN',
   smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', vat_rate: 16,
   income_tax_rate: 0, tax_filing_frequency: 'monthly', base_currency: 'KES',
+  theme_color: '#df1c1c', invoice_footer_text: '', payment_instructions: '', invoice_logo_base64: '',
 };
 
 function Section({ icon: Icon, title, desc, children }: { icon: any; title: string; desc?: string; children: React.ReactNode }) {
@@ -128,7 +133,8 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error('Failed to save settings');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save settings');
       setSuccess('Settings saved successfully');
     } catch (e: any) {
       setError(e.message || 'Failed to save settings');
@@ -156,7 +162,7 @@ export default function SettingsPage() {
           <Settings className="h-5 w-5 text-brand" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">Company Settings</h1>
+          <h1 className="text-lg font-semibold text-gray-800">Tenant Company Settings</h1>
           <p className="text-xs text-gray-500">Manage company info, banking, invoice templates, and email</p>
         </div>
       </div>
@@ -270,12 +276,84 @@ export default function SettingsPage() {
             </div>
           </Section>
 
+          <Section icon={Palette} title="Invoice Design" desc="Customize the look and feel of your invoices and quotations">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Accent Color</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.theme_color}
+                    onChange={e => setForm(prev => ({ ...prev, theme_color: e.target.value }))}
+                    className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-white p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={form.theme_color}
+                    onChange={e => setForm(prev => ({ ...prev, theme_color: e.target.value }))}
+                    placeholder="#df1c1c"
+                    className="flex-1 border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Invoice Logo</label>
+                <div className="flex items-center gap-3">
+                  {form.invoice_logo_base64 && (
+                    <img src={form.invoice_logo_base64} alt="Invoice Logo" className="h-10 w-10 object-contain rounded-lg border border-border" />
+                  )}
+                  <button onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e: any) => {
+                      const file = e.target?.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => setForm(prev => ({ ...prev, invoice_logo_base64: reader.result as string }));
+                      reader.readAsDataURL(file);
+                    };
+                    input.click();
+                  }} className="text-sm text-brand font-medium hover:text-gray-800 transition-colors">
+                    {form.invoice_logo_base64 ? 'Change' : 'Upload Logo'}
+                  </button>
+                  {form.invoice_logo_base64 && (
+                    <button onClick={() => setForm(prev => ({ ...prev, invoice_logo_base64: '' }))} className="text-xs text-gray-500 hover:text-brand transition-colors">Remove</button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1 italic">Leave blank to use the company logo</p>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Payment Instructions</label>
+              <textarea
+                value={form.payment_instructions}
+                onChange={set('payment_instructions')}
+                rows={2}
+                placeholder="Please include invoice number as payment reference. Bank transfers may take 1-3 business days to reflect."
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand resize-none"
+              />
+              <p className="text-xs text-gray-400 mt-1 italic">Extra payment guidance shown below the payment details section</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Footer Text</label>
+              <input
+                type="text"
+                value={form.invoice_footer_text}
+                onChange={set('invoice_footer_text')}
+                placeholder="Thank you for choosing our service!"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+              />
+              <p className="text-xs text-gray-400 mt-1 italic">Optional text displayed above the footer, e.g., a custom thank-you message</p>
+            </div>
+          </Section>
+
           <Section icon={Key} title="License & Subscription" desc="Manage your license key and view trial status">
             {user && (
               <div className="space-y-3">
-                <div className={`p-3 rounded-lg border ${user.licenseStatus === 'active' ? 'bg-red-50 border-red-200' : user.trialDaysRemaining !== undefined && user.trialDaysRemaining > 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
+                <div className={`p-3 rounded-lg border ${user.licenseStatus === 'active' ? 'bg-green-50 border-green-200' : user.trialDaysRemaining !== undefined && user.trialDaysRemaining > 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
                   {user.licenseStatus === 'active' ? (
-                    <p className="text-sm text-red-700 font-medium">License Active</p>
+                    <p className="text-sm text-green-700 font-medium">License Active</p>
                   ) : user.trialDaysRemaining !== undefined && user.trialDaysRemaining > 0 ? (
                     <div>
                       <p className="text-sm text-blue-700 font-medium">Trial Active ({user.trialDaysRemaining} day{user.trialDaysRemaining !== 1 ? 's' : ''} remaining)</p>
@@ -317,7 +395,7 @@ export default function SettingsPage() {
                       <input type="text" value={licenseKey} onChange={e => setLicenseKey(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX" className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand font-mono" />
                     </div>
                     {licenseMsg && (
-                      <div className={`text-xs px-3 py-2 rounded-lg ${licenseMsg.includes('success') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                      <div className={`text-xs px-3 py-2 rounded-lg ${licenseMsg.includes('success') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
                         {licenseMsg}
                       </div>
                     )}
@@ -363,7 +441,7 @@ export default function SettingsPage() {
           </Section>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
-          {success && <p className="text-sm text-red-600">{success}</p>}
+          {success && <p className="text-sm text-green-600">{success}</p>}
 
           <button
             onClick={handleSave}
@@ -382,11 +460,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="mt-8 pt-6 border-t text-center">
-        <a href="/admin" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-          Admin Panel
-        </a>
-      </div>
+
     </div>
   );
 }

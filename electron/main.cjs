@@ -6,8 +6,8 @@ const http = require('http');
 const { autoUpdater } = require('electron-updater');
 
 const isDev = !app.isPackaged;
-const API = isDev ? 'http://localhost:3000/api' : 'https://biasharaledger.com/api';
-const APP = isDev ? 'http://localhost:3000' : 'https://biasharaledger.com';
+const API = isDev ? 'http://localhost:3000/api' : 'https://biasharaledger.qzz.io/api';
+const APP = isDev ? 'http://localhost:3000' : 'https://biasharaledger.qzz.io';
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
 let mainWindow;
@@ -250,7 +250,7 @@ async function doHeartbeat() {
           defaultId: 0,
         });
         if (updateChoice.response === 0) {
-          shell.openExternal('https://biasharaledger.com/download');
+          shell.openExternal('https://biasharaledger.qzz.io/download');
         }
       }
     }
@@ -335,7 +335,7 @@ async function checkForUpdates() {
           defaultId: 0,
         });
         if (result.response === 0) {
-          shell.openExternal(update.downloadUrl || 'https://biasharaledger.com/download');
+          shell.openExternal(update.downloadUrl || 'https://biasharaledger.qzz.io/download');
         }
       }
     }

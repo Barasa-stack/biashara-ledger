@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { get, withTenantContext } from '@/lib/db';
+import { get, run, withTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
 
 export async function GET(request: Request) {
@@ -20,22 +20,36 @@ export async function GET(request: Request) {
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const currentMonth = `${yyyy}-${mm}`;
-        const effectiveSeq = lastMonth !== currentMonth ? 1 : seq;
-        const number = `${prefix}-${yyyy}-${String(effectiveSeq).padStart(4, '0')}`;
-        return { number, seq: effectiveSeq };
+        let nextSeq = lastMonth !== currentMonth ? 1 : seq;
+        const number = `${prefix}-${yyyy}-${String(nextSeq).padStart(4, '0')}`;
+        const incrementSeq = nextSeq + 1;
+        if (lastMonth !== currentMonth) {
+          await run(`UPDATE company_settings SET last_credit_note_month = $1, next_credit_note_number = $2`, [currentMonth, incrementSeq]);
+        } else {
+          await run(`UPDATE company_settings SET next_credit_note_number = $1`, [incrementSeq]);
+        }
+        return { number, seq: nextSeq };
       }
 
       const prefix = type === 'invoice' ? (settings.invoice_prefix || 'INV') : (settings.quotation_prefix || 'QTN');
       const seq = type === 'invoice' ? (settings.next_invoice_number || 1) : (settings.next_quotation_number || 1);
+      const lastMonthKey = type === 'invoice' ? 'last_invoice_month' : 'last_quotation_month';
+      const nextKey = type === 'invoice' ? 'next_invoice_number' : 'next_quotation_number';
       const lastMonth = type === 'invoice' ? (settings.last_invoice_month || '') : (settings.last_quotation_month || '');
       const today = new Date();
       const dd = String(today.getDate()).padStart(2, '0');
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const yyyy = today.getFullYear();
       const currentMonth = `${yyyy}-${mm}`;
-      const effectiveSeq = lastMonth !== currentMonth ? 1 : seq;
-      const number = `${prefix}-${dd}/${mm}/${yyyy}-${String(effectiveSeq).padStart(3, '0')}`;
-      return { number, seq: effectiveSeq };
+      let nextSeq = lastMonth !== currentMonth ? 1 : seq;
+      const number = `${prefix}-${dd}/${mm}/${yyyy}-${String(nextSeq).padStart(3, '0')}`;
+      const incrementSeq = nextSeq + 1;
+      if (lastMonth !== currentMonth) {
+        await run(`UPDATE company_settings SET ${lastMonthKey} = $1, ${nextKey} = $2`, [currentMonth, incrementSeq]);
+      } else {
+        await run(`UPDATE company_settings SET ${nextKey} = $1`, [incrementSeq]);
+      }
+      return { number, seq: nextSeq };
     });
     return NextResponse.json(data);
   } catch (e: any) {
@@ -43,7 +57,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[] Error:', e instanceof Error ? e.message : e);
-    // error already logged above
     const __eMsg = e instanceof Error ? e.message : String(e);
     console.error('[api]', __eMsg);
     return NextResponse.json({ error: __eMsg }, { status: 500 });

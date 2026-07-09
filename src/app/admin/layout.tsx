@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LayoutDashboard, Users, Key, Monitor, Upload, Settings,
+  LayoutDashboard, Users, Building2, Key, Monitor, Upload, Settings,
   LogOut, Bell, Search, ChevronDown, Menu, X, ExternalLink,
   Activity, Shield, RefreshCw, UserCircle
 } from 'lucide-react';
@@ -12,6 +12,7 @@ import {
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/clients', label: 'Clients', icon: Users },
+  { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
   { href: '/admin/licenses', label: 'Licenses', icon: Key },
   { href: '/admin/offline', label: 'Offline', icon: Monitor },
   { href: '/admin/electron-users', label: 'Electron', icon: Monitor },

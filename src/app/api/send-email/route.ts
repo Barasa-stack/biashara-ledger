@@ -15,9 +15,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 });
     }
 
-    const transporter = await createTransporter();
+    const transporter = await createTransporter(session.tenant_id!);
     if (!transporter) {
-      return NextResponse.json({ error: 'SMTP not configured. Please configure SMTP settings in Admin > Settings > SMTP / Email.' }, { status: 400 });
+      return NextResponse.json({ error: 'Email not sent. Configure your SMTP in Tenant Company Settings first.' }, { status: 400 });
     }
 
     const company = await withTenantContext(session.tenant_id!, async () => {
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         </div>
       </div>`;
 
-    const smtpConfig = await getSmtpConfig();
+    const smtpConfig = await getSmtpConfig(session.tenant_id!);
     const smtpUser = smtpConfig?.fromAddr || company?.smtp_user || '';
     const mailOptions: any = {
       from: `"${companyName}" <${smtpUser}>`,
