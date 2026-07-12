@@ -255,7 +255,7 @@ function Sidebar({ subscriptionPlan, allowedModules }: SidebarProps) {
                 </button>
                 <div
                   className={`ml-7 mt-0.5 space-y-0.5 overflow-hidden transition-all duration-200 ${
-                    isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                    isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
                   }`}
                 >
                   {item.children.map((child) => {
