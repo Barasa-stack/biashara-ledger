@@ -643,6 +643,23 @@ export async function GET(request: Request) {
     [from, to]
   ) as { total: number };
 
+  // breakdown: standard-rated (tax_vat > 0 → 16%) vs zero-rated (tax_vat = 0)
+  const salesBreakdown = await safeGet(
+    `SELECT
+       COALESCE(SUM(CASE WHEN COALESCE(tax_vat,0) > 0 THEN amount ELSE 0 END), 0) as standard_rated,
+       COALESCE(SUM(CASE WHEN COALESCE(tax_vat,0) = 0 THEN amount ELSE 0 END), 0) as zero_rated
+     FROM sales_invoices WHERE status != 'cancelled' AND issue_date BETWEEN $1 AND $2`,
+    [from, to]
+  ) as { standard_rated: number; zero_rated: number };
+
+  const purchasesBreakdown = await safeGet(
+    `SELECT
+       COALESCE(SUM(CASE WHEN COALESCE(tax_vat,0) > 0 THEN amount ELSE 0 END), 0) as standard_rated,
+       COALESCE(SUM(CASE WHEN COALESCE(tax_vat,0) = 0 THEN amount ELSE 0 END), 0) as zero_rated
+     FROM purchase_invoices WHERE status != 'cancelled' AND issue_date BETWEEN $1 AND $2`,
+    [from, to]
+  ) as { standard_rated: number; zero_rated: number };
+
   const taxableSales = grossSales.total;
   const taxablePurchases = periodPurchases.total;
   const vatPayable = vatOutput.total - vatInput.total;
@@ -886,6 +903,10 @@ export async function GET(request: Request) {
       incomeTaxPayable,
       taxableSales,
       taxablePurchases,
+      standardRatedSales: salesBreakdown.standard_rated,
+      zeroRatedSales: salesBreakdown.zero_rated,
+      standardRatedPurchases: purchasesBreakdown.standard_rated,
+      zeroRatedPurchases: purchasesBreakdown.zero_rated,
       incomeTaxRate,
       profitBeforeTax,
       incomeTax: taxes,

@@ -44,7 +44,7 @@ type ApiData = {
   inventoryValuation: { totalItems: number; totalValue: number; items: any[]; message: string };
   budgetVsActual: { category: string; budget: number; actual: number; variance: number }[];
   equityReport: { retainedEarnings: number; capitalContributions: number; withdrawals: number; currentPeriodProfit: number; totalEquity: number };
-  taxReport: { vatOutput: number; vatInput: number; vatPayable: number; taxableSales: number; taxablePurchases: number; vatRate: number; incomeTaxRate: number; profitBeforeTax: number; incomeTax: number; netProfitAfterTax: number; note: string };
+  taxReport: { vatOutput: number; vatInput: number; vatPayable: number; taxableSales: number; taxablePurchases: number; standardRatedSales: number; zeroRatedSales: number; standardRatedPurchases: number; zeroRatedPurchases: number; incomeTaxRate: number; profitBeforeTax: number; incomeTax: number; netProfitAfterTax: number; note: string };
   auditTrail: { action: string; id: string; amount: number; created_at: string }[];
 };
 
@@ -788,8 +788,24 @@ function ReportsContent() {
       {(activeType === 'all' || activeType === 'tax') && (
         <Section icon={Landmark} title="Tax Report" subtitle="VAT, income tax, and statutory obligations">
           <p className="text-xs font-semibold text-[#000000] uppercase mb-2">VAT Summary</p>
-          <Row label={`Taxable Sales (Output VAT at ${d.taxReport.vatRate ?? 16}%)`} value={cfmt(d.taxReport.vatOutput)} color="text-brand" />
-          <Row label={`Taxable Purchases (Input VAT at ${d.taxReport.vatRate ?? 16}%)`} value={cfmt(d.taxReport.vatInput)} color="text-red-600" />
+          {/* Sales breakdown */}
+          <Row label="Total Sales (incl. VAT)" value={cfmt(d.taxReport.taxableSales)} />
+          {d.taxReport.zeroRatedSales > 0 && (
+            <Row label="Zero-Rated Sales (0% VAT)" value={cfmt(d.taxReport.zeroRatedSales)} />
+          )}
+          {d.taxReport.standardRatedSales > 0 && (
+            <Row label="Standard-Rated Sales (16% VAT)" value={cfmt(d.taxReport.standardRatedSales)} />
+          )}
+          <Row label="Output VAT Collected (16% on standard-rated)" value={cfmt(d.taxReport.vatOutput)} color="text-brand" />
+          {/* Purchases breakdown */}
+          <Row label="Total Purchases (incl. VAT)" value={cfmt(d.taxReport.taxablePurchases)} />
+          {d.taxReport.zeroRatedPurchases > 0 && (
+            <Row label="Zero-Rated Purchases (0% VAT)" value={cfmt(d.taxReport.zeroRatedPurchases)} />
+          )}
+          {d.taxReport.standardRatedPurchases > 0 && (
+            <Row label="Standard-Rated Purchases (16% VAT)" value={cfmt(d.taxReport.standardRatedPurchases)} />
+          )}
+          <Row label="Input VAT Reclaimable (16% on standard-rated)" value={cfmt(d.taxReport.vatInput)} color="text-red-600" />
           <div className="border-t border-border my-2" />
           <Row label="VAT Payable / (Refundable)" value={cfmt(Math.abs(d.taxReport.vatPayable))} color={d.taxReport.vatPayable >= 0 ? 'text-brand' : 'text-red-600'} />
 
@@ -811,8 +827,14 @@ function ReportsContent() {
             <p className="mt-1">{d.taxReport.note}</p>
           </div>
           <ReportDownload title="Tax Report" data={[[
-            { label: `Taxable Sales (Output VAT ${d.taxReport.vatRate ?? 16}%)`, value: cfmt(d.taxReport.vatOutput) },
-            { label: `Taxable Purchases (Input VAT ${d.taxReport.vatRate ?? 16}%)`, value: cfmt(d.taxReport.vatInput) },
+            { label: 'Total Sales (incl. VAT)', value: cfmt(d.taxReport.taxableSales) },
+            ...(d.taxReport.zeroRatedSales > 0 ? [{ label: 'Zero-Rated Sales (0%)', value: cfmt(d.taxReport.zeroRatedSales) }] : []),
+            ...(d.taxReport.standardRatedSales > 0 ? [{ label: 'Standard-Rated Sales (16%)', value: cfmt(d.taxReport.standardRatedSales) }] : []),
+            { label: 'Output VAT Collected', value: cfmt(d.taxReport.vatOutput) },
+            { label: 'Total Purchases (incl. VAT)', value: cfmt(d.taxReport.taxablePurchases) },
+            ...(d.taxReport.zeroRatedPurchases > 0 ? [{ label: 'Zero-Rated Purchases (0%)', value: cfmt(d.taxReport.zeroRatedPurchases) }] : []),
+            ...(d.taxReport.standardRatedPurchases > 0 ? [{ label: 'Standard-Rated Purchases (16%)', value: cfmt(d.taxReport.standardRatedPurchases) }] : []),
+            { label: 'Input VAT Reclaimable', value: cfmt(d.taxReport.vatInput) },
             { label: 'VAT Payable / (Refundable)', value: cfmt(Math.abs(d.taxReport.vatPayable)) },
             ...(d.taxReport.incomeTaxRate > 0 ? [
               { label: 'Profit Before Tax', value: cfmt(d.taxReport.profitBeforeTax) },
