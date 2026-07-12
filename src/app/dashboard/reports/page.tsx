@@ -18,7 +18,10 @@ type ApiData = {
   openingInventory: number; purchases: number; directCosts: number; debitNotes: number;
   closingInventory: number; costOfGoodsSold: number; grossProfit: number;
   adminExpenses: number; sellingDistributionExpenses: number; generalOperatingExpenses: number;
-  salariesTotal: number; totalOperatingExpenses: number; operatingProfit: number;
+  salariesTotal: number; depreciationExpense: number; totalOperatingExpenses: number; operatingProfit: number;
+  ebitda: number;
+  grossMarginPercent: number;
+  netMarginPercent: number;
   otherIncome: number; otherExpenses: number; profitBeforeTax: number; taxes: number;
   netProfit: number;
   totalRevenue: number; totalCreditNotes: number; netRevenue: number;
@@ -26,25 +29,32 @@ type ApiData = {
   totalExpenses: number; totalSalaries: number;
   operatingExpenses: number;
   cashOnHand: number; accountsReceivable: number; accountsPayable: number;
-  currentAssets: number; currentLiabilities: number; totalEquity: number;
+  inventoryValue: number;
+  currentAssets: number; nonCurrentAssets: number; totalAssets: number;
+  currentLiabilities: number; nonCurrentLiabilities: number; totalLiabilities: number;
+  totalEquity: number;
   retainedEarnings: number;
   receivables: { total: number; open: number; overdue: number };
   payables: { total: number; open: number; overdue: number };
   cashOperatingInflow: number; cashOperatingOutflow: number;
   netOperatingCashFlow: number;
   cashSupplierPayments: number; cashExpensePayments: number; cashSalaryPayments: number;
+  investingInflow: number; investingOutflow: number; netInvestingCashFlow: number;
+  financingInflow: number; financingOutflow: number; netFinancingCashFlow: number;
+  netCashFlow: number;
   monthlyCash: { month: string; incoming: number; outgoing: number; profit: number }[];
   trialBalance: { account: string; type: string; balance: number }[];
-  generalLedger: { id: string; type: string; amount: number; detail: string; date: string; created_at: string }[];
+  generalLedger: { id: string; type: string; amount: number; detail: string; date: string; created_at: string; runningBalance: number }[];
   receivablesAging: { bucket: string; total: number; count: number }[];
   payablesAging: { bucket: string; total: number; count: number }[];
   expenseByCategory: { category: string; total: number; count: number }[];
   salariesDetail: { total: number; count: number };
   salesByCustomer: { company_name: string; total: number; count: number }[];
   inventoryValuation: { totalItems: number; totalValue: number; items: any[]; message: string };
-  budgetVsActual: { category: string; budget: number; actual: number; variance: number }[];
+  budgetVsActual: { category: string; budget: number; actual: number; variance: number; variancePercent: number; status: string }[];
   equityReport: { retainedEarnings: number; capitalContributions: number; withdrawals: number; currentPeriodProfit: number; totalEquity: number };
-  taxReport: { vatOutput: number; vatInput: number; vatPayable: number; taxableSales: number; taxablePurchases: number; standardRatedSales: number; zeroRatedSales: number; standardRatedPurchases: number; zeroRatedPurchases: number; incomeTaxRate: number; profitBeforeTax: number; incomeTax: number; netProfitAfterTax: number; note: string };
+  taxReport: { vatOutput: number; vatInput: number; vatPayable: number; vatPayableBalance: number; incomeTaxPayable: number; taxableSales: number; taxablePurchases: number; standardRatedSales: number; zeroRatedSales: number; standardRatedPurchases: number; zeroRatedPurchases: number; incomeTaxRate: number; profitBeforeTax: number; incomeTax: number; netProfitAfterTax: number; note: string };
+  fixedAssets: { count: number; totalCost: number; totalDepreciation: number; totalBookValue: number };
   auditTrail: { action: string; id: string; amount: number; created_at: string }[];
 };
 
@@ -389,6 +399,7 @@ function ReportsContent() {
 
           <div className="border-t border-border my-2" />
           <Row label="Gross Profit" value={cfmt(d.grossProfit)} color={d.grossProfit >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
+          <Row label="Gross Margin" value={`${d.grossMarginPercent.toFixed(1)}%`} />
 
           <div className="mt-3">
             <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Operating Expenses</p>
@@ -402,6 +413,7 @@ function ReportsContent() {
 
           <div className="border-t border-border my-2" />
           <Row label="Operating Profit / (Loss)" value={cfmt(d.operatingProfit)} color={d.operatingProfit >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
+          <Row label="EBITDA (Operating Profit + Depreciation)" value={cfmt(d.ebitda)} color={d.ebitda >= 0 ? 'text-red-700' : 'text-red-700'} />
 
           <div className="mt-3">
             <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Other Income &amp; Expenses</p>
@@ -418,6 +430,7 @@ function ReportsContent() {
             <span className="text-brand text-base">Net Profit / (Loss)</span>
             <span className={`text-base ${d.netProfit >= 0 ? 'text-red-700' : 'text-red-700'}`}>{cfmt(d.netProfit)}</span>
           </div>
+          <Row label="Net Margin" value={`${d.netMarginPercent.toFixed(1)}%`} />
 
           {d.expenseByCategory.length > 0 && (
             <div className="mt-4 pt-3 border-t border-border">
@@ -440,17 +453,21 @@ function ReportsContent() {
             { label: 'Less: Closing Inventory', value: `(${cfmt(d.closingInventory)})` },
             { label: 'Cost of Goods Sold', value: cfmt(d.costOfGoodsSold) },
             { label: 'Gross Profit', value: cfmt(d.grossProfit) },
+            { label: 'Gross Margin', value: `${d.grossMarginPercent.toFixed(1)}%` },
             { label: 'Admin Expenses', value: cfmt(d.adminExpenses) },
             { label: 'Selling & Distribution', value: cfmt(d.sellingDistributionExpenses) },
             { label: 'General Operating Expenses', value: cfmt(d.generalOperatingExpenses) },
             { label: 'Salaries & Wages', value: cfmt(d.salariesTotal) },
+            { label: 'Depreciation', value: cfmt(d.depreciationExpense) },
             { label: 'Total Operating Expenses', value: cfmt(d.totalOperatingExpenses) },
             { label: 'Operating Profit / (Loss)', value: cfmt(d.operatingProfit) },
+            { label: 'EBITDA', value: cfmt(d.ebitda) },
             { label: 'Other Income', value: cfmt(d.otherIncome) },
             { label: 'Other Expenses', value: `(${cfmt(d.otherExpenses)})` },
             { label: 'Profit Before Tax', value: cfmt(d.profitBeforeTax) },
             { label: 'Less: Tax', value: `(${cfmt(d.taxes)})` },
             { label: 'Net Profit / (Loss)', value: cfmt(d.netProfit) },
+            { label: 'Net Margin', value: `${d.netMarginPercent.toFixed(1)}%` },
           ]]} />
         </Section>
       )}
@@ -462,83 +479,122 @@ function ReportsContent() {
           <p className="text-xs text-[#000000] italic mb-2">Current Assets</p>
           <Row label="Cash on Hand" value={cfmt(Math.max(0, d.cashOnHand))} />
           <Row label="Accounts Receivable" value={cfmt(d.accountsReceivable)} />
+          <Row label="Inventory" value={cfmt(d.inventoryValue)} />
           <div className="border-t border-border my-1" />
-          <Row label="Total Current Assets" value={cfmt(d.currentAssets)} />
-          <div className="mt-3">
+          <Row label="Total Current Assets" value={cfmt(d.currentAssets)} fontWeight="font-bold" />
+          {d.nonCurrentAssets > 0 && (
+            <>
+              <p className="text-xs text-[#000000] italic mb-2 mt-3">Non-Current Assets</p>
+              <Row label="Fixed Assets (Cost)" value={cfmt(d.fixedAssets.totalCost)} />
+              <Row label="Less: Accumulated Depreciation" value={`(${cfmt(d.fixedAssets.totalDepreciation)})`} color="text-red-600" />
+              <Row label="Fixed Assets (Net Book Value)" value={cfmt(d.nonCurrentAssets)} />
+              <div className="border-t border-border my-1" />
+              <Row label="Total Non-Current Assets" value={cfmt(d.nonCurrentAssets)} fontWeight="font-bold" />
+            </>
+          )}
+          <div className="border-t border-border my-2" />
+          <Row label="TOTAL ASSETS" value={cfmt(d.totalAssets)} fontWeight="font-bold" />
+          <div className="mt-4">
             <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Liabilities</p>
             <p className="text-xs text-[#000000] italic mb-2">Current Liabilities</p>
             <Row label="Accounts Payable" value={cfmt(d.accountsPayable)} color="text-red-600" />
+            <Row label="VAT Payable" value={cfmt(d.taxReport.vatPayableBalance)} color="text-red-600" />
+            <Row label="Income Tax Payable" value={cfmt(d.taxReport.incomeTaxPayable)} color="text-red-600" />
             <div className="border-t border-border my-1" />
-            <Row label="Total Liabilities" value={cfmt(d.currentLiabilities)} color="text-red-700" />
+            <Row label="Total Current Liabilities" value={cfmt(d.currentLiabilities)} color="text-red-700" fontWeight="font-bold" />
+            {d.nonCurrentLiabilities > 0 && (
+              <>
+                <p className="text-xs text-[#000000] italic mb-2 mt-3">Non-Current Liabilities</p>
+                <Row label="Total Non-Current Liabilities" value={cfmt(d.nonCurrentLiabilities)} color="text-red-700" fontWeight="font-bold" />
+              </>
+            )}
+            <div className="border-t border-border my-2" />
+            <Row label="TOTAL LIABILITIES" value={cfmt(d.totalLiabilities)} color="text-red-700" fontWeight="font-bold" />
           </div>
-          <div className="mt-3">
+          <div className="mt-4">
             <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Equity</p>
-            <Row label="Retained Earnings (Net Cumulative Profit)" value={cfmt(d.retainedEarnings)} />
+            <Row label="Retained Earnings (Cumulative)" value={cfmt(d.retainedEarnings)} />
+            <Row label="Capital Contributions" value={cfmt(d.equityReport.capitalContributions)} />
+            <Row label="Less: Owner Withdrawals" value={`(${cfmt(d.equityReport.withdrawals)})`} color="text-red-600" />
             <div className="border-t border-border my-1" />
-            <Row label="Total Equity" value={cfmt(d.totalEquity)} />
+            <Row label="Total Equity" value={cfmt(d.totalEquity)} fontWeight="font-bold" />
           </div>
           <div className="border-t-2 border-double border-border my-3" />
           <div className="flex justify-between text-sm font-bold">
             <span className="text-brand">Total Liabilities &amp; Equity</span>
-            <span className="text-brand">{cfmt(d.currentLiabilities + d.totalEquity)}</span>
+            <span className="text-brand">{cfmt(d.totalLiabilities + d.totalEquity)}</span>
           </div>
           <div className="bg-surface rounded-lg p-3 mt-3 text-xs text-[#000000]">
             <p className="font-medium">Accounting Equation Check</p>
-            <p className="mt-1">Assets ({cfmt(d.currentAssets)}) = Liabilities ({cfmt(d.currentLiabilities)}) + Equity ({cfmt(d.totalEquity)})</p>
+            <p className="mt-1">Assets ({cfmt(d.totalAssets)}) = Liabilities ({cfmt(d.totalLiabilities)}) + Equity ({cfmt(d.totalEquity)})</p>
+            <p className="mt-1">Working Capital: {cfmt(d.currentAssets - d.currentLiabilities)} {(d.currentAssets - d.currentLiabilities) >= 0 ? '(Positive)' : '(Negative)'}</p>
           </div>
           <ReportDownload title="Balance Sheet" data={[[
             { label: 'Cash on Hand', value: cfmt(Math.max(0, d.cashOnHand)) },
             { label: 'Accounts Receivable', value: cfmt(d.accountsReceivable) },
+            { label: 'Inventory', value: cfmt(d.inventoryValue) },
             { label: 'Total Current Assets', value: cfmt(d.currentAssets) },
+            { label: 'Fixed Assets (Net)', value: cfmt(d.nonCurrentAssets) },
+            { label: 'Total Assets', value: cfmt(d.totalAssets) },
             { label: 'Accounts Payable', value: cfmt(d.accountsPayable) },
-            { label: 'Total Liabilities', value: cfmt(d.currentLiabilities) },
+            { label: 'Total Liabilities', value: cfmt(d.totalLiabilities) },
             { label: 'Retained Earnings', value: cfmt(d.retainedEarnings) },
+            { label: 'Capital Contributions', value: cfmt(d.equityReport.capitalContributions) },
+            { label: 'Owner Withdrawals', value: `(${cfmt(d.equityReport.withdrawals)})` },
             { label: 'Total Equity', value: cfmt(d.totalEquity) },
-            { label: 'Total Liabilities & Equity', value: cfmt(d.currentLiabilities + d.totalEquity) },
+            { label: 'Total Liabilities & Equity', value: cfmt(d.totalLiabilities + d.totalEquity) },
           ]]} />
         </Section>
       )}
 
       {/* ── Cash Flow ── */}
       {(activeType === 'all' || activeType === 'cash-flow') && (
-        <Section icon={Wallet} title="Cash Flow Statement" subtitle="Cash inflows and outflows from operating activities">
+        <Section icon={Wallet} title="Cash Flow Statement" subtitle="Cash inflows and outflows from operating, investing, and financing activities">
           <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Operating Activities</p>
-          <p className="text-xs text-[#000000] italic mb-2">Inflows</p>
-          <Row label="Cash Received from Customers" value={cfmt(d.cashOperatingInflow)} color="text-red-600" />
+          <Row label="Cash Received from Customers" value={cfmt(d.cashOperatingInflow)} />
           <div className="border-t border-border my-1" />
-          <Row label="Total Operating Inflows" value={cfmt(d.cashOperatingInflow)} color="text-red-700" />
+          <Row label="Total Operating Inflows" value={cfmt(d.cashOperatingInflow)} />
           <div className="mt-3">
-            <p className="text-xs text-[#000000] italic mb-2">Outflows</p>
-            <Row label="Cash Paid to Suppliers (Purchases)" value={cfmt(d.cashSupplierPayments)} color="text-red-600" />
-            <Row label="Cash Paid for Expenses" value={cfmt(d.cashExpensePayments)} color="text-red-600" />
-            <Row label="Cash Paid for Salaries" value={cfmt(d.cashSalaryPayments)} color="text-red-600" />
+            <Row label="Cash Paid to Suppliers (Purchases)" value={`(${cfmt(d.cashSupplierPayments)})`} color="text-red-600" />
+            <Row label="Cash Paid for Expenses" value={`(${cfmt(d.cashExpensePayments)})`} color="text-red-600" />
+            <Row label="Cash Paid for Salaries" value={`(${cfmt(d.cashSalaryPayments)})`} color="text-red-600" />
             <div className="border-t border-border my-1" />
-            <Row label="Total Operating Outflows" value={cfmt(d.cashOperatingOutflow)} color="text-red-700" />
+            <Row label="Total Operating Outflows" value={`(${cfmt(d.cashOperatingOutflow)})`} color="text-red-600" />
           </div>
           <div className="border-t-2 border-double border-border my-2" />
-          <Row label="Net Cash from Operating Activities" value={cfmt(d.netOperatingCashFlow)} color={d.netOperatingCashFlow >= 0 ? 'text-red-700' : 'text-red-700'} />
-          <div className="mt-3 pt-3 border-t border-border">
-            <p className="text-xs text-[#000000] italic mb-1">Cash Flow from Investing Activities</p>
-            <Row label="(No investing activity recorded)" value="—" />
+          <Row label="Net Cash from Operating Activities" value={cfmt(d.netOperatingCashFlow)} fontWeight="font-bold" />
+          <div className="mt-4 pt-3 border-t border-border">
+            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Investing Activities</p>
+            <Row label="Sale of Fixed Assets" value={cfmt(d.investingInflow)} />
+            <Row label="Purchase of Fixed Assets" value={`(${cfmt(d.investingOutflow)})`} color="text-red-600" />
+            <div className="border-t border-border my-1" />
+            <Row label="Net Cash from Investing Activities" value={cfmt(d.netInvestingCashFlow)} />
           </div>
-          <div className="mt-3 pt-3 border-t border-border">
-            <p className="text-xs text-[#000000] italic mb-1">Cash Flow from Financing Activities</p>
-            <Row label="Owner's Contributions" value="0.00" />
-            <Row label="Owner's Drawings" value="0.00" />
+          <div className="mt-4 pt-3 border-t border-border">
+            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Financing Activities</p>
+            <Row label="Capital Contributions" value={cfmt(d.financingInflow)} />
+            <Row label="Owner Withdrawals" value={`(${cfmt(d.financingOutflow)})`} color="text-red-600" />
+            <div className="border-t border-border my-1" />
+            <Row label="Net Cash from Financing Activities" value={cfmt(d.netFinancingCashFlow)} />
           </div>
-          <div className="border-t-2 border-double border-brand my-2" />
-          <div className="flex justify-between text-sm font-bold pt-1">
-            <span className="text-brand">Net Increase / (Decrease) in Cash</span>
-            <span className={d.netOperatingCashFlow >= 0 ? 'text-red-700' : 'text-red-700'}>{cfmt(d.netOperatingCashFlow)}</span>
-          </div>
+          <div className="border-t-2 border-double border-brand my-3" />
+          <Row label="Net Increase / (Decrease) in Cash" value={cfmt(d.netCashFlow)} fontWeight="font-bold" />
+          <Row label="Net Cash from Operating Activities" value={cfmt(d.netOperatingCashFlow)} />
+          <Row label="Net Cash from Investing Activities" value={cfmt(d.netInvestingCashFlow)} />
+          <Row label="Net Cash from Financing Activities" value={cfmt(d.netFinancingCashFlow)} />
           <ReportDownload title="Cash Flow Statement" data={[[
             { label: 'Cash Received from Customers', value: cfmt(d.cashOperatingInflow) },
-            { label: 'Total Operating Inflows', value: cfmt(d.cashOperatingInflow) },
-            { label: 'Cash Paid for Purchases', value: cfmt(d.cashSupplierPayments) },
-            { label: 'Cash Paid for Expenses', value: cfmt(d.cashExpensePayments) },
-            { label: 'Cash Paid for Salaries', value: cfmt(d.cashSalaryPayments) },
-            { label: 'Total Operating Outflows', value: cfmt(d.cashOperatingOutflow) },
+            { label: 'Cash Paid for Purchases', value: `(${cfmt(d.cashSupplierPayments)})` },
+            { label: 'Cash Paid for Expenses', value: `(${cfmt(d.cashExpensePayments)})` },
+            { label: 'Cash Paid for Salaries', value: `(${cfmt(d.cashSalaryPayments)})` },
             { label: 'Net Cash from Operating Activities', value: cfmt(d.netOperatingCashFlow) },
+            { label: 'Sale of Fixed Assets', value: cfmt(d.investingInflow) },
+            { label: 'Purchase of Fixed Assets', value: `(${cfmt(d.investingOutflow)})` },
+            { label: 'Net Cash from Investing Activities', value: cfmt(d.netInvestingCashFlow) },
+            { label: 'Capital Contributions', value: cfmt(d.financingInflow) },
+            { label: 'Owner Withdrawals', value: `(${cfmt(d.financingOutflow)})` },
+            { label: 'Net Cash from Financing Activities', value: cfmt(d.netFinancingCashFlow) },
+            { label: 'Net Increase / (Decrease) in Cash', value: cfmt(d.netCashFlow) },
           ]]} />
         </Section>
       )}
@@ -565,6 +621,13 @@ function ReportsContent() {
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-border font-bold text-sm">
+                <td colSpan={2} className="py-2 text-[#000000]">Totals</td>
+                <td className="py-2 text-right text-brand">{cfmt(d.trialBalance.filter(r => r.type === 'Debit').reduce((s, r) => s + r.balance, 0))}</td>
+                <td className="py-2 text-right text-red-600">{cfmt(d.trialBalance.filter(r => r.type === 'Credit').reduce((s, r) => s + r.balance, 0))}</td>
+              </tr>
+            </tfoot>
           </table>
           <TableDownload title="Trial Balance" headers={['#', 'Account', 'Debit', 'Credit']} rows={d.trialBalance.map((r, i) => [String(d.trialBalance.length - i), r.account, r.type === 'Debit' ? cfmt(r.balance) : '—', r.type === 'Credit' ? cfmt(r.balance) : '—'])} />
         </Section>
@@ -572,7 +635,7 @@ function ReportsContent() {
 
       {/* ── General Ledger ── */}
       {(activeType === 'all' || activeType === 'general-ledger') && (
-        <Section icon={BookOpen} title="General Ledger" subtitle="Detailed record of all transactions">
+        <Section icon={BookOpen} title="General Ledger" subtitle="Detailed record of all transactions with running balance">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -582,27 +645,30 @@ function ReportsContent() {
                 <th className="text-left pb-2 font-medium">Type</th>
                 <th className="text-left pb-2 font-medium">Detail</th>
                 <th className="text-right pb-2 font-medium">Amount</th>
+                <th className="text-right pb-2 font-medium">Running Balance</th>
               </tr>
             </thead>
             <tbody>
-              {d.generalLedger.slice(0, 20).map((r, i) => (
+              {d.generalLedger.slice(0, 50).map((r, i) => (
                 <tr key={i} className="border-b border-border/50">
-                  <td className="py-2 text-gray-400 w-8">{Math.min(d.generalLedger.length, 20) - i}</td>
+                  <td className="py-2 text-gray-400 w-8">{Math.min(d.generalLedger.length, 50) - i}</td>
                   <td className="py-2 text-[#000000]">{r.date ? new Date(r.date).toLocaleDateString('en-US') : '—'}</td>
                     <td className="py-2"><span className="text-xs px-2 py-0.5 rounded bg-brand/10 text-brand">{r.type}</span></td>
                     <td className="py-2 text-[#000000]">{r.detail || '—'}</td>
                     <td className="py-2 text-right font-medium text-brand">{cfmt(r.amount)}</td>
+                    <td className="py-2 text-right font-medium text-[#000000]">{cfmt(r.runningBalance)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-[#000000] mt-3">Showing the 20 most recent entries.</p>
-          <TableDownload title="General Ledger" headers={['#', 'Date', 'Type', 'Detail', 'Amount']} rows={d.generalLedger.slice(0, 20).map((r, i) => [String(Math.min(d.generalLedger.length, 20) - i),
+          <p className="text-xs text-[#000000] mt-3">Showing up to 50 entries sorted by date.</p>
+          <TableDownload title="General Ledger" headers={['#', 'Date', 'Type', 'Detail', 'Amount', 'Running Balance']} rows={d.generalLedger.slice(0, 50).map((r, i) => [String(Math.min(d.generalLedger.length, 50) - i),
             r.date ? new Date(r.date).toLocaleDateString('en-US') : '—',
             r.type,
             r.detail || '—',
             cfmt(r.amount),
+            cfmt(r.runningBalance),
           ])} />
         </Section>
       )}
@@ -717,7 +783,7 @@ function ReportsContent() {
 
       {/* ── Inventory Valuation ── */}
       {(activeType === 'all' || activeType === 'inventory') && (
-        <Section icon={Package} title="Inventory Valuation Report" subtitle="Stock levels and value">
+        <Section icon={Package} title="Inventory Valuation Report" subtitle="Stock levels and value (cost method: weighted average)">
           {d.inventoryValuation.totalItems === 0 ? (
             <div className="bg-surface rounded-lg p-4 text-sm text-[#000000]">
               <p>{d.inventoryValuation.message}</p>
@@ -726,6 +792,35 @@ function ReportsContent() {
             <>
               <Row label="Total Items in Stock" value={String(d.inventoryValuation.totalItems)} />
               <Row label="Total Inventory Value" value={cfmt(d.inventoryValuation.totalValue)} />
+              {d.inventoryValuation.items && d.inventoryValuation.items.length > 0 && (
+                <div className="mt-4 overflow-x-auto">
+                  <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Stock Items Detail</p>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-[#000000] text-xs uppercase">
+                        <th className="text-left pb-2 font-medium">Item</th>
+                        <th className="text-left pb-2 font-medium">SKU</th>
+                        <th className="text-left pb-2 font-medium">Category</th>
+                        <th className="text-right pb-2 font-medium">Qty</th>
+                        <th className="text-right pb-2 font-medium">Unit Cost</th>
+                        <th className="text-right pb-2 font-medium">Total Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {d.inventoryValuation.items.map((item: any, i: number) => (
+                        <tr key={i} className="border-b border-border/50">
+                          <td className="py-1.5 text-[#000000]">{item.item_name}</td>
+                          <td className="py-1.5 text-[#000000]">{item.sku || '—'}</td>
+                          <td className="py-1.5 text-[#000000]">{item.category || '—'}</td>
+                          <td className="py-1.5 text-right text-[#000000]">{item.current_stock}</td>
+                          <td className="py-1.5 text-right text-[#000000]">{cfmt(item.unit_cost)}</td>
+                          <td className="py-1.5 text-right font-medium text-brand">{cfmt(item.total_value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
           <ReportDownload title="Inventory Valuation" data={[[
@@ -738,48 +833,57 @@ function ReportsContent() {
       {/* ── Budget vs Actual ── */}
       {(activeType === 'all' || activeType === 'budget-vs-actual') && (
         <Section icon={BarChart3} title="Budget vs Actual Report" subtitle="Comparing planned budgets with actual performance">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-[#000000] text-xs uppercase">
-                <th className="text-left pb-2 font-medium w-8">#</th>
-                <th className="text-left pb-2 font-medium">Category</th>
-                <th className="text-right pb-2 font-medium">Budget</th>
-                <th className="text-right pb-2 font-medium">Actual</th>
-                <th className="text-right pb-2 font-medium">Variance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.budgetVsActual.map((r, i) => (
-                <tr key={i} className="border-b border-border/50">
-                  <td className="py-2 text-gray-400 w-8">{d.budgetVsActual.length - i}</td>
-                  <td className="py-2 text-[#000000]">{r.category}</td>
-                  <td className="py-2 text-right text-[#000000]">{cfmt(r.budget)}</td>
-                  <td className="py-2 text-right font-medium text-brand">{cfmt(r.actual)}</td>
-                  <td className={`py-2 text-right font-medium ${r.variance >= 0 ? 'text-red-600' : 'text-red-600'}`}>{cfmt(r.variance)}</td>
+          {d.budgetVsActual.length === 0 ? (
+            <div className="bg-surface rounded-lg p-4 text-sm text-[#000000]">
+              <p>No budgets have been set up yet. Go to <strong>Budgets</strong> in the sidebar to create budgets for meaningful variance tracking.</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-[#000000] text-xs uppercase">
+                  <th className="text-left pb-2 font-medium w-8">#</th>
+                  <th className="text-left pb-2 font-medium">Category</th>
+                  <th className="text-right pb-2 font-medium">Budget</th>
+                  <th className="text-right pb-2 font-medium">Actual</th>
+                  <th className="text-right pb-2 font-medium">Variance</th>
+                  <th className="text-right pb-2 font-medium">Var %</th>
+                  <th className="text-center pb-2 font-medium">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="text-xs text-[#000000] mt-3">Set up budgets in the Budgets page to track performance against targets. Without budgets, estimates at 110% of actuals are shown.</p>
-          <TableDownload title="Budget vs Actual" headers={['#', 'Category', 'Budget', 'Actual', 'Variance']} rows={d.budgetVsActual.map((r, i) => [String(d.budgetVsActual.length - i), r.category, cfmt(r.budget), cfmt(r.actual), cfmt(r.variance)])} />
+              </thead>
+              <tbody>
+                {d.budgetVsActual.map((r, i) => (
+                  <tr key={i} className="border-b border-border/50">
+                    <td className="py-2 text-gray-400 w-8">{d.budgetVsActual.length - i}</td>
+                    <td className="py-2 text-[#000000]">{r.category}</td>
+                    <td className="py-2 text-right text-[#000000]">{cfmt(r.budget)}</td>
+                    <td className="py-2 text-right font-medium text-brand">{cfmt(r.actual)}</td>
+                    <td className={`py-2 text-right font-medium ${r.variance >= 0 ? (r.status === 'favorable' ? 'text-green-600' : 'text-red-600') : (r.status === 'favorable' ? 'text-green-600' : 'text-red-600')}`}>{r.variance >= 0 ? cfmt(r.variance) : `(${cfmt(Math.abs(r.variance))})`}</td>
+                    <td className={`py-2 text-right font-medium ${r.status === 'favorable' ? 'text-green-600' : 'text-red-600'}`}>{r.variancePercent >= 0 ? '+' : ''}{r.variancePercent.toFixed(1)}%</td>
+                    <td className={`py-2 text-center font-medium ${r.status === 'favorable' ? 'text-green-600' : 'text-red-600'}`}>{r.status === 'favorable' ? '✓' : '✗'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <TableDownload title="Budget vs Actual" headers={['#', 'Category', 'Budget', 'Actual', 'Variance', 'Var %', 'Status']} rows={d.budgetVsActual.map((r, i) => [String(d.budgetVsActual.length - i), r.category, cfmt(r.budget), cfmt(r.actual), r.variance >= 0 ? cfmt(r.variance) : `(${cfmt(Math.abs(r.variance))})`, `${(r.variancePercent >= 0 ? '+' : '')}${r.variancePercent.toFixed(1)}%`, r.status])} />
         </Section>
       )}
 
       {/* ── Owner's Equity ── */}
       {(activeType === 'all' || activeType === 'equity') && (
-        <Section icon={PiggyBank} title="Equity / Owner's Report" subtitle="Retained earnings, capital, and withdrawals">
-          <Row label="Retained Earnings (Lifetime)" value={cfmt(d.equityReport.retainedEarnings)} />
-          <Row label="Current Period Profit" value={cfmt(d.equityReport.currentPeriodProfit)} color={d.equityReport.currentPeriodProfit >= 0 ? 'text-red-700' : 'text-red-700'} />
-          <Row label="Capital Contributions" value={cfmt(d.equityReport.capitalContributions)} />
-          <Row label="Owner Withdrawals" value={cfmt(d.equityReport.withdrawals)} color="text-red-600" />
+        <Section icon={PiggyBank} title="Statement of Changes in Equity" subtitle="Opening equity, movements, and closing balance">
+          <Row label="Retained Earnings (Opening)" value={cfmt(d.equityReport.retainedEarnings - d.equityReport.currentPeriodProfit)} />
+          <Row label="Add: Current Period Profit" value={cfmt(d.equityReport.currentPeriodProfit)} color="text-green-600" />
+          <Row label="Add: Capital Contributions" value={cfmt(d.equityReport.capitalContributions)} />
+          <Row label="Less: Owner Withdrawals" value={`(${cfmt(d.equityReport.withdrawals)})`} color="text-red-600" />
           <div className="border-t border-border my-2" />
-          <Row label="Total Equity" value={cfmt(d.equityReport.totalEquity)} />
+          <Row label="Total Equity (Closing)" value={cfmt(d.equityReport.totalEquity)} fontWeight="font-bold" />
           <ReportDownload title="Owner's Equity Report" data={[[
-            { label: 'Retained Earnings (Lifetime)', value: cfmt(d.equityReport.retainedEarnings) },
+            { label: 'Retained Earnings (Opening)', value: cfmt(d.equityReport.retainedEarnings - d.equityReport.currentPeriodProfit) },
             { label: 'Current Period Profit', value: cfmt(d.equityReport.currentPeriodProfit) },
             { label: 'Capital Contributions', value: cfmt(d.equityReport.capitalContributions) },
-            { label: 'Owner Withdrawals', value: cfmt(d.equityReport.withdrawals) },
-            { label: 'Total Equity', value: cfmt(d.equityReport.totalEquity) },
+            { label: 'Owner Withdrawals', value: `(${cfmt(d.equityReport.withdrawals)})` },
+            { label: 'Total Equity (Closing)', value: cfmt(d.equityReport.totalEquity) },
           ]]} />
         </Section>
       )}
@@ -847,7 +951,7 @@ function ReportsContent() {
 
       {/* ── Audit Trail ── */}
       {(activeType === 'all' || activeType === 'audit-trail') && (
-        <Section icon={ShieldCheck} title="Audit Trail Report" subtitle="System transaction log for transparency">
+        <Section icon={ShieldCheck} title="Audit Trail Report" subtitle="Transaction log — user identity tracking requires schema migration">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -855,25 +959,31 @@ function ReportsContent() {
                 <th className="text-left pb-2 font-medium w-8">#</th>
                 <th className="text-left pb-2 font-medium">Date</th>
                 <th className="text-left pb-2 font-medium">Action</th>
+                <th className="text-left pb-2 font-medium">Reference</th>
                 <th className="text-right pb-2 font-medium">Amount</th>
               </tr>
             </thead>
             <tbody>
-              {d.auditTrail.slice(0, 25).map((r, i) => (
+              {d.auditTrail.slice(0, 50).map((r, i) => (
                 <tr key={i} className="border-b border-border/50">
-                  <td className="py-2 text-gray-400 w-8">{Math.min(d.auditTrail.length, 25) - i}</td>
+                  <td className="py-2 text-gray-400 w-8">{Math.min(d.auditTrail.length, 50) - i}</td>
                   <td className="py-2 text-[#000000]">{new Date(r.created_at).toLocaleString('en-US')}</td>
                     <td className="py-2"><span className="text-xs px-2 py-0.5 rounded bg-brand/10 text-brand">{r.action}</span></td>
+                    <td className="py-2 text-[#000000] text-xs">#{r.id?.slice(0, 8) || '—'}</td>
                     <td className="py-2 text-right font-medium text-brand">{cfmt(r.amount)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-[#000000] mt-3">Showing the 25 most recent audit entries.</p>
-          <TableDownload title="Audit Trail" headers={['Date', 'Action', 'Amount']} rows={d.auditTrail.slice(0, 25).map(r => [
+          <div className="bg-surface rounded-lg p-3 mt-3 text-xs text-[#000000]">
+            <p className="font-medium">Note</p>
+            <p className="mt-1">This audit trail is reconstructed from transaction tables. For full user-level auditing (who did what, IP address, before/after values), the <code>audit_log</code> table needs to be populated via triggers or application hooks. This will be implemented in a future update.</p>
+          </div>
+          <TableDownload title="Audit Trail" headers={['Date', 'Action', 'Reference', 'Amount']} rows={d.auditTrail.slice(0, 50).map(r => [
             new Date(r.created_at).toLocaleString('en-US'),
             r.action,
+            r.id?.slice(0, 8) || '—',
             cfmt(r.amount),
           ])} />
         </Section>

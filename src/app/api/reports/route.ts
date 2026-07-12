@@ -183,6 +183,7 @@ export async function GET(request: Request) {
 
   const totalOperatingExpenses = adminExpenses + sellingDistributionExpenses + generalOperatingExpenses + salariesTotal.total + depreciationExpense;
   const operatingProfit = grossProfit - totalOperatingExpenses;
+  const ebitda = operatingProfit + depreciationExpense;
 
   // Other Income & Expenses
   const otherIncomeRow = await safeGet(
@@ -582,9 +583,13 @@ export async function GET(request: Request) {
     .filter((t: any) => t.tx_type === 'OWNER_WITHDRAWAL')
     .map((t: any) => ({ ...t, type: 'Owner Withdrawal' }));
 
-  const generalLedger = [...glPayments, ...glExpenses, ...glSalaries, ...glPurchases, ...glSalesInvoices, ...glCreditNotes, ...glDebitNotes, ...glSupplierPayments, ...glOtherIncome, ...glOtherExpenses, ...glCapitalInjections, ...glOwnerWithdrawals]
-    .sort((a, b) => (a.date || a.created_at) > (b.date || b.created_at) ? 1 : -1)
-    .slice(0, 100);
+  const allGlEntries = [...glPayments, ...glExpenses, ...glSalaries, ...glPurchases, ...glSalesInvoices, ...glCreditNotes, ...glDebitNotes, ...glSupplierPayments, ...glOtherIncome, ...glOtherExpenses, ...glCapitalInjections, ...glOwnerWithdrawals]
+    .sort((a, b) => (a.date || a.created_at) > (b.date || b.created_at) ? 1 : -1);
+  let runningBal = 0;
+  const generalLedger = allGlEntries.slice(0, 200).map(entry => {
+    runningBal += Number(entry.amount);
+    return { ...entry, runningBalance: runningBal };
+  });
 
   // ═══════════════════════════════════════════════
   // AGING
@@ -775,6 +780,9 @@ export async function GET(request: Request) {
     depreciationExpense,
     totalOperatingExpenses,
     operatingProfit,
+    ebitda,
+    grossMarginPercent: netSales > 0 ? (grossProfit / netSales) * 100 : 0,
+    netMarginPercent: netSales > 0 ? (netProfit / netSales) * 100 : 0,
     otherIncome,
     otherExpenses,
     profitBeforeTax,
@@ -871,20 +879,19 @@ export async function GET(request: Request) {
         OTHER_EXPENSE: otherExpenses,
       };
       if (budgets.length === 0) {
-        return [
-          { category: 'Revenue', budget: netSales * 1.1, actual: netSales, variance: netSales - netSales * 1.1 },
-          { category: 'Purchases', budget: purchases.total * 1.1, actual: purchases.total, variance: purchases.total - purchases.total * 1.1 },
-          { category: 'Expenses', budget: expenseTotal * 1.1, actual: expenseTotal, variance: expenseTotal - expenseTotal * 1.1 },
-          { category: 'Salaries', budget: salariesTotal.total * 1.1, actual: salariesTotal.total, variance: salariesTotal.total - salariesTotal.total * 1.1 },
-        ];
+        return [];
       }
       return budgets.map((b: any) => {
         const actual = actuals[b.category_type as keyof typeof actuals] ?? 0;
+        const budgetAmt = Number(b.budget_amount);
+        const varianceAmt = actual - budgetAmt;
         return {
           category: b.category_name || b.category_type,
-          budget: Number(b.budget_amount),
+          budget: budgetAmt,
           actual,
-          variance: actual - Number(b.budget_amount),
+          variance: varianceAmt,
+          variancePercent: budgetAmt > 0 ? (varianceAmt / budgetAmt) * 100 : 0,
+          status: actual <= budgetAmt ? 'favorable' : 'unfavorable',
         };
       });
     })(),
