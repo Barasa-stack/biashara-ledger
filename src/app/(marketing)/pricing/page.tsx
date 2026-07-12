@@ -1,41 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, HelpCircle } from 'lucide-react';
 import PageHero from '@/components/PageHero';
 import type { CityImage } from '@/components/PageHero';
 import { useEffect, useState } from 'react';
+import { pricingPlans } from '@/lib/marketing-data';
+import { useAuth } from '@/lib/auth-context';
 
 const pricingImages: CityImage[] = [
   { url: '/images/hero/hero-skyscraper-glass-modern.jpg', label: 'Simple Pricing' },
 ];
 
-const FEATURES = [
-  'Dashboard',
-  'Customers & Suppliers',
-  'Sales',
-  'Purchases',
-  'Other Income / Expenses',
-  'Projects',
-  'Developer Tools',
-  'Financial Reports',
-  'Notifications',
-  'Subscription Management',
-  'Company Settings',
-  'HR & Payroll Expenses',
-  'Capital Transactions',
-  'Exchange Rates',
-  'Chart of Accounts',
-  'Fixed Assets',
-  'Inventory Management',
-  'Budgets',
-  'Journal Entries',
-  'Banking',
-  'Automation',
-  'CRM Pipeline',
-];
-
 export default function PricingPage() {
+  const { user } = useAuth();
   const [yearly, setYearly] = useState(false);
 
   useEffect(() => {
@@ -56,6 +34,9 @@ export default function PricingPage() {
 
     return () => observer.disconnect();
   }, []);
+
+  const displayPlans = pricingPlans.filter(p => p.name !== 'Custom');
+  const customPlan = pricingPlans.find(p => p.name === 'Custom');
 
   return (
     <div>
@@ -80,16 +61,16 @@ export default function PricingPage() {
         .stagger-children.visible > *:nth-child(1) { transition-delay: 0.1s; opacity: 1; transform: translateY(0); }
         .stagger-children.visible > *:nth-child(2) { transition-delay: 0.2s; opacity: 1; transform: translateY(0); }
         .stagger-children.visible > *:nth-child(3) { transition-delay: 0.3s; opacity: 1; transform: translateY(0); }
+        .stagger-children.visible > *:nth-child(4) { transition-delay: 0.4s; opacity: 1; transform: translateY(0); }
         
         .pricing-card {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          cursor: pointer;
           background: white;
           border: 1px solid #e5e7eb;
         }
         
         .pricing-card:hover {
-          transform: translateY(10px);
+          transform: translateY(-4px);
           box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
         }
         
@@ -110,6 +91,7 @@ export default function PricingPage() {
           border-radius: 20px;
           font-size: 0.75rem;
           font-weight: 600;
+          z-index: 10;
         }
         
         .gradient-text-shine {
@@ -182,35 +164,72 @@ export default function PricingPage() {
         </span>
       </div>
 
-      {/* ─── PRICING ─── */}
+      {/* ─── PRICING CARDS ─── */}
       <section className="py-12 bg-gray-50" aria-labelledby="pricing-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-lg mx-auto stagger-children animate-on-scroll">
-            <div className="pricing-card rounded-xl p-8 popular text-center">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">All Features Included</h3>
-              <div className="mb-4">
-                <span className="text-4xl font-bold text-gray-900">KES {yearly ? '5,000' : '500'}</span>
-                <span className="text-gray-500 text-sm">{yearly ? '/year' : '/month'}</span>
-              </div>
-              <p className="text-sm text-gray-600 mb-6">The complete BiasharaLedger platform — no feature restrictions.</p>
-              <p className="text-xs text-brand font-medium mb-6">3-day free trial</p>
-              <Link
-                href="/sign-up"
-                className="inline-block w-full bg-brand hover:bg-brand-hover text-white px-6 py-3 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-brand/25"
-              >
-                Get Started
-              </Link>
-              <div className="mt-8 border-t border-gray-100 pt-8">
-                <ul className="space-y-3 max-w-sm mx-auto">
-                  {FEATURES.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-gray-600 text-left">
-                      <Check className="h-5 w-5 text-brand flex-shrink-0 mt-0.5" />
-                      <span>{feature}</span>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children animate-on-scroll items-start">
+            {displayPlans.map((plan) => {
+              const displayPrice = yearly ? plan.priceYearly : plan.price;
+              const periodLabel = yearly ? '/year' : '/month';
+              return (
+                <div key={plan.name} className={`pricing-card rounded-xl p-6 flex flex-col ${plan.popular ? 'popular' : ''}`}>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">{plan.name}</h3>
+                  <p className="text-sm text-gray-500 mb-4 min-h-[2.5rem]">{plan.desc}</p>
+                  <div className="mb-1">
+                    <span className="text-3xl font-bold text-gray-900">KES {displayPrice}</span>
+                    <span className="text-gray-500 text-sm">{periodLabel}</span>
+                  </div>
+                  {yearly && plan.priceYearly && (
+                    <p className="text-xs text-brand font-medium mb-4">KES {plan.price}/month when billed yearly</p>
+                  )}
+                  {!yearly && <div className="mb-4" />}
+                  <Link
+                    href={plan.name === 'Custom' ? '/contact' : user ? '/dashboard/subscription' : `/sign-up?plan=${plan.name}`}
+                    className={`block text-center px-6 py-3 rounded-xl text-sm font-semibold transition-all mb-6 ${
+                      plan.popular
+                        ? 'bg-brand hover:bg-brand-hover text-white hover:shadow-lg hover:shadow-brand/25'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                  <ul className="space-y-2.5 border-t border-gray-100 pt-6 flex-1">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm text-gray-600">
+                        <Check className="h-4 w-4 text-brand flex-shrink-0 mt-0.5" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+
+            {/* ─── CUSTOM PLAN ─── */}
+            {customPlan && (
+              <div className="pricing-card rounded-xl p-6 flex flex-col border-dashed border-2 border-brand/30 bg-brand/5">
+                <h3 className="text-lg font-bold text-gray-900 mb-1">{customPlan.name}</h3>
+                <p className="text-sm text-gray-500 mb-4 min-h-[2.5rem]">{customPlan.desc}</p>
+                <div className="mb-1">
+                  <span className="text-3xl font-bold text-gray-900">Custom</span>
+                </div>
+                <div className="mb-4" />
+                <Link
+                  href="/contact"
+                  className="block text-center px-6 py-3 rounded-xl text-sm font-semibold transition-all mb-6 bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30"
+                >
+                  Contact Us
+                </Link>
+                <ul className="space-y-2.5 border-t border-gray-100 pt-6 flex-1">
+                  {customPlan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-gray-600">
+                      <Check className="h-4 w-4 text-brand flex-shrink-0 mt-0.5" />
+                      <span>{f}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </section>
@@ -225,10 +244,10 @@ export default function PricingPage() {
             3-day free trial. No credit card required. All features included.
           </p>
           <Link
-            href="/sign-up"
+            href={user ? '/dashboard' : '/sign-up'}
             className="bg-brand hover:bg-brand-hover text-white px-8 py-3.5 rounded-xl text-base font-semibold transition-all hover:shadow-lg hover:shadow-brand/25 inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 cta-button"
           >
-            Start Free Trial <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            {user ? 'Go to Dashboard' : 'Start Free Trial'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
       </section>

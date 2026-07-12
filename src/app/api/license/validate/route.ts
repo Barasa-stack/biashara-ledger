@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminGet, adminRun } from '@/lib/db';
-import { normalizePlan } from '@/lib/feature-gate';
+import { normalizePlan, getDefaultModules, getAllModules, getModuleName } from '@/lib/feature-gate';
 
 function daysRemaining(expiryDate: string | Date | null): number {
   if (!expiryDate) return 365;
@@ -47,11 +47,8 @@ export async function POST(request: Request) {
     }
 
     const plan = normalizePlan(license.plan);
-    const featureList = plan === 'Premium'
-      ? ['all']
-      : plan === 'Standard'
-      ? ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance', 'hrPayroll', 'generalLedger', 'expenseReport', 'inventory']
-      : ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance'];
+    const modules = getDefaultModules(plan);
+    const featureList = modules.length > 0 ? modules.map(m => getModuleName(m)) : ['all'];
 
     return NextResponse.json({
       valid: true,

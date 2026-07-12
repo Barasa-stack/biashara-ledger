@@ -14,6 +14,8 @@ type Employee = {
   date_of_birth: string;
   national_id: string;
   tax_pin: string;
+  nssf_number: string;
+  shif_number: string;
   phone: string;
   email: string;
   address: string;
@@ -21,6 +23,8 @@ type Employee = {
   job_title: string;
   date_of_hire: string;
   employment_type: string;
+  employment_status: string;
+  contract_hours: number;
   bank_name: string;
   account_number: string;
   emergency_contact_name: string;
@@ -37,6 +41,8 @@ const emptyForm = {
   date_of_birth: '',
   national_id: '',
   tax_pin: '',
+  nssf_number: '',
+  shif_number: '',
   phone: '',
   email: '',
   address: '',
@@ -44,6 +50,8 @@ const emptyForm = {
   job_title: '',
   date_of_hire: new Date().toISOString().split('T')[0],
   employment_type: 'full-time',
+  employment_status: 'active',
+  contract_hours: 168,
   bank_name: '',
   account_number: '',
   emergency_contact_name: '',
@@ -55,7 +63,7 @@ const emptyForm = {
 const fmtKES = (n: number | string | null | undefined) =>
   `KSh ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
-const EMPLOYMENT_TYPES = ['full-time', 'part-time', 'contract'];
+const EMPLOYMENT_TYPES = ['full-time', 'part-time', 'contract', 'intern', 'casual'];
 
 export default function PayrollPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -111,7 +119,9 @@ export default function PayrollPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm(emptyForm);
+    const nextNum = employees.length + 1;
+    const nextCode = `EM-${String(nextNum).padStart(5, '0')}`;
+    setForm({ ...emptyForm, employee_code: nextCode });
     setShowModal(true);
   };
 
@@ -123,6 +133,8 @@ export default function PayrollPage() {
       date_of_birth: e.date_of_birth?.split('T')[0] || '',
       national_id: e.national_id,
       tax_pin: e.tax_pin,
+      nssf_number: e.nssf_number || '',
+      shif_number: e.shif_number || '',
       phone: e.phone,
       email: e.email,
       address: e.address,
@@ -130,6 +142,8 @@ export default function PayrollPage() {
       job_title: e.job_title,
       date_of_hire: e.date_of_hire?.split('T')[0] || '',
       employment_type: e.employment_type,
+      employment_status: e.employment_status || 'active',
+      contract_hours: e.contract_hours || 168,
       bank_name: e.bank_name,
       account_number: e.account_number,
       emergency_contact_name: e.emergency_contact_name,
@@ -241,10 +255,10 @@ export default function PayrollPage() {
           <div className="relative group">
             <button className="inline-flex items-center gap-1.5 border border-border text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-surface transition-colors"><Download className="h-4 w-4" /> Export</button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredEmployees, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredEmployees, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Employees', filteredEmployees, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Employees', filteredEmployees, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredEmployees, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredEmployees, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Employees', filteredEmployees, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Employees', filteredEmployees, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(dateFrom || dateTo || departmentFilter || searchQuery) && (
@@ -279,6 +293,7 @@ export default function PayrollPage() {
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Name</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Department</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Job Title</th>
+                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Type</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Status</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Phone</th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Email</th>
@@ -286,16 +301,32 @@ export default function PayrollPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredEmployees.map((emp, i) => (
-                  <tr key={emp.id} className="hover:bg-surface/50 transition-colors">
-                    <td className="py-3 pr-4 text-gray-400 w-8">{filteredEmployees.length - i}</td>
-                    <td className="py-3 pr-4">
-                      <span className="font-medium text-gray-800">{emp.name}</span>
-                      {emp.employee_code && <p className="text-xs text-gray-400 mt-0.5">{emp.employee_code}</p>}
-                    </td>
+                  {filteredEmployees.map((emp, i) => {
+                    const isCasualConvertible = emp.employment_type === 'casual' && emp.date_of_hire && (Date.now() - new Date(emp.date_of_hire).getTime()) > 30 * 86400000;
+                    return (
+                    <tr key={emp.id} className="hover:bg-surface/50 transition-colors">
+                      <td className="py-3 pr-4 text-gray-400 w-8">{filteredEmployees.length - i}</td>
+                      <td className="py-3 pr-4">
+                        <span className="font-medium text-gray-800">{emp.name}</span>
+                        {emp.employee_code && <p className="text-xs text-gray-400 mt-0.5">{emp.employee_code}</p>}
+                        {isCasualConvertible && (
+                          <p className="text-xs text-amber-600 font-medium mt-0.5 flex items-center gap-1">
+                            <span>⚠</span> Casual over 30 days — eligible for month-to-month contract (Section 37)
+                          </p>
+                        )}
+                      </td>
                     <td className="py-3 pr-4 text-gray-700">{emp.department || '—'}</td>
                     <td className="py-3 pr-4 text-gray-700">{emp.job_title || '—'}</td>
-                    <td className="py-3 pr-4">
+                      <td className="py-3 pr-4">
+                        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
+                          emp.employment_type === 'casual' ? 'bg-amber-100 text-amber-700' :
+                          emp.employment_type === 'contract' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {emp.employment_type || 'full-time'}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4">
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${
                         emp.status === 'Active' ? 'bg-red-100 text-red-700' :
                         emp.status === 'Inactive' ? 'bg-red-100 text-red-700' :
@@ -316,8 +347,9 @@ export default function PayrollPage() {
                         </button>
                       </div>
                     </td>
-                  </tr>
-                ))}
+                    </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -338,7 +370,7 @@ export default function PayrollPage() {
 
             <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Employee Code" value={form.employee_code} onChange={set('employee_code')} required />
+                <Field label="Employee Code" value={form.employee_code} onChange={set('employee_code')} required readonly />
                 <Field label="Full Name" value={form.name} onChange={set('name')} required />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -348,6 +380,10 @@ export default function PayrollPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="KRA Tax PIN" value={form.tax_pin} onChange={set('tax_pin')} />
                 <Field label="Phone Number" value={form.phone} onChange={set('phone')} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="NSSF Number" value={form.nssf_number} onChange={set('nssf_number')} />
+                <Field label="SHIF Number" value={form.shif_number} onChange={set('shif_number')} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Email" value={form.email} onChange={set('email')} type="email" />
@@ -369,6 +405,19 @@ export default function PayrollPage() {
                   </select>
                 </div>
                 <Field label="Salary (KES)" value={String(form.salary)} onChange={v => set('salary')(Number(v) || 0)} type="number" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Employment Status</label>
+                  <select value={form.employment_status} onChange={e => set('employment_status')(e.target.value)}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="terminated">Terminated</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+                <Field label="Contract Hours/Month" value={String(form.contract_hours)} onChange={v => set('contract_hours')(Number(v) || 168)} type="number" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Bank Name" value={form.bank_name} onChange={set('bank_name')} />
@@ -409,12 +458,13 @@ export default function PayrollPage() {
   );
 }
 
-function Field({ label, value, onChange, type, required }: {
+function Field({ label, value, onChange, type, required, readonly }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   required?: boolean;
+  readonly?: boolean;
 }) {
   return (
     <div>
@@ -426,7 +476,8 @@ function Field({ label, value, onChange, type, required }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         required={required}
-        className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+        readOnly={readonly}
+        className={`w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${readonly ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'text-gray-800'}`}
       />
     </div>
   );

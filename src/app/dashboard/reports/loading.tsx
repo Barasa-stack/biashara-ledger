@@ -1,10 +1,11 @@
 export default function ReportsLoading() {
   return (
-    <div className="min-h-[40vh] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-brand animate-pulse" />
-        <span className="text-sm text-gray-500">Loading reports...</span>
+    <div className="p-6 space-y-4 animate-pulse">
+      <div className="h-8 w-48 bg-gray-200 rounded" />
+      <div className="flex gap-2">
+        {[1, 2, 3].map(i => <div key={i} className="h-10 w-32 bg-gray-100 rounded-lg" />)}
       </div>
+      <div className="h-96 bg-gray-100 rounded-xl" />
     </div>
   );
 }

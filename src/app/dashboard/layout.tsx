@@ -51,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     : 0;
   const planName = user?.subscriptionPlan || 'Basic';
   const isTrialPeriod = (user?.subscriptionStatus === 'trial' || user?.subscriptionStatus === 'active') && !!user?.subscriptionExpiry && trialDaysLeft > 0;
-  const showUpgradeBanner = user && planName !== 'Premium' && !isTrialPeriod;
+  const showUpgradeBanner = user && planName !== 'premium' && !isTrialPeriod;
   const showTrialBanner = isTrialPeriod && trialDaysLeft <= 3;
 
   useEffect(() => {
@@ -229,7 +229,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="flex flex-1">
         <Suspense fallback={<aside className="w-60 border-r border-dark-border bg-dark" />}>
-          <Sidebar subscriptionPlan={user?.subscriptionPlan} />
+          <Sidebar subscriptionPlan={user?.subscriptionPlan} allowedModules={user?.allowedModules ? JSON.parse(user.allowedModules) : undefined} />
         </Suspense>
         <ErrorBoundary>
           <main className="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full">

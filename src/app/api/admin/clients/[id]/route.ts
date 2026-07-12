@@ -78,6 +78,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 });
     }
 
+    let allowedModules: string[] = [];
+    if (plan === 'custom' && body.modules) {
+      allowedModules = body.modules;
+    }
+
     // Try admin_clients first, then fall back to users table
     let client = await adminGet(
       `SELECT id, email FROM admin_clients WHERE CAST(id AS TEXT) = $1`,
@@ -120,16 +125,18 @@ export async function PATCH(
     }
 
     // Update users table
+    const modulesJson = plan === 'custom' && allowedModules.length > 0 ? JSON.stringify(allowedModules) : '[]';
     await adminRun(
       `UPDATE users SET subscription_plan = $1,
                         subscription_status = 'active',
                         license_status = 'active',
+                        allowed_modules = $2,
                         subscription_expiry = CASE
                           WHEN subscription_expiry IS NULL OR subscription_expiry < NOW() THEN NOW() + INTERVAL '365 days'
                           ELSE subscription_expiry
                         END
-       WHERE LOWER(email) = LOWER($2)`,
-      [plan, clientEmail]
+       WHERE LOWER(email) = LOWER($3)`,
+      [plan, modulesJson, clientEmail]
     );
 
     // Return updated data

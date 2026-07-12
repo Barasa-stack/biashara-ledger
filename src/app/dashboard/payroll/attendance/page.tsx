@@ -14,6 +14,7 @@ type Attendance = {
   clock_out: string;
   hours: number;
   overtime_hours: number;
+  overtime_type: string;
   status: string;
   notes: string;
   created_at: string;
@@ -33,6 +34,7 @@ const emptyForm = {
   clock_in: '08:00',
   clock_out: '17:00',
   status: 'present',
+  overtime_type: 'weekday',
   notes: '',
 };
 
@@ -97,6 +99,7 @@ export default function AttendancePage() {
       clock_in: r.clock_in || '',
       clock_out: r.clock_out || '',
       status: r.status,
+      overtime_type: r.overtime_type || 'weekday',
       notes: r.notes || '',
     });
     setShowModal(true);
@@ -247,12 +250,21 @@ export default function AttendancePage() {
                 <Field label="Clock In" value={form.clock_in} onChange={set('clock_in')} type="time" />
                 <Field label="Clock Out" value={form.clock_out} onChange={set('clock_out')} type="time" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
-                <select value={form.status} onChange={e => set('status')(e.target.value)}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white">
-                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' ')}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
+                  <select value={form.status} onChange={e => set('status')(e.target.value)}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white">
+                    {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' ')}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col justify-end">
+                  <div className="rounded-lg bg-gray-50 border border-border p-3 text-xs text-gray-500 space-y-1">
+                    <p>• 1hr unpaid break auto-deducted</p>
+                    <p>• OT (&gt;8hr) at <strong>1.5×</strong> weekday, <strong>2.0×</strong> weekend/public holiday</p>
+                    <p>• Public holidays and weekends auto-detected as rest day (2.0×)</p>
+                  </div>
+                </div>
               </div>
               <Field label="Notes" value={form.notes} onChange={set('notes')} />
             </div>

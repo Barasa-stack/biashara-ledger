@@ -100,7 +100,7 @@ export default function LeavePage() {
       const method = editing ? 'PUT' : 'POST';
       const body = editing ? { ...form, id: editing.id } : form;
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!res.ok) throw new Error('Failed to save');
+      if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || 'Failed to save'); }
       setShowModal(false);
       fetchRequests();
     } catch (e: any) { toast(e.message || 'Error'); } finally { setSaving(false); }

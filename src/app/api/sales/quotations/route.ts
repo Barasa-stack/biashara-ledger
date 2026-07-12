@@ -15,7 +15,9 @@ export async function GET() {
         `UPDATE quotations SET status='overdue' WHERE status='sent' AND ((valid_until IS NOT NULL AND valid_until < $1) OR (due_date IS NOT NULL AND due_date < $1))`,
         [today]
       );
-      return await query('SELECT * FROM quotations ORDER BY created_at DESC');
+      return await query(
+        `SELECT q.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number FROM quotations q LEFT JOIN customers c ON c.id = q.customer_id ORDER BY q.created_at DESC`
+      );
     });
     return NextResponse.json(data);
   } catch (e: any) {

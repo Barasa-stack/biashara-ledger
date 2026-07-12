@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 const fmt = (n: number, cur?: string) => {
-  const sym = (cur || 'KES') === 'KES' ? 'KSh' : '$';
+  const sym = 'KSh';
   return `${sym} ${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 };
 
@@ -315,7 +315,7 @@ function ReportsContent() {
 
   const d = data;
   const cfmt = (n: number) => {
-    const sym = (d.baseCurrency || 'KES') === 'KES' ? 'KSh' : '$';
+    const sym = 'KSh';
     return `${sym} ${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
   };
 

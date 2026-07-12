@@ -26,16 +26,18 @@ export async function GET(request: Request) {
       }
 
       if (type === 'deduction-summary') {
-        const payslips = await query(
-          `SELECT COALESCE(SUM(paye),0) as total_paye, COALESCE(SUM(nssf_employee),0) as total_nssf, COALESCE(SUM(nhif),0) as total_nhif, COALESCE(SUM(employer_nssf),0) as total_employer_nssf, COALESCE(SUM(deductions),0) as total_other_deductions, COUNT(*) as count, COALESCE(SUM(gross_pay),0) as total_gross, COALESCE(SUM(net_pay),0) as total_net
-           FROM payslips WHERE 1=1` + (dateFrom ? ` AND pay_date >= '${dateFrom}'` : '') + (dateTo ? ` AND pay_date <= '${dateTo}'` : '')
-        );
-        return NextResponse.json((payslips as any[])[0] || { total_paye: 0, total_nssf: 0, total_nhif: 0, total_employer_nssf: 0, total_other_deductions: 0, count: 0, total_gross: 0, total_net: 0 });
+        let sql = `SELECT COALESCE(SUM(paye),0) as total_paye, COALESCE(SUM(nssf_employee),0) as total_nssf, COALESCE(SUM(nhif),0) as total_nhif, COALESCE(SUM(COALESCE(shif,0)),0) as total_shif, COALESCE(SUM(COALESCE(ahl,0)),0) as total_ahl, COALESCE(SUM(COALESCE(employer_ahl,0)),0) as total_employer_ahl, COALESCE(SUM(employer_nssf),0) as total_employer_nssf, COALESCE(SUM(deductions),0) as total_other_deductions, COUNT(*) as count, COALESCE(SUM(gross_pay),0) as total_gross, COALESCE(SUM(net_pay),0) as total_net
+                   FROM payslips WHERE 1=1`;
+        const params: any[] = [];
+        if (dateFrom) { sql += ` AND pay_date >= $${params.length + 1}`; params.push(dateFrom); }
+        if (dateTo) { sql += ` AND pay_date <= $${params.length + 1}`; params.push(dateTo); }
+        const payslips = await query(sql, params);
+        return NextResponse.json((payslips as any[])[0] || { total_paye: 0, total_nssf: 0, total_nhif: 0, total_shif: 0, total_ahl: 0, total_employer_ahl: 0, total_employer_nssf: 0, total_other_deductions: 0, count: 0, total_gross: 0, total_net: 0 });
       }
 
       if (type === 'p9') {
         const empId = searchParams.get('employee_id') || '';
-        if (!empId) return NextResponse.json({ error: 'employee_id required' }, { status: 400 });
+        if (!empId) return NextResponse.json({ error: 'Please select an employee for the P9 Form' }, { status: 400 });
         const records = await query(
           `SELECT p.*, e.tax_pin, e.national_id, e.name, e.department
            FROM payslips p LEFT JOIN employees e ON p.employee_id = e.id
@@ -50,6 +52,8 @@ export async function GET(request: Request) {
           total_paye: (records as any[]).reduce((s: number, r: any) => s + Number(r.paye || 0), 0),
           total_nssf: (records as any[]).reduce((s: number, r: any) => s + Number(r.nssf_employee || 0), 0),
           total_nhif: (records as any[]).reduce((s: number, r: any) => s + Number(r.nhif || 0), 0),
+          total_shif: (records as any[]).reduce((s: number, r: any) => s + Number(r.shif || 0), 0),
+          total_ahl: (records as any[]).reduce((s: number, r: any) => s + Number(r.ahl || 0), 0),
           total_net: (records as any[]).reduce((s: number, r: any) => s + Number(r.net_pay || 0), 0),
           records,
         };
@@ -60,6 +64,7 @@ export async function GET(request: Request) {
     });
   } catch (err: any) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: err.code === 'UNAUTHORIZED' ? 401 : 403 });
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

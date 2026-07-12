@@ -257,7 +257,7 @@ export default function InventoryItemsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#000000] mb-1">Unit Cost ($)</label>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Unit Cost</label>
                   <input type="number" step="0.01" value={form.unit_cost} onChange={e => setForm({ ...form, unit_cost: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
                 </div>
               </div>

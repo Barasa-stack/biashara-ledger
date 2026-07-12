@@ -18,9 +18,14 @@ export async function GET(request: Request) {
         [today]
       );
       if (id) {
-        return await get('SELECT * FROM sales_invoices WHERE id=$1', [id]);
+        return await get(
+          `SELECT si.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number FROM sales_invoices si LEFT JOIN customers c ON c.id = si.customer_id WHERE si.id=$1`,
+          [id]
+        );
       }
-      return await query('SELECT * FROM sales_invoices ORDER BY created_at DESC');
+      return await query(
+        `SELECT si.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number FROM sales_invoices si LEFT JOIN customers c ON c.id = si.customer_id ORDER BY si.created_at DESC`
+      );
     });
     return NextResponse.json(data || null);
   } catch (e: any) {

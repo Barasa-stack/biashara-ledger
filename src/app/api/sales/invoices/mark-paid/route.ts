@@ -3,6 +3,7 @@ import { get, run, withTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
 import { buildReceiptHtml } from '@/lib/print';
 import { createTransporter, getSmtpConfig } from '@/lib/email';
+import { generatePdfBuffer } from '@/lib/pdf';
 
 export async function POST(request: Request) {
   try {
@@ -71,20 +72,7 @@ export async function POST(request: Request) {
         if (transporter) {
           let pdfBuffer: Uint8Array | null = null;
           try {
-            let puppeteer: any;
-            try {
-              puppeteer = await import('puppeteer').then(m => m.default);
-            } catch {
-              return NextResponse.json({ error: 'PDF generation is not available' }, { status: 500 });
-            }
-            const browser = await puppeteer.launch({
-              headless: true,
-              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-            });
-            const page = await browser.newPage();
-            await page.setContent(receiptHtml, { waitUntil: 'load' });
-            pdfBuffer = await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '8mm' }, printBackground: true });
-            await browser.close();
+            pdfBuffer = await generatePdfBuffer(receiptHtml);
           } catch (err: any) {
             console.error('Receipt PDF generation failed:', err.message);
           }

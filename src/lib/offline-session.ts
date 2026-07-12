@@ -17,7 +17,7 @@ export function generateSessionToken(): string {
 }
 
 export async function createOfflineSession(params: {
-  clientId?: number;
+  clientId?: string;
   licenseKey: string;
   hardwareFingerprint: string;
   userEmail: string;

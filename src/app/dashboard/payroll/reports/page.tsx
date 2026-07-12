@@ -23,7 +23,10 @@ type DeductionSummary = {
   total_paye: number;
   total_nssf: number;
   total_nhif: number;
+  total_shif: number;
+  total_ahl: number;
   total_employer_nssf: number;
+  total_employer_ahl: number;
   total_other_deductions: number;
   count: number;
   total_gross: number;
@@ -38,6 +41,8 @@ type P9Summary = {
   total_paye: number;
   total_nssf: number;
   total_nhif: number;
+  total_shif: number;
+  total_ahl: number;
   total_net: number;
   records: any[];
 };
@@ -116,8 +121,10 @@ export default function PayrollReportsPage() {
       w.document.write(`<tr><td>Total Gross Pay</td><td class="right">${fmtKES(deductionSummary.total_gross)}</td></tr>`);
       w.document.write(`<tr><td>PAYE (Income Tax)</td><td class="right">${fmtKES(deductionSummary.total_paye)}</td></tr>`);
       w.document.write(`<tr><td>NSSF (Employee)</td><td class="right">${fmtKES(deductionSummary.total_nssf)}</td></tr>`);
-      w.document.write(`<tr><td>NHIF</td><td class="right">${fmtKES(deductionSummary.total_nhif)}</td></tr>`);
+      w.document.write(`<tr><td>SHIF (2.75%)</td><td class="right">${fmtKES(deductionSummary.total_shif || deductionSummary.total_nhif)}</td></tr>`);
+      w.document.write(`<tr><td>AHL (1.5%)</td><td class="right">${fmtKES(deductionSummary.total_ahl)}</td></tr>`);
       w.document.write(`<tr><td>Employer NSSF</td><td class="right">${fmtKES(deductionSummary.total_employer_nssf)}</td></tr>`);
+      w.document.write(`<tr><td>Employer AHL</td><td class="right">${fmtKES(deductionSummary.total_employer_ahl)}</td></tr>`);
       w.document.write(`<tr><td>Other Deductions</td><td class="right">${fmtKES(deductionSummary.total_other_deductions)}</td></tr>`);
       w.document.write(`<tr><td><strong>Total Net Pay</strong></td><td class="right"><strong>${fmtKES(deductionSummary.total_net)}</strong></td></tr>`);
       w.document.write(`</tbody></table>`);
@@ -126,12 +133,12 @@ export default function PayrollReportsPage() {
     if (tab === 'p9' && p9Data) {
       w.document.write(`<h3>Employee: ${p9Data.employee_name}</h3>`);
       w.document.write(`<p>Tax PIN: ${p9Data.tax_pin || '—'} | National ID: ${p9Data.national_id || '—'}</p>`);
-      w.document.write(`<table><thead><tr><th>Period</th><th class="right">Gross Pay</th><th class="right">PAYE</th><th class="right">NSSF</th><th class="right">NHIF</th><th class="right">Net Pay</th></tr></thead><tbody>`);
+      w.document.write(`<table><thead><tr><th>Period</th><th class="right">Gross Pay</th><th class="right">PAYE</th><th class="right">NSSF</th><th class="right">SHIF</th><th class="right">AHL</th><th class="right">Net Pay</th></tr></thead><tbody>`);
       p9Data.records.forEach((r: any) => {
-        w.document.write(`<tr><td>${fmtDate(r.pay_date)}</td><td class="right">${fmtKES(r.gross_pay)}</td><td class="right">${fmtKES(r.paye)}</td><td class="right">${fmtKES(r.nssf_employee)}</td><td class="right">${fmtKES(r.nhif)}</td><td class="right">${fmtKES(r.net_pay)}</td></tr>`);
+        w.document.write(`<tr><td>${fmtDate(r.pay_date)}</td><td class="right">${fmtKES(r.gross_pay)}</td><td class="right">${fmtKES(r.paye)}</td><td class="right">${fmtKES(r.nssf_employee)}</td><td class="right">${fmtKES(r.shif || r.nhif)}</td><td class="right">${fmtKES(r.ahl)}</td><td class="right">${fmtKES(r.net_pay)}</td></tr>`);
       });
       w.document.write(`</tbody></table>`);
-      w.document.write(`<p><strong>Totals:</strong> Gross: ${fmtKES(p9Data.total_gross)} | PAYE: ${fmtKES(p9Data.total_paye)} | NSSF: ${fmtKES(p9Data.total_nssf)} | NHIF: ${fmtKES(p9Data.total_nhif)} | Net: ${fmtKES(p9Data.total_net)}</p>`);
+      w.document.write(`<p><strong>Totals:</strong> Gross: ${fmtKES(p9Data.total_gross)} | PAYE: ${fmtKES(p9Data.total_paye)} | NSSF: ${fmtKES(p9Data.total_nssf)} | SHIF: ${fmtKES(p9Data.total_shif || p9Data.total_nhif)} | AHL: ${fmtKES(p9Data.total_ahl)} | Net: ${fmtKES(p9Data.total_net)}</p>`);
     }
     w.document.write(`</body></html>`);
     w.document.close();
@@ -228,7 +235,7 @@ export default function PayrollReportsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500">Total Gross Pay</p><p className="text-lg font-bold">{fmtKES(deductionSummary.total_gross)}</p></div>
                 <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500">Total Net Pay</p><p className="text-lg font-bold text-green-700">{fmtKES(deductionSummary.total_net)}</p></div>
-                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500">Total Deductions</p><p className="text-lg font-bold text-red-700">{fmtKES(deductionSummary.total_paye + deductionSummary.total_nssf + deductionSummary.total_nhif + deductionSummary.total_other_deductions)}</p></div>
+                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500">Total Deductions</p><p className="text-lg font-bold text-red-700">{fmtKES(deductionSummary.total_paye + deductionSummary.total_nssf + (deductionSummary.total_shif || deductionSummary.total_nhif || 0) + (deductionSummary.total_ahl||0) + deductionSummary.total_other_deductions)}</p></div>
                 <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500">Employee Count</p><p className="text-lg font-bold">{deductionSummary.count}</p></div>
               </div>
               <div className="overflow-x-auto">
@@ -242,10 +249,12 @@ export default function PayrollReportsPage() {
                   <tbody className="divide-y divide-border">
                     <tr className="hover:bg-surface/50"><td className="py-2.5 pr-4 text-gray-700">PAYE (Income Tax)</td><td className="py-2.5 text-right font-medium text-red-600">{fmtKES(deductionSummary.total_paye)}</td></tr>
                     <tr className="hover:bg-surface/50"><td className="py-2.5 pr-4 text-gray-700">NSSF (Employee Share)</td><td className="py-2.5 text-right font-medium text-red-600">{fmtKES(deductionSummary.total_nssf)}</td></tr>
-                    <tr className="hover:bg-surface/50"><td className="py-2.5 pr-4 text-gray-700">NHIF</td><td className="py-2.5 text-right font-medium text-red-600">{fmtKES(deductionSummary.total_nhif)}</td></tr>
+                    <tr className="hover:bg-surface/50"><td className="py-2.5 pr-4 text-gray-700">SHIF (2.75%)</td><td className="py-2.5 text-right font-medium text-red-600">{fmtKES(deductionSummary.total_shif || deductionSummary.total_nhif)}</td></tr>
+                    <tr className="hover:bg-surface/50"><td className="py-2.5 pr-4 text-gray-700">AHL (1.5%)</td><td className="py-2.5 text-right font-medium text-red-600">{fmtKES(deductionSummary.total_ahl)}</td></tr>
                     <tr className="hover:bg-surface/50"><td className="py-2.5 pr-4 text-gray-700">Employer NSSF (Statutory)</td><td className="py-2.5 text-right font-medium text-orange-600">{fmtKES(deductionSummary.total_employer_nssf)}</td></tr>
+                    <tr className="hover:bg-surface/50"><td className="py-2.5 pr-4 text-gray-700">Employer AHL</td><td className="py-2.5 text-right font-medium text-orange-600">{fmtKES(deductionSummary.total_employer_ahl)}</td></tr>
                     <tr className="hover:bg-surface/50"><td className="py-2.5 pr-4 text-gray-700">Other Deductions</td><td className="py-2.5 text-right font-medium text-red-600">{fmtKES(deductionSummary.total_other_deductions)}</td></tr>
-                    <tr className="hover:bg-surface/50 border-t-2"><td className="py-2.5 pr-4 font-semibold text-gray-800">Total Deductions</td><td className="py-2.5 text-right font-bold text-red-700">{fmtKES(deductionSummary.total_paye + deductionSummary.total_nssf + deductionSummary.total_nhif + deductionSummary.total_other_deductions)}</td></tr>
+                    <tr className="hover:bg-surface/50 border-t-2"><td className="py-2.5 pr-4 font-semibold text-gray-800">Total Deductions</td><td className="py-2.5 text-right font-bold text-red-700">{fmtKES(deductionSummary.total_paye + deductionSummary.total_nssf + (deductionSummary.total_shif||deductionSummary.total_nhif||0) + (deductionSummary.total_ahl||0) + deductionSummary.total_other_deductions)}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -260,7 +269,8 @@ export default function PayrollReportsPage() {
                 <div className="bg-white border rounded-lg p-3"><p className="text-xs text-gray-500">Total Gross</p><p className="text-sm font-bold">{fmtKES(p9Data.total_gross)}</p></div>
                 <div className="bg-white border rounded-lg p-3"><p className="text-xs text-gray-500">PAYE</p><p className="text-sm font-bold text-red-600">{fmtKES(p9Data.total_paye)}</p></div>
                 <div className="bg-white border rounded-lg p-3"><p className="text-xs text-gray-500">NSSF</p><p className="text-sm font-bold text-red-600">{fmtKES(p9Data.total_nssf)}</p></div>
-                <div className="bg-white border rounded-lg p-3"><p className="text-xs text-gray-500">NHIF</p><p className="text-sm font-bold text-red-600">{fmtKES(p9Data.total_nhif)}</p></div>
+                <div className="bg-white border rounded-lg p-3"><p className="text-xs text-gray-500">SHIF</p><p className="text-sm font-bold text-red-600">{fmtKES(p9Data.total_shif || p9Data.total_nhif)}</p></div>
+                <div className="bg-white border rounded-lg p-3"><p className="text-xs text-gray-500">AHL</p><p className="text-sm font-bold text-red-600">{fmtKES(p9Data.total_ahl)}</p></div>
                 <div className="bg-white border rounded-lg p-3"><p className="text-xs text-gray-500">Net Pay</p><p className="text-sm font-bold text-green-700">{fmtKES(p9Data.total_net)}</p></div>
               </div>
               <div className="overflow-x-auto">
@@ -271,7 +281,8 @@ export default function PayrollReportsPage() {
                       <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">Gross Pay</th>
                       <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">PAYE</th>
                       <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">NSSF</th>
-                      <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">NHIF</th>
+                      <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">SHIF</th>
+                      <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3 pr-4">AHL</th>
                       <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider pb-3">Net Pay</th>
                     </tr>
                   </thead>
@@ -282,7 +293,8 @@ export default function PayrollReportsPage() {
                         <td className="py-2.5 pr-4 text-right">{fmtKES(r.gross_pay)}</td>
                         <td className="py-2.5 pr-4 text-right text-red-600">{fmtKES(r.paye)}</td>
                         <td className="py-2.5 pr-4 text-right text-red-600">{fmtKES(r.nssf_employee)}</td>
-                        <td className="py-2.5 pr-4 text-right text-red-600">{fmtKES(r.nhif)}</td>
+                        <td className="py-2.5 pr-4 text-right text-red-600">{fmtKES(r.shif || r.nhif)}</td>
+                        <td className="py-2.5 pr-4 text-right text-red-600">{fmtKES(r.ahl)}</td>
                         <td className="py-2.5 text-right font-semibold text-green-700">{fmtKES(r.net_pay)}</td>
                       </tr>
                     ))}

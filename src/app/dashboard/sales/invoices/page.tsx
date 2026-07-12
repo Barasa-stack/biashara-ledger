@@ -9,6 +9,7 @@ import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { getVatRate } from '@/lib/vat-rates';
 import { getCountryByCode } from '@/lib/countries';
+import SearchableCountrySelect from '@/components/SearchableCountrySelect';
 
 type Invoice = {
   id: string;
@@ -28,20 +29,40 @@ type Invoice = {
   due_date: string;
   customer_country?: string;
   vat_rate?: number;
+  quotation_id?: string;
+  paid_amount?: number;
 };
 
 type Customer = {
   id: string;
   customer_name: string;
   email_address: string;
+  phone_number: string;
+  billing_address: string;
   country: string;
+};
+
+type LineItem = {
+  description: string;
+  quantity: number;
+  unit_price: number;
+};
+
+type Quotation = {
+  id: string;
+  quotation_number: string;
+  customer_id: string;
+  customer_name: string;
+  customer_country?: string;
+  items: string;
+  description?: string;
 };
 
 const emptyForm = {
   invoice_number: '', customer_id: '', customer_name: '', description: '',
   quantity: 1, unit_price: 0, subtotal: 0, tax_vat: 0, discounts: 0,
   amount: 0, payment_terms: 'Net 30', status: 'draft', issue_date: '', due_date: '',
-  customer_country: '', vat_rate: 16,
+  customer_country: '', vat_rate: 16, quotation_id: '',
 };
 
 const fmtKES = (n: number | string | null | undefined) =>
@@ -70,8 +91,10 @@ export default function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sendConfirm, setSendConfirm] = useState<{
     to: string;
+    cc: string;
+    bcc: string;
     subject: string;
-    item: typeof form;
+    item: any;
   } | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [paymentModal, setPaymentModal] = useState<{
@@ -80,6 +103,8 @@ export default function InvoicesPage() {
     partialAmount: string;
   } | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const debouncedSearch = useDebounce(searchQuery, 200);
 
   const filteredInvoices = useMemo(() => {
@@ -153,7 +178,14 @@ export default function InvoicesPage() {
       });
   };
 
-  useEffect(() => { fetchInvoices(); fetchCustomers(); fetchCompanyName(); }, []);
+  const fetchQuotations = () => {
+    fetch('/api/sales/quotations')
+      .then(r => r.ok ? r.json() : [])
+      .then(setQuotations)
+      .catch(() => {});
+  };
+
+  useEffect(() => { fetchInvoices(); fetchCustomers(); fetchQuotations(); fetchCompanyName(); }, []);
 
   const activeVatRate = useMemo(() => {
     if (form.customer_country) return getVatRate(form.customer_country).rate;
@@ -169,21 +201,27 @@ export default function InvoicesPage() {
     return `VAT (${rate}%)`;
   }, [form.vat_rate, form.customer_country, vatRate]);
 
-  const recalc = (f: typeof form) => {
-    const qty = Number(f.quantity) || 0;
-    const price = Number(f.unit_price) || 0;
-    const subtotal = qty * price;
+  const recalc = (f: typeof form, items?: LineItem[]) => {
+    const useItems = items ?? lineItems;
+    let subtotal = 0;
+    if (useItems.length > 0) {
+      subtotal = useItems.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0);
+    } else {
+      subtotal = (Number(f.quantity) || 0) * (Number(f.unit_price) || 0);
+    }
     const rate = f.vat_rate !== undefined ? Number(f.vat_rate) : (f.customer_country ? getVatRate(f.customer_country).rate : vatRate);
     const vat = subtotal * rate / 100;
     const disc = Number(f.discounts) || 0;
     const amount = subtotal + vat - disc;
-    return { ...f, subtotal, tax_vat: vat, amount };
+    const first = useItems[0];
+    return { ...f, description: first?.description || f.description, quantity: useItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0), unit_price: first?.unit_price || f.unit_price, subtotal, tax_vat: vat, amount };
   };
 
   const openAdd = async () => {
     const today = new Date().toISOString().split('T')[0];
     const due = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
     setEditing(null);
+    setLineItems([]);
     let nextNumber = '';
     try {
       const res = await fetch('/api/company/next-number?type=invoice');
@@ -196,8 +234,11 @@ export default function InvoicesPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (inv: Invoice) => {
+  const openEdit = (inv: any) => {
     setEditing(inv);
+    let items: LineItem[] = [];
+    try { items = typeof inv.items === 'string' ? JSON.parse(inv.items) : (Array.isArray(inv.items) ? inv.items : []); } catch {}
+    setLineItems(items);
     setForm(recalc({
       invoice_number: inv.invoice_number,
       customer_id: inv.customer_id,
@@ -215,7 +256,8 @@ export default function InvoicesPage() {
       due_date: inv.due_date?.split('T')[0] || '',
       customer_country: inv.customer_country || '',
       vat_rate: inv.vat_rate ?? (inv.customer_country ? getVatRate(inv.customer_country).rate : vatRate),
-    }));
+      quotation_id: inv.quotation_id || '',
+    }, items));
     setModalOpen(true);
   };
 
@@ -229,7 +271,7 @@ export default function InvoicesPage() {
     try {
       const url = '/api/sales/invoices';
       const method = editing ? 'PUT' : 'POST';
-      const body = editing ? { ...form, id: editing.id } : form;
+      const body = { ...form, items: JSON.stringify(lineItems), id: editing?.id || undefined };
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -258,6 +300,8 @@ export default function InvoicesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: sendConfirm.to,
+          cc: sendConfirm.cc || undefined,
+          bcc: sendConfirm.bcc || undefined,
           subject: sendConfirm.subject,
           message: 'Please find your invoice attached.',
           item: sendConfirm.item,
@@ -316,6 +360,8 @@ export default function InvoicesPage() {
     }
     setSendConfirm({
       to: email,
+      cc: '',
+      bcc: '',
       subject: `Invoice ${inv.invoice_number} from ${companyName || 'BiasharaLedger'}`,
       item: inv,
     });
@@ -369,13 +415,17 @@ export default function InvoicesPage() {
     }
   };
 
+  let companyCache: any = null;
+
   const handlePrint = async (inv: Invoice) => {
     const w = window.open('', '_blank');
     if (!w) return;
     try {
-      const res = await fetch('/api/company');
-      const company = res.ok ? await res.json() : {};
-      const html = buildHtml('Invoice', inv, company);
+      if (!companyCache) {
+        const res = await fetch('/api/company');
+        companyCache = res.ok ? await res.json() : {};
+      }
+      const html = buildHtml('Invoice', inv, companyCache);
       w.document.write(html);
       w.document.close();
     } catch {
@@ -648,13 +698,38 @@ export default function InvoicesPage() {
                   <input type="text" value={form.invoice_number} readOnly className="w-full border border-border bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-600 cursor-not-allowed" />
                 </div>
                 <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">From Quotation</label>
+                  <select
+                    value={form.quotation_id}
+                    onChange={e => {
+                      const qId = e.target.value;
+                      if (!qId) return;
+                      const q = quotations.find(q => String(q.id) === qId);
+                      if (!q) return;
+                      const c = customers.find(c => String(c.id) === q.customer_id);
+                      let items: LineItem[] = [];
+                      try { items = JSON.parse(q.items); } catch {}
+                      if (!items.length) items = [{ description: q.items || q.description || '', quantity: 1, unit_price: 0 }];
+                      setLineItems(items);
+                      setForm(prev => recalc({ ...prev, quotation_id: qId, customer_id: q.customer_id, customer_name: q.customer_name, customer_country: q.customer_country || c?.country || '' }, items));
+                    }}
+                    className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="">No quotation</option>
+                    {quotations.map(q => (
+                      <option key={q.id} value={q.id}>{q.quotation_number} — {q.customer_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer *</label>
                     <select
                       value={form.customer_id}
                       onChange={e => {
                         const id = e.target.value;
                         const c = customers.find(c => String(c.id) === id);
-                        setForm(prev => recalc({ ...prev, customer_id: id, customer_name: c?.customer_name || '', customer_country: c?.country || '' }));
+                        setForm(prev => recalc({ ...prev, quotation_id: '', customer_id: id, customer_name: c?.customer_name || '', customer_country: c?.country || '' }));
+                        setLineItems([]);
                       }}
                     className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
                   >
@@ -678,11 +753,94 @@ export default function InvoicesPage() {
                     {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Country</label>
+                  <SearchableCountrySelect value={form.customer_country} onChange={code => setForm(prev => recalc({ ...prev, customer_country: code }))} />
+                </div>
               </div>
-              <Field label="Item/Service Description" value={form.description} onChange={set('description')} textarea />
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <Field label="Quantity" value={String(form.quantity)} onChange={set('quantity')} type="number" />
-                <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Line Items</label>
+                  <button
+                    type="button"
+                    onClick={() => setLineItems(prev => [...prev, { description: '', quantity: 1, unit_price: 0 }])}
+                    className="text-xs text-brand font-medium hover:text-gray-800 transition-colors"
+                  >
+                    + Add Item
+                  </button>
+                </div>
+                {lineItems.length === 0 ? (
+                  <div className="text-xs text-gray-400 italic py-3 px-3 border border-dashed border-border rounded-lg">
+                    Select a quotation above or add items manually
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {lineItems.map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-2 bg-surface/50 p-2 rounded-lg border border-border">
+                        <div className="flex-1 min-w-0">
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={e => {
+                              const next = [...lineItems];
+                              next[idx] = { ...next[idx], description: e.target.value };
+                              setLineItems(next);
+                              setForm(prev => recalc(prev, next));
+                            }}
+                            placeholder="Item description"
+                            className="w-full border border-border bg-white rounded-md px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand mb-1"
+                          />
+                        </div>
+                        <div className="w-20 shrink-0">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={e => {
+                              const next = [...lineItems];
+                              next[idx] = { ...next[idx], quantity: Number(e.target.value) || 0 };
+                              setLineItems(next);
+                              setForm(prev => recalc(prev, next));
+                            }}
+                            placeholder="Qty"
+                            className="w-full border border-border bg-white rounded-md px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand text-center"
+                          />
+                        </div>
+                        <div className="w-28 shrink-0">
+                          <input
+                            type="number"
+                            value={item.unit_price}
+                            onChange={e => {
+                              const next = [...lineItems];
+                              next[idx] = { ...next[idx], unit_price: Number(e.target.value) || 0 };
+                              setLineItems(next);
+                              setForm(prev => recalc(prev, next));
+                            }}
+                            placeholder="Price"
+                            className="w-full border border-border bg-white rounded-md px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand text-right"
+                          />
+                        </div>
+                        <div className="w-24 shrink-0 flex items-center justify-end pr-1">
+                          <span className="text-sm font-medium text-gray-700">{fmtKES((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = lineItems.filter((_, i) => i !== idx);
+                            setLineItems(next);
+                            setForm(prev => recalc(prev, next));
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">VAT Rate</label>
                   <select
@@ -852,9 +1010,31 @@ export default function InvoicesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg border border-border w-full max-w-md mx-4 p-6">
             <h3 className="text-sm font-semibold text-gray-800 mb-2">Send Invoice via Email?</h3>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-sm text-gray-600 mb-3">
               Send invoice <strong>{sendConfirm.subject.replace(` from ${companyName || 'BiasharaLedger'}`, '')}</strong> to <strong>{sendConfirm.to}</strong>?
             </p>
+            <div className="space-y-2 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">CC</label>
+                <input
+                  type="text"
+                  value={sendConfirm.cc}
+                  onChange={e => setSendConfirm({ ...sendConfirm, cc: e.target.value })}
+                  placeholder="cc@example.com, cc2@example.com"
+                  className="w-full border border-border rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">BCC</label>
+                <input
+                  type="text"
+                  value={sendConfirm.bcc}
+                  onChange={e => setSendConfirm({ ...sendConfirm, bcc: e.target.value })}
+                  placeholder="bcc@example.com"
+                  className="w-full border border-border rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+            </div>
             <div className="text-xs text-gray-500 mb-4 p-3 bg-gray-50 rounded-lg">
               Make sure the invoice details are correct before sending.
             </div>

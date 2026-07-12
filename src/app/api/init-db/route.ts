@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
@@ -68,9 +69,12 @@ export async function GET() {
       )
     `);
 
+    // Add allowed_modules column (safe for existing tables)
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_modules TEXT DEFAULT '[]'`);
+
     // Create admin user
-    const adminEmail = 'digitalbaroz@gmail.com';
-    const adminPassword = 'Admin123!';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomUUID().slice(0, 16);
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
     
     await pool.query(`

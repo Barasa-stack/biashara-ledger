@@ -1,5 +1,6 @@
-import { exec, adminGet } from './db';
+import { exec, adminRun, adminGet } from './db';
 import { initSchema } from './schema';
+import { logError } from './logger';
 
 let initialized = false;
 let initPromise: Promise<void> | null = null;
@@ -45,10 +46,10 @@ export async function ensureDbInitialized() {
         ) as exists`
       );
       tablesExist = (rows[0] as any)?.exists || false;
-    } catch {}
+    } catch (e) { logError('init', 'check tables exist failed', { error: e }); }
 
     if (!tablesExist) {
-      try { await initSchema(); } catch {}
+      try { await initSchema(); } catch (e) { logError('init', 'schema init failed', { error: e }); }
     }
 
     // Check sentinel: if license_key column exists, migration is complete
@@ -82,16 +83,18 @@ export async function ensureDbInitialized() {
         `ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS invoice_logo_base64 TEXT DEFAULT ''`,
       ];
       for (const sql of migrateCols) {
-        try { await exec(sql); } catch {}
+        try { await exec(sql); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
       }
 
       try {
-        await exec(`UPDATE users SET subscription_plan = 'Premium', subscription_status = 'active', license_status = 'active' WHERE email = 'mambombaya1992@gmail.com' AND subscription_plan = 'trial'`);
-      } catch {}
+        if (process.env.ADMIN_EMAIL) {
+          await exec(`UPDATE users SET subscription_plan = 'Premium', subscription_status = 'active', license_status = 'active' WHERE email = $1 AND subscription_plan = 'trial'`, [process.env.ADMIN_EMAIL]);
+        }
+      } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
 
       try {
         await exec(`CREATE TABLE IF NOT EXISTS public.admin_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '', updated_at TIMESTAMP DEFAULT NOW())`);
-      } catch {}
+      } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
     }
 
     // Phase 2: ensure company_settings invoice-design columns exist
@@ -103,7 +106,7 @@ export async function ensureDbInitialized() {
         `ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS invoice_logo_base64 TEXT DEFAULT ''`,
       ];
       for (const sql of cols) {
-        try { await exec(sql); } catch {}
+        try { await exec(sql); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
       }
     }
 
@@ -121,7 +124,7 @@ export async function ensureDbInitialized() {
           END IF;
         END $$;
       `);
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
 
     // Phase 4: lock Admin SMTP settings infrastructure
     try {
@@ -135,13 +138,13 @@ export async function ensureDbInitialized() {
           created_at TIMESTAMP DEFAULT NOW()
         )
       `);
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
     try {
       await exec(`
         INSERT INTO admin_settings (key, value) VALUES ('smtp_locked', 'true')
         ON CONFLICT (key) DO NOTHING
       `);
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
 
     // Phase 5: create vendor_smtp_settings table (manufacturer's own SMTP, separate from tenant company_settings)
     try {
@@ -160,7 +163,7 @@ export async function ensureDbInitialized() {
           CONSTRAINT single_row CHECK (id = 1)
         )
       `);
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
     try {
       await exec(`
         INSERT INTO vendor_smtp_settings (id, host, port, username, password, from_name, from_address)
@@ -173,72 +176,129 @@ export async function ensureDbInitialized() {
           COALESCE((SELECT value FROM admin_settings WHERE key = 'smtp_from_address'), '')
         WHERE NOT EXISTS (SELECT 1 FROM vendor_smtp_settings WHERE id = 1)
       `);
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
 
     // Phase 6: add paid_amount column to sales_invoices and quotations for tracking partial payments
     try {
       await exec('ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS paid_amount REAL DEFAULT 0');
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
     try {
       await exec('ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS paid_amount REAL DEFAULT 0');
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+
+    // Phase 6b: add reorder_level column to inventory_items for low-stock alerts
+    try {
+      await exec('ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS reorder_level REAL DEFAULT 0');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
 
     // Phase 7: create HR & Payroll tables (attendance, leave_requests, payslips)
+    // Use adminRun with base pool. Composite PK (tenant_id, id) required by Nile.
     try {
-      await exec(`
+      await adminRun(`
         CREATE TABLE IF NOT EXISTS public.attendance (
-          id SERIAL PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          employee_id INTEGER NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
-          date DATE NOT NULL,
-          clock_in TIMESTAMPTZ,
-          clock_out TIMESTAMPTZ,
+          tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+          id UUID DEFAULT gen_random_uuid(),
+          employee_id TEXT NOT NULL DEFAULT '0',
+          employee_name TEXT DEFAULT '',
+          date TEXT NOT NULL DEFAULT '',
+          clock_in TEXT DEFAULT '',
+          clock_out TEXT DEFAULT '',
+          hours REAL DEFAULT 0,
+          overtime_hours REAL DEFAULT 0,
           status TEXT NOT NULL DEFAULT 'present',
           notes TEXT DEFAULT '',
           created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
+          updated_at TIMESTAMP DEFAULT NOW(),
+          PRIMARY KEY (tenant_id, id)
         )
       `);
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
     try {
-      await exec(`
+      await adminRun(`
         CREATE TABLE IF NOT EXISTS public.leave_requests (
-          id SERIAL PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          employee_id INTEGER NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
-          leave_type TEXT NOT NULL,
-          start_date DATE NOT NULL,
-          end_date DATE NOT NULL,
+          tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+          id UUID DEFAULT gen_random_uuid(),
+          employee_id TEXT NOT NULL DEFAULT '0',
+          employee_name TEXT DEFAULT '',
+          leave_type TEXT NOT NULL DEFAULT 'annual',
           reason TEXT DEFAULT '',
+          start_date TEXT NOT NULL DEFAULT '',
+          end_date TEXT NOT NULL DEFAULT '',
+          days REAL DEFAULT 1,
           status TEXT NOT NULL DEFAULT 'pending',
-          approved_by INTEGER REFERENCES public.employees(id),
+          approved_by TEXT DEFAULT '0',
+          approved_at TEXT DEFAULT '',
+          notes TEXT DEFAULT '',
           created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
+          updated_at TIMESTAMP DEFAULT NOW(),
+          PRIMARY KEY (tenant_id, id)
         )
       `);
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
     try {
-      await exec(`
+      await adminRun(`
         CREATE TABLE IF NOT EXISTS public.payslips (
-          id SERIAL PRIMARY KEY,
-          tenant_id TEXT NOT NULL,
-          employee_id INTEGER NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
-          month INTEGER NOT NULL,
-          year INTEGER NOT NULL,
-          basic_salary REAL NOT NULL DEFAULT 0,
-          gross_pay REAL NOT NULL DEFAULT 0,
-          paye REAL NOT NULL DEFAULT 0,
-          nssf REAL NOT NULL DEFAULT 0,
-          nhif REAL NOT NULL DEFAULT 0,
-          net_pay REAL NOT NULL DEFAULT 0,
-          allowances JSONB DEFAULT '{}',
-          deductions JSONB DEFAULT '{}',
-          status TEXT NOT NULL DEFAULT 'draft',
+          tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+          id UUID DEFAULT gen_random_uuid(),
+          salary_id UUID,
+          employee_id UUID,
+          employee_name TEXT DEFAULT '',
+          payslip_reference TEXT DEFAULT '',
+          basic_salary REAL DEFAULT 0,
+          allowances REAL DEFAULT 0,
+          deductions REAL DEFAULT 0,
+          overtime REAL DEFAULT 0,
+          bonuses REAL DEFAULT 0,
+          gross_pay REAL DEFAULT 0,
+          nssf_employee REAL DEFAULT 0,
+          nhif REAL DEFAULT 0,
+          paye REAL DEFAULT 0,
+          employer_nssf REAL DEFAULT 0,
+          net_pay REAL DEFAULT 0,
+          pay_date TEXT DEFAULT '',
+          payment_method TEXT DEFAULT 'bank',
+          period_start TEXT DEFAULT '',
+          period_end TEXT DEFAULT '',
+          status TEXT DEFAULT 'draft',
+          emailed INTEGER DEFAULT 0,
           created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
+          updated_at TIMESTAMP DEFAULT NOW(),
+          PRIMARY KEY (tenant_id, id)
         )
       `);
-    } catch {}
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+
+    // Phase 8: add AHL, overtime columns to payslips & attendance tables
+    try {
+      await adminRun('ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS ahl REAL DEFAULT 0');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun('ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS employer_ahl REAL DEFAULT 0');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun('ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS overtime_hours REAL DEFAULT 0');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun("ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS overtime_type TEXT DEFAULT 'none'");
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun("ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS shif REAL DEFAULT 0");
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun("ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS overtime_type TEXT DEFAULT 'weekday'");
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun('ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS contract_hours REAL DEFAULT 168');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun("ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS nssf_number TEXT DEFAULT ''");
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun("ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS shif_number TEXT DEFAULT ''");
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await adminRun("ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS employment_status TEXT DEFAULT 'active'");
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
 
     // Only create indexes that don't exist yet
     const allIndexes = [
@@ -255,6 +315,7 @@ export async function ensureDbInitialized() {
       'idx_debit_notes_tenant_id',
       'idx_employees_tenant_id', 'idx_salaries_tenant_id', 'idx_salaries_employee_id',
       'idx_company_settings_tenant_id', 'idx_expenses_tenant_id', 'idx_electron_activity_tenant_id',
+      'idx_attendance_tenant_id', 'idx_leave_requests_tenant_id', 'idx_payslips_tenant_id',
     ];
 
     const createStmts: Record<string, string> = {
@@ -291,7 +352,7 @@ export async function ensureDbInitialized() {
     for (const name of allIndexes) {
       const idxExists = await indexExists(name);
       if (!idxExists && createStmts[name]) {
-        pending.push((async () => { try { await exec(createStmts[name]); } catch {} })());
+        pending.push((async () => { try { await exec(createStmts[name]); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); } })());
       }
     }
     await Promise.all(pending);

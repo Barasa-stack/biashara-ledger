@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { get } from '@/lib/db';
 import { checkUserSubscription, checkFeatureAccess, getSessionFromCookies } from '@/lib/auth-server';
-import { normalizePlan } from '@/lib/feature-gate';
+import { normalizePlan, getAllModules, getModuleName } from '@/lib/feature-gate';
 
 export async function GET() {
   try {
@@ -22,23 +22,29 @@ export async function GET() {
     const subscriptionCheck = await checkUserSubscription(user);
 
     if (subscriptionCheck.active) {
-      const featureAccess = await checkFeatureAccess(user);
+      const featureAccess = checkFeatureAccess(user);
+      const plan = normalizePlan(user.subscription_plan);
+      const allModules = getAllModules().map(m => ({
+        key: m,
+        name: getModuleName(m),
+        available: featureAccess.canAccess(m),
+      }));
       return NextResponse.json({
         active: true,
-        plan: normalizePlan(user.subscription_plan),
+        plan,
         role: user.role,
         featureAccess: {
           plan: featureAccess.plan,
           role: featureAccess.role,
-          allowedFeatures: featureAccess.allowedFeatures,
+          allowedModules: featureAccess.allowedModules,
         },
+        allModules,
       });
     }
 
     return NextResponse.json(subscriptionCheck);
   } catch (error) {
     console.error('Subscription status error:', error);
-    // error already logged above
     const __eMsg = error instanceof Error ? error.message : String(error);
     console.error('[api]', __eMsg);
     return NextResponse.json({ error: __eMsg }, { status: 500 });

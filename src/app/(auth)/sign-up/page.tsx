@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { Suspense, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Send, Check, Loader, RefreshCw, Bug, Search } from 'lucide-react';
 import { countries, filterCountries, getCountryByCode, getDialCode } from '@/lib/countries';
 
@@ -27,9 +27,11 @@ function isValidPhone(phone: string, dial: string): boolean {
   return true;
 }
 
-export default function SignUpPage() {
+function SignUpForm() {
   const { signUp } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedPlan = searchParams?.get('plan') || 'Premium';
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -184,7 +186,7 @@ export default function SignUpPage() {
       firstName,
       lastName,
       otp.trim(),
-      'Premium',
+      selectedPlan,
       country
     );
     setBusy(false);
@@ -426,5 +428,17 @@ export default function SignUpPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="w-full max-w-sm mx-auto mt-12 flex items-center justify-center">
+        <Loader className="h-6 w-6 animate-spin text-brand" />
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   );
 }

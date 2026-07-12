@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ success: true });
-  response.cookies.clear('bl_session');
+  response.cookies.set('bl_session', '', { maxAge: 0 });
 
   return response;
 }

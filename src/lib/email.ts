@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { adminQuery, adminGet, adminRun } from './db';
+import { adminQuery, adminGet, adminRun, get, withTenantContext } from './db';
 import { logInfo, logError } from './logger';
 
 function makeSmtpConfig(host: string, port: string, user: string, pass: string, fromName?: string, fromAddr?: string) {
@@ -18,12 +18,11 @@ export async function getSmtpConfig(tenantId?: string) {
   // 1. Tenant-specific settings (Tenant Company Settings — for invoices, quotes, workflow emails)
   if (tenantId) {
     try {
-      const company = await adminGet<{
-        smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
-      }>(
-        'SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM company_settings WHERE tenant_id = $1 LIMIT 1',
-        [tenantId]
-      );
+      const company = await withTenantContext(tenantId, async () => {
+        return await get<{
+          smtp_host: string; smtp_port: string; smtp_user: string; smtp_pass: string;
+        }>('SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM company_settings LIMIT 1');
+      });
       if (company?.smtp_host && company?.smtp_user && company?.smtp_pass) {
         logInfo('email', 'SMTP source: Tenant Company Settings', { tenantId: tenantId.substring(0, 8) });
         return makeSmtpConfig(company.smtp_host, company.smtp_port, company.smtp_user, company.smtp_pass);
@@ -31,7 +30,7 @@ export async function getSmtpConfig(tenantId?: string) {
       // Tenant has no SMTP configured — do NOT fall back to vendor SMTP for tenant emails
       logInfo('email', 'No tenant SMTP configured — tenant email cannot be sent', { tenantId: tenantId.substring(0, 8) });
       return null;
-    } catch {}
+    } catch (e) { logError('email', e instanceof Error ? e.message : String(e)); }
   }
 
   // 2. Vendor SMTP Settings (manufacturer's own SMTP — ONLY for system emails: OTP, license keys, trials, etc.)
@@ -52,7 +51,7 @@ export async function getSmtpConfig(tenantId?: string) {
         (vendor as any).from_address,
       );
     }
-  } catch {}
+  } catch (e) { logError('email', e instanceof Error ? e.message : String(e)); }
 
   logInfo('email', 'SMTP source: none — no SMTP configured');
   return null;
@@ -96,9 +95,14 @@ export async function createTransporter(tenantId?: string) {
   return transporter;
 }
 
-export async function getCompanyName(): Promise<string> {
-  const company = await adminGet<{ company_name: string }>('SELECT company_name FROM company_settings LIMIT 1', []);
-  return company?.company_name || 'BiasharaLedger';
+export async function getCompanyName(tenantId?: string): Promise<string> {
+  if (tenantId) {
+    const company = await withTenantContext(tenantId, async () => {
+      return await get<{ company_name: string }>('SELECT company_name FROM company_settings LIMIT 1');
+    });
+    if (company?.company_name) return company.company_name;
+  }
+  return 'BiasharaLedger';
 }
 
 export async function sendOTPEmail(to: string, code: string, name = '') {
@@ -259,7 +263,7 @@ async function logEmail(to: string, type: string, success: boolean, detail?: str
       'INSERT INTO email_logs (recipient, email_type, success, detail) VALUES ($1, $2, $3, $4)',
       [to, type, success ? 1 : 0, detail || '']
     );
-  } catch {}
+  } catch (e) { logError('email', e instanceof Error ? e.message : String(e)); }
 }
 
 export async function sendWelcomeEmailNewClient(params: {

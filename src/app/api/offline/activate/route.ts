@@ -24,8 +24,9 @@ export async function POST(req: Request) {
       plan: string;
       is_active: boolean;
       expires_at: string;
+      modules?: string;
     }>(
-      `SELECT l.id, l.client_id, l.plan, l.is_active, l.expires_at
+      `SELECT l.id, l.client_id, l.plan, l.is_active, l.expires_at, l.modules
        FROM admin_license_keys l
        WHERE LOWER(l.license_key) = LOWER($1)
        LIMIT 1`,
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
     }
 
     const session = await createOfflineSession({
-      clientId: license.client_id,
+      clientId: String(license.client_id),
       licenseKey,
       hardwareFingerprint,
       userEmail,
@@ -65,11 +66,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: session.error || 'Failed to create session' }, { status: 500 });
     }
 
+    const modulesJson = license.modules || '[]';
     await adminRun(
       `UPDATE users SET subscription_plan = $1, subscription_status = 'active',
-       subscription_expiry = $2::timestamptz, license_status = 'active', license_key = $3
-       WHERE LOWER(email) = LOWER($4)`,
-      [license.plan, license.expires_at, licenseKey, userEmail]
+       subscription_expiry = $2::timestamptz, license_status = 'active', license_key = $3,
+       allowed_modules = $4
+       WHERE LOWER(email) = LOWER($5)`,
+      [license.plan, license.expires_at, licenseKey, modulesJson, userEmail]
     );
 
     await logLicenseActivation({

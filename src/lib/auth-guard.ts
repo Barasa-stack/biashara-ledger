@@ -1,4 +1,4 @@
-import { query, get, run, adminGet, withTenantContext } from './db';
+import { query, get, run, withTenantContext } from './db';
 import { getSessionFromCookies } from './auth-server';
 import { normalizePlan } from './feature-gate';
 
@@ -71,7 +71,9 @@ export async function requireSubscription() {
 
 export async function requireRole(...allowedRoles: string[]) {
   const { session } = await requireSubscription();
-  const user = await adminGet<{ role: string }>('SELECT role FROM users WHERE id = $1', [session.user_id]);
+  const user = await withTenantContext(session.tenant_id!, async () => {
+    return await get<{ role: string }>('SELECT role FROM users WHERE id = $1', [session.user_id]);
+  });
   const effectiveRole = user?.role || 'admin';
   if (effectiveRole === 'admin' || effectiveRole === 'super_admin') return { session, role: effectiveRole };
   if (!allowedRoles.includes(effectiveRole)) {
@@ -137,15 +139,17 @@ export async function createTrialSubscription(userId: string) {
   await logSubscriptionEvent(userId, 'trial_started', '3-day trial started', { expiresAt: expiry });
 }
 
-export async function activateSubscription(userId: string, planName: string, durationDays: number, paymentMethod: string = 'mpesa', transactionId: string = '', tenantId: string = '') {
+export async function activateSubscription(userId: string, planName: string, durationDays: number, paymentMethod: string = 'mpesa', transactionId: string = '', tenantId: string = '', allowedModules: string[] = []) {
   const normalizedPlan = normalizePlan(planName);
   const now = new Date();
   const periodStart = now.toISOString();
   const periodEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
+  const modulesJson = normalizedPlan === 'custom' && allowedModules.length > 0 ? JSON.stringify(allowedModules) : '[]';
+
   await run(
-    'UPDATE users SET subscription_plan = $1, subscription_status = $2, subscription_expiry = $3, grace_period_end = NULL WHERE id = $4',
-    [normalizedPlan, 'active', periodEnd, userId]
+    'UPDATE users SET subscription_plan = $1, subscription_status = $2, subscription_expiry = $3, grace_period_end = NULL, allowed_modules = $4 WHERE id = $5',
+    [normalizedPlan, 'active', periodEnd, modulesJson, userId]
   );
 
   await run(
@@ -154,7 +158,7 @@ export async function activateSubscription(userId: string, planName: string, dur
   );
 
   await logSubscriptionEvent(userId, 'subscription_activated', `${normalizedPlan} plan activated`, {
-    plan: normalizedPlan, durationDays, periodStart, periodEnd,
+    plan: normalizedPlan, durationDays, periodStart, periodEnd, modules: modulesJson,
   }, tenantId);
 }
 
@@ -163,6 +167,7 @@ function getPlanPrice(planName: string): number {
     Basic: 5,
     Standard: 10,
     Premium: 15,
+    custom: 0,
   };
   return prices[planName] || 0;
 }

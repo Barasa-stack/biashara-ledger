@@ -30,11 +30,14 @@ export async function POST(req: NextRequest) {
       const { id, name, price, description, is_active } = body;
       if (!id) return NextResponse.json({ error: 'Plan ID required' }, { status: 400 });
 
+      const { modules } = body;
+      const modulesVal = modules ? JSON.stringify(modules) : undefined;
       await adminRun(
         `UPDATE admin_plans SET name = COALESCE($1, name), price = COALESCE($2, price),
-         description = COALESCE($3, description), is_active = COALESCE($4, is_active)
-         WHERE id = $5`,
-        [name || null, price != null ? price : null, description ?? null, is_active != null ? is_active : null, id]
+         description = COALESCE($3, description), is_active = COALESCE($4, is_active),
+         modules = COALESCE($5, modules)
+         WHERE id = $6`,
+        [name || null, price != null ? price : null, description ?? null, is_active != null ? is_active : null, modulesVal, id]
       );
       return NextResponse.json({ success: true, message: 'Plan updated' });
     }

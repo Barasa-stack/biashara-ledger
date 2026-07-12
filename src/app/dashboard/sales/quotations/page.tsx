@@ -8,6 +8,8 @@ import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { getVatRate } from '@/lib/vat-rates';
 import { getCountryByCode } from '@/lib/countries';
+import { buildHtml } from '@/lib/print';
+import SearchableCountrySelect from '@/components/SearchableCountrySelect';
 
 type Quotation = {
   id: string;
@@ -63,7 +65,7 @@ export default function QuotationsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [sendConfirm, setSendConfirm] = useState<{ to: string; subject: string; item: any } | null>(null);
+  const [sendConfirm, setSendConfirm] = useState<{ to: string; cc: string; bcc: string; subject: string; item: any } | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
@@ -252,70 +254,23 @@ export default function QuotationsPage() {
     }
   };
 
-  const handlePrint = (q: Quotation) => {
+  let companyCache: any = null;
+
+  const handlePrint = async (q: Quotation) => {
     const w = window.open('', '_blank');
     if (!w) return;
-    const qVatRate = q.customer_country ? getVatRate(q.customer_country) : null;
-    const vatLabel = qVatRate ? `VAT (${qVatRate.rate}%)` : `VAT (${vatRate}%)`;
-    const buyerCountry = q.customer_country ? getCountryByCode(q.customer_country) : null;
-    w.document.write(`
-      <html>
-        <head>
-          <title>Quotation ${q.quotation_number}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 40px; color: #1a1a1a; }
-            .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 40px; }
-            .title { font-size: 24px; font-weight: 700; color: #2563eb; }
-            .details { margin-bottom: 30px; }
-            .details p { margin: 4px 0; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            th { text-align: left; font-size: 12px; text-transform: uppercase; color: #6b7280; border-bottom: 2px solid #e5e7eb; padding: 8px 12px; }
-            td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-            .totals { margin-left: auto; width: 300px; }
-            .totals div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
-            .totals .grand { font-weight: 700; font-size: 16px; border-top: 2px solid #e5e7eb; padding-top: 8px; margin-top: 4px; }
-            @media print { body { padding: 20px; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">QUOTATION</div>
-            <div style="text-align:right">
-              <p style="font-size:18px;font-weight:600">${q.quotation_number}</p>
-              <p style="font-size:14px;color:#6b7280">${q.status.toUpperCase()}</p>
-            </div>
-          </div>
-          <div class="details">
-            <p><strong>Customer:</strong> ${q.customer_name || '—'}</p>
-            ${buyerCountry ? `<p><strong>Country:</strong> ${buyerCountry.flag} ${buyerCountry.name} (${buyerCountry.code})</p>` : ''}
-            <p><strong>Issue Date:</strong> ${q.issue_date?.split('T')[0] || '—'}</p>
-            <p><strong>Due Date:</strong> ${q.due_date?.split('T')[0] || '—'}</p>
-            <p><strong>Payment Terms:</strong> ${q.payment_terms || '—'}</p>
-          </div>
-          <table>
-            <thead>
-              <tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Total</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${q.description || '—'}</td>
-                <td style="text-align:right">${q.quantity}</td>
-                <td style="text-align:right">${fmtKES(q.unit_price)}</td>
-                <td style="text-align:right">${fmtKES(q.subtotal)}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="totals">
-            <div><span>Subtotal</span><span>${fmtKES(q.subtotal)}</span></div>
-            <div><span>${vatLabel}</span><span>${fmtKES(q.tax_vat)}</span></div>
-            <div><span>Discounts</span><span>${fmtKES(q.discounts)}</span></div>
-            <div class="grand"><span>Total (incl. VAT)</span><span>${fmtKES(q.amount)}</span></div>
-          </div>
-          <script>window.print();<\/script>
-        </body>
-      </html>
-    `);
-    w.document.close();
+    try {
+      if (!companyCache) {
+        const res = await fetch('/api/company');
+        companyCache = res.ok ? await res.json() : {};
+      }
+      const html = buildHtml('Quotation', q, companyCache);
+      w.document.write(html);
+      w.document.close();
+    } catch {
+      w.document.write('<p>Failed to load quotation template.</p>');
+      w.document.close();
+    }
   };
 
   const handleSendClick = async (q: Quotation) => {
@@ -327,6 +282,8 @@ export default function QuotationsPage() {
     }
     setSendConfirm({
       to: email,
+      cc: '',
+      bcc: '',
       subject: `Quotation ${q.quotation_number}`,
       item: q,
     });
@@ -341,6 +298,8 @@ export default function QuotationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: sendConfirm.to,
+          cc: sendConfirm.cc || undefined,
+          bcc: sendConfirm.bcc || undefined,
           subject: `Quotation ${sendConfirm.subject} from BiasharaLedger`,
           message: 'Please find your quotation attached.',
           item: sendConfirm.item,
@@ -580,6 +539,10 @@ export default function QuotationsPage() {
                     {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Country</label>
+                  <SearchableCountrySelect value={form.customer_country} onChange={code => setForm(prev => recalc({ ...prev, customer_country: code }))} />
+                </div>
               </div>
               <Field label="Item/Service Description" value={form.description} onChange={set('description')} textarea />
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -651,9 +614,31 @@ export default function QuotationsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg border border-border w-full max-w-md mx-4 p-6">
             <h3 className="text-sm font-semibold text-gray-800 mb-2">Send Quotation via Email?</h3>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 mb-3">
               Send quotation <strong>{sendConfirm.subject}</strong> to <strong>{sendConfirm.to}</strong>?
             </p>
+            <div className="space-y-2 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">CC</label>
+                <input
+                  type="text"
+                  value={sendConfirm.cc}
+                  onChange={e => setSendConfirm({ ...sendConfirm, cc: e.target.value })}
+                  placeholder="cc@example.com, cc2@example.com"
+                  className="w-full border border-border rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">BCC</label>
+                <input
+                  type="text"
+                  value={sendConfirm.bcc}
+                  onChange={e => setSendConfirm({ ...sendConfirm, bcc: e.target.value })}
+                  placeholder="bcc@example.com"
+                  className="w-full border border-border rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+            </div>
             <p className="text-xs text-gray-500 mb-4 p-3 bg-gray-50 rounded-lg">
               Make sure the quotation details are correct before sending.
             </p>

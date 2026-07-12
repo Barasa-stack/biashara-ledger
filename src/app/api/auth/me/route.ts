@@ -33,6 +33,7 @@ export async function GET() {
         trialEndDate: session.subscription_expiry,
         trialDaysRemaining,
         licenseStatus,
+        allowedModules: session.allowed_modules || '[]',
       }
     });
 

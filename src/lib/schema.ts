@@ -313,6 +313,8 @@ export async function initSchema() {
       date_of_birth TEXT DEFAULT '',
       national_id TEXT DEFAULT '',
       tax_pin TEXT DEFAULT '',
+      nssf_number TEXT DEFAULT '',
+      shif_number TEXT DEFAULT '',
       phone TEXT DEFAULT '',
       email TEXT DEFAULT '',
       address TEXT DEFAULT '',
@@ -320,6 +322,8 @@ export async function initSchema() {
       job_title TEXT DEFAULT '',
       date_of_hire TEXT DEFAULT '',
       employment_type TEXT DEFAULT 'full-time',
+      employment_status TEXT DEFAULT 'active',
+      contract_hours REAL DEFAULT 168,
       bank_name TEXT DEFAULT '',
       account_number TEXT DEFAULT '',
       emergency_contact_name TEXT DEFAULT '',
@@ -381,6 +385,7 @@ export async function initSchema() {
       clock_out TEXT DEFAULT '',
       hours REAL DEFAULT 0,
       overtime_hours REAL DEFAULT 0,
+      overtime_type TEXT DEFAULT 'weekday',
       status TEXT DEFAULT 'present',
       notes TEXT DEFAULT '',
       created_at TIMESTAMP DEFAULT NOW(),
@@ -398,12 +403,17 @@ export async function initSchema() {
       allowances REAL DEFAULT 0,
       deductions REAL DEFAULT 0,
       overtime REAL DEFAULT 0,
+      overtime_hours REAL DEFAULT 0,
+      overtime_type TEXT DEFAULT 'none',
       bonuses REAL DEFAULT 0,
       gross_pay REAL DEFAULT 0,
       nssf_employee REAL DEFAULT 0,
       nhif REAL DEFAULT 0,
+      shif REAL DEFAULT 0,
+      ahl REAL DEFAULT 0,
       paye REAL DEFAULT 0,
       employer_nssf REAL DEFAULT 0,
+      employer_ahl REAL DEFAULT 0,
       net_pay REAL NOT NULL DEFAULT 0,
       pay_date TEXT NOT NULL,
       payment_method TEXT DEFAULT 'bank',
@@ -653,7 +663,7 @@ export async function initSchema() {
   async function addTenantIdCol(table: string) {
     try {
       await exec(`ALTER TABLE public.${table} ADD COLUMN IF NOT EXISTS tenant_id TEXT`);
-    } catch { /* table may not exist yet — will be retried later */ }
+    } catch (e) { logError('schema', 'table may not exist yet', { error: e }); }
   }
   const tenantTables = [
     'customers', 'clients', 'quotations', 'sales_invoices', 'payments',
@@ -703,6 +713,7 @@ export async function initSchema() {
       opening_stock REAL DEFAULT 0,
       current_stock REAL DEFAULT 0,
       unit_cost REAL DEFAULT 0,
+      reorder_level REAL DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (tenant_id, id)
     );
@@ -787,6 +798,10 @@ export async function initSchema() {
 
   await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS income_tax_rate REAL DEFAULT 0`);
   await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS tax_filing_frequency TEXT DEFAULT 'monthly'`);
+
+  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS allowed_modules TEXT DEFAULT '[]'`);
+  await exec(`ALTER TABLE public.admin_plans ADD COLUMN IF NOT EXISTS modules TEXT DEFAULT '[]'`);
+  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS modules TEXT DEFAULT '[]'`);
 
   // ═══════════════════════════════════════════════
   // AUDIT LOG (import tracking)
@@ -1177,7 +1192,7 @@ export async function initSchema() {
       FROM admin_clients WHERE created_at >= NOW() - INTERVAL '30 days'
       AND NOT EXISTS (SELECT 1 FROM admin_notifications WHERE admin_notifications.message LIKE 'New client registered:%')
     `);
-  } catch {}
+  } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   try {
     await exec(`
       INSERT INTO admin_notifications (type, title, message, link, created_at)
@@ -1186,7 +1201,7 @@ export async function initSchema() {
       WHERE alk.created_at >= NOW() - INTERVAL '30 days'
       AND NOT EXISTS (SELECT 1 FROM admin_notifications WHERE admin_notifications.title = 'License generated')
     `);
-  } catch {}
+  } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   try {
     await exec(`
       INSERT INTO admin_notifications (type, title, message, link, created_at)
@@ -1194,7 +1209,7 @@ export async function initSchema() {
       FROM app_updates WHERE created_at >= NOW() - INTERVAL '30 days'
       AND NOT EXISTS (SELECT 1 FROM admin_notifications WHERE admin_notifications.title = 'Update published')
     `);
-  } catch {}
+  } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   try {
     await exec(`
       INSERT INTO admin_notifications (type, title, message, link, created_at)
@@ -1202,7 +1217,7 @@ export async function initSchema() {
       FROM admin_license_keys WHERE is_active = true AND expires_at BETWEEN NOW() AND NOW() + INTERVAL '3 days'
       AND NOT EXISTS (SELECT 1 FROM admin_notifications WHERE admin_notifications.title = 'License expiring')
     `);
-  } catch {}
+  } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
 
   // ═══════════════════════════════════════════════
   // OPEN API / WEBHOOKS
@@ -1338,7 +1353,7 @@ export async function initSchema() {
   for (const { table, column } of moneyColumns) {
     try {
       await exec(`ALTER TABLE public.${table} ALTER COLUMN ${column} TYPE NUMERIC(14,2) USING ${column}::numeric`);
-    } catch {}
+    } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1370,7 +1385,7 @@ export async function initSchema() {
   for (const { table, column } of dateColumns) {
     try {
       await exec(`ALTER TABLE public.${table} ALTER COLUMN ${column} TYPE DATE USING NULLIF(${column}, '')::date`);
-    } catch {}
+    } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1406,7 +1421,7 @@ export async function initSchema() {
   for (const { table, column, ref, name } of fkConstraints) {
     try {
       await exec(`ALTER TABLE public.${table} ADD CONSTRAINT ${name} FOREIGN KEY (${column}) REFERENCES public.${ref} ON DELETE SET NULL`);
-    } catch {}
+    } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1427,7 +1442,7 @@ export async function initSchema() {
   for (const { table, columns, name } of uniqueConstraints) {
     try {
       await exec(`ALTER TABLE public.${table} ADD CONSTRAINT ${name} UNIQUE (${columns})`);
-    } catch {}
+    } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1461,7 +1476,7 @@ export async function initSchema() {
   for (const { table, column, name } of indexColumns) {
     try {
       await exec(`CREATE INDEX IF NOT EXISTS ${name} ON public.${table} (${column})`);
-    } catch {}
+    } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
   // Final pass: ensure tenant_id on any tables still missing it
@@ -1475,6 +1490,6 @@ export async function initSchema() {
   for (const tbl of allTables) {
     try {
       await exec(`ALTER TABLE public.${tbl} ADD COLUMN IF NOT EXISTS tenant_id TEXT`);
-    } catch { /* skip if table doesn't exist */ }
+    } catch (e) { logError('schema', 'table may not exist', { error: e }); }
   }
 }

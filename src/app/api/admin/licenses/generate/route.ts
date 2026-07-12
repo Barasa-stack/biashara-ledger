@@ -26,8 +26,8 @@ export async function POST(req: Request) {
       adminEmail: session?.email,
       action: 'License Generated',
       entityType: 'license',
-      entityId: result.license_key,
-      details: `License ${result.license_key} generated for client ${clientId} (${plan})`,
+      entityId: result.licenseKey,
+      details: `License ${result.licenseKey} generated for client ${clientId} (${plan})`,
     });
 
     return NextResponse.json(result, {

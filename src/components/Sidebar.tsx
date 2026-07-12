@@ -12,7 +12,7 @@ import {
   Key, Webhook, Bell,
 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
-import { isFeatureAvailable, normalizePlan } from '@/lib/feature-gate';
+import { isFeatureAvailable, isModuleAvailable, normalizePlan, getModuleName } from '@/lib/feature-gate';
 import UpgradeModal from './UpgradeModal';
 
 const navItems = [
@@ -93,7 +93,18 @@ const navItems = [
       { href: '/dashboard/approvals', label: 'Approvals' },
     ],
   },
-  { href: '/dashboard/deals', label: 'CRM Pipeline', icon: TrendingUp },
+  {
+    label: 'CRM',
+    icon: TrendingUp,
+    children: [
+      { href: '/dashboard/crm', label: 'Analytics Board' },
+      { href: '/dashboard/crm/pipeline', label: 'Pipeline' },
+      { href: '/dashboard/crm/leads', label: 'Leads' },
+      { href: '/dashboard/crm/activities', label: 'Activities' },
+      { href: '/dashboard/crm/reports', label: 'Reports' },
+      { href: '/dashboard/crm/customers', label: 'CRM Customers' },
+    ],
+  },
   { href: '/dashboard/projects', label: 'Projects', icon: Briefcase },
   {
     label: 'Developer',
@@ -164,9 +175,10 @@ function NavLink({ href, icon: Icon, label, locked }: { href: string; icon?: any
 
 interface SidebarProps {
   subscriptionPlan?: string;
+  allowedModules?: string[];
 }
 
-function Sidebar({ subscriptionPlan }: SidebarProps) {
+function Sidebar({ subscriptionPlan, allowedModules }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [upgradeFeature, setUpgradeFeature] = useState<{ name: string; requiredPlan: string } | null>(null);
   const pathname = usePathname();
@@ -188,15 +200,17 @@ function Sidebar({ subscriptionPlan }: SidebarProps) {
   }
 
   function handleLockedClick(featureName: string) {
-    const reqPlan = !isFeatureAvailable(featureName, plan)
-      ? (isFeatureAvailable(featureName, 'Premium') ? 'Premium' : 'Standard')
-      : null;
-    if (reqPlan) setUpgradeFeature({ name: featureName, requiredPlan: reqPlan });
+    const available = isFeatureAvailable(featureName, plan, allowedModules);
+    if (!available) {
+      const forPremium = isFeatureAvailable(featureName, 'premium');
+      const forStandard = isFeatureAvailable(featureName, 'standard');
+      const reqPlan = forPremium ? 'Premium' : forStandard ? 'Standard' : 'Basic';
+      setUpgradeFeature({ name: featureName, requiredPlan: reqPlan });
+    }
   }
 
   function isLocked(featureKey: string): boolean {
-    if (plan === 'Premium') return false;
-    return !isFeatureAvailable(featureKey, plan);
+    return !isFeatureAvailable(featureKey, plan, allowedModules);
   }
 
   return (

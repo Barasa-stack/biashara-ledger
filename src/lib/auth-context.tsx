@@ -18,12 +18,14 @@ type User = {
   licenseKey?: string | null;
   trialEndDate?: string | null;
   trialDaysRemaining?: number;
+  allowedModules?: string;
 };
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string; requires_otp?: boolean; email?: string }>;
+  completeOtpSignIn: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password: string, phone: string, firstName?: string, lastName?: string, otp?: string, selectedPackage?: string, country?: string) => Promise<{ success: boolean; error?: string; requiresPackageSelection?: boolean }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -118,12 +120,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const signIn = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string; requires_otp?: boolean; email?: string }> => {
     try {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.requires_otp) {
+          return { success: true, requires_otp: true, email: data.email };
+        }
+        setUser(data.user || null);
+        setLoading(false);
+        router.refresh();
+        return { success: true };
+      }
+      setLoading(false);
+      return { success: false, error: data.error || 'Sign in failed' };
+    } catch {
+      setLoading(false);
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  }, [router]);
+
+  const completeOtpSignIn = useCallback(async (email: string, code: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, purpose: 'signin_2fa' }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -133,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
       setLoading(false);
-      return { success: false, error: data.error || 'Sign in failed' };
+      return { success: false, error: data.error || 'Verification failed' };
     } catch {
       setLoading(false);
       return { success: false, error: 'Network error. Please try again.' };
@@ -245,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, refreshUser, updateProfile, sendOtp, verifyOtp, resetPassword }}>
+    <AuthContext.Provider value={{ user, loading, signIn, completeOtpSignIn, signUp, signOut, refreshUser, updateProfile, sendOtp, verifyOtp, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

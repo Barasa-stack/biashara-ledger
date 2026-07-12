@@ -236,21 +236,10 @@ export default function SettingsPage() {
               <Field label="Income Tax Rate (%)" value={String(form.income_tax_rate)} onChange={e => setForm(prev => ({ ...prev, income_tax_rate: Number(e.target.value) || 0 }))} type="number" placeholder="0" />
               <div>
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Base Currency</label>
-                <select value={form.base_currency} onChange={e => setForm(prev => ({ ...prev, base_currency: e.target.value }))}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white">
-                  <option value="KES">KES (KSh)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="NGN">NGN (₦)</option>
-                  <option value="ZAR">ZAR (R)</option>
-                  <option value="TZS">TZS (TSh)</option>
-                  <option value="UGX">UGX (USh)</option>
-                  <option value="RWF">RWF (FRw)</option>
-                  <option value="XAF">XAF (FCFA)</option>
-                  <option value="XOF">XOF (CFA)</option>
-                  <option value="GHS">GHS (GH₵)</option>
-                </select>
+                <div className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 bg-gray-50">
+                  KES (KSh) — Kenyan Shilling
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Only KES is supported</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -63,9 +63,9 @@ export async function PUT(request: Request) {
     const body = await request.json();
     await withTenantContext(session.tenant_id!, async () => {
       await run(
-        `UPDATE inventory_items SET item_name=$1, sku=$2, category=$3, unit_of_measure=$4, unit_cost=$5 WHERE id=$6`,
+        `UPDATE inventory_items SET item_name=$1, sku=$2, category=$3, unit_of_measure=$4, unit_cost=$5, opening_stock=$6 WHERE id=$7`,
         [body.item_name || '', body.sku || '', body.category || '', body.unit_of_measure || 'pcs',
-         Number(body.unit_cost) || 0, body.id]
+         Number(body.unit_cost) || 0, Number(body.opening_stock) || 0, body.id]
       );
     });
     return NextResponse.json({ success: true });

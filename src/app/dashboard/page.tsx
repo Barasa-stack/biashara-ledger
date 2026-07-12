@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
   const fmtWithCurrency = (n: number | string | null | undefined, cur?: string) => {
     const num = Number(n ?? 0);
-    const sym = (cur || currency) === 'KES' ? 'KSh' : '$';
+    const sym = 'KSh';
     return `${sym} ${isNaN(num) ? '0.00' : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
@@ -63,12 +63,12 @@ export default function DashboardPage() {
     const pf = prevStart.toISOString().split('T')[0];
     const pt = prevEnd.toISOString().split('T')[0];
 
-    fetch(`/api/reports?from=${f}&to=${t}`, { credentials: 'include' })
+    fetch(`/api/dashboard-summary?from=${f}&to=${t}`, { credentials: 'include' })
       .then(async r => { if (r.ok) return r.json(); const b = await r.json().catch(() => null); throw new Error(b?.error || 'Failed'); })
       .then(setData)
       .catch(e => setError(String(e)));
 
-    fetch(`/api/reports?from=${pf}&to=${pt}`, { credentials: 'include' })
+    fetch(`/api/dashboard-summary?from=${pf}&to=${pt}`, { credentials: 'include' })
       .then(async r => { if (r.ok) return r.json(); })
       .then(setPrevData)
       .catch(() => {});
@@ -113,6 +113,12 @@ export default function DashboardPage() {
   const monthlyCash = Array.isArray(data.monthlyCash) ? data.monthlyCash : [];
   const monthlyData = months.map((m, i) => monthlyCash[i] || { month: m, incoming: 0, outgoing: 0, profit: 0 });
 
+  const revChange = computeChange(data.totalRevenue, prevData?.totalRevenue || 0);
+  const netCashFlow = data.cashOperatingInflow - data.cashOperatingOutflow;
+  const grossProfitMargin = data.totalRevenue > 0 ? ((data.netSales || data.totalRevenue - data.totalPurchases) / data.totalRevenue) * 100 : 0;
+  const operatingMargin = data.totalRevenue > 0 ? ((data.netProfit || 0) / data.totalRevenue) * 100 : 0;
+  const expenseRatio = data.totalRevenue > 0 ? ((Number(data.totalExpenses) + Number(data.totalSalaries)) / Number(data.totalRevenue)) * 100 : 0;
+
   const chartColors = ['var(--color-brand)', 'var(--color-dark)', '#888', '#555'];
 
   return (
@@ -130,19 +136,38 @@ export default function DashboardPage() {
         </div>
         <p className="text-xs text-gray-700">
           <span className="font-medium text-brand">Net Profit:</span>{' '}
-          <span className={data.netProfit >= 0 ? 'text-red-600' : 'text-brand'}>{fmtWithCurrency(data.netProfit)}</span>
+          <span className={data.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}>{fmtWithCurrency(data.netProfit)}</span>
         </p>
+        <div className="flex items-center gap-3 text-xs">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded ${(() => {
+            const diff = Math.abs(data.totalRevenue - (data.totalExpenses + data.totalSalaries) - data.netProfit);
+            const tolerance = Math.max(Math.abs(data.totalRevenue) * 0.01, 1);
+            return diff <= tolerance ? 'bg-brand/10 text-brand' : 'bg-red-50 text-red-700';
+          })()}`}>
+            {(() => {
+              const diff = Math.abs(data.totalRevenue - (data.totalExpenses + data.totalSalaries) - data.netProfit);
+              const tolerance = Math.max(Math.abs(data.totalRevenue) * 0.01, 1);
+              return diff <= tolerance ? '✓ Revenue/Expenses/Net Profit consistent' : '✗ Revenue − Expenses ≠ Net Profit — check COGS/other income';
+            })()}
+          </span>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded ${data.netProfit >= 0 ? 'bg-brand/10 text-brand' : 'bg-red-50 text-red-700'}`}>
+            {data.netProfit >= 0 ? '▲ Profitable' : '▼ Loss'}
+          </span>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded ${netCashFlow >= 0 ? 'bg-brand/10 text-brand' : 'bg-red-50 text-red-700'}`}>
+            {netCashFlow >= 0 ? '● Positive Cash Flow' : '● Negative Cash Flow'}
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard icon={TrendingUp} label="Total Revenue" value={fmtWithCurrency(data.totalRevenue)}
-          color="brand" change={computeChange(data.totalRevenue, prevData?.totalRevenue || 0)}
+          color={revChange ? (revChange.positive ? 'green' : 'red') : 'green'} change={revChange}
           onClick={() => router.push('/dashboard/reports?type=profit-loss')} />
         <StatCard icon={DollarSign} label="Total Expenses" value={fmtWithCurrency(data.totalExpenses + data.totalSalaries)}
-          color="gray" change={computeChange(data.totalExpenses + data.totalSalaries, (prevData?.totalExpenses || 0) + (prevData?.totalSalaries || 0))}
+          color="red" change={computeChange(data.totalExpenses + data.totalSalaries, (prevData?.totalExpenses || 0) + (prevData?.totalSalaries || 0))}
           onClick={() => router.push('/dashboard/reports?type=expenses')} />
         <StatCard icon={TrendingUp} label="Net Profit" value={fmtWithCurrency(data.netProfit)}
-          color={data.netProfit >= 0 ? 'red' : 'brand'} change={computeChange(data.netProfit, prevData?.netProfit || 0)} />
+          color={data.netProfit >= 0 ? 'green' : 'red'} change={computeChange(data.netProfit, prevData?.netProfit || 0)} />
         <StatCard icon={DollarSign} label="Cash on Hand" value={fmtWithCurrency(data.cashOnHand)}
           color="brand" change={computeChange(data.cashOnHand, prevData?.cashOnHand || 0)}
           onClick={() => router.push('/dashboard/reports?type=cash-flow')} />
@@ -186,7 +211,7 @@ export default function DashboardPage() {
             </div>
             <div className="border-t border-border pt-3">
               <p className="text-xs text-gray-500 uppercase tracking-wide">Net Cash Flow</p>
-              <p className="text-xl font-bold text-brand">{fmtWithCurrency(data.cashOperatingInflow - data.cashOperatingOutflow)}</p>
+              <p className={`text-xl font-bold ${netCashFlow >= 0 ? 'text-brand' : 'text-red-600'}`}>{fmtWithCurrency(netCashFlow)}</p>
             </div>
           </div>
         </div>
@@ -224,11 +249,11 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              <tr><td className="py-3 text-sm text-gray-400 w-8">5</td><td className="py-3 text-sm text-brand">Cash on Hand</td><td className="py-3 text-sm text-right font-medium text-brand">{fmtWithCurrency(data.cashOnHand)}</td></tr>
-              <tr><td className="py-3 text-sm text-gray-400 w-8">4</td><td className="py-3 text-sm text-brand">Accounts Receivable</td><td className="py-3 text-sm text-right font-medium text-brand">{fmtWithCurrency(data.receivables.total)}</td></tr>
-              <tr><td className="py-3 text-sm text-gray-400 w-8">3</td><td className="py-3 text-sm text-brand">Accounts Payable</td><td className="py-3 text-sm text-right font-medium text-brand">({fmtWithCurrency(data.payables.total)})</td></tr>
-              <tr><td className="py-3 text-sm text-gray-400 w-8">2</td><td className="py-3 text-sm text-brand">Revenue/Sales</td><td className="py-3 text-sm text-right font-medium text-brand">{fmtWithCurrency(data.totalRevenue)}</td></tr>
-              <tr className="border-t border-border font-semibold"><td className="py-3 text-sm text-gray-400 w-8">1</td><td className="py-3 text-sm text-brand">Net Equity</td><td className="py-3 text-sm text-right font-bold text-brand">{fmtWithCurrency(data.currentAssets - data.currentLiabilities)}</td></tr>
+              <tr><td className="py-3 text-sm text-gray-400 w-8">5</td><td className="py-3 text-sm text-gray-800 font-medium">Cash on Hand</td><td className="py-3 text-sm text-right font-medium text-gray-800">{fmtWithCurrency(data.cashOnHand)}</td></tr>
+              <tr><td className="py-3 text-sm text-gray-400 w-8">4</td><td className="py-3 text-sm text-red-600 font-medium">Accounts Receivable</td><td className="py-3 text-sm text-right font-medium text-red-600">{fmtWithCurrency(data.receivables.total)}</td></tr>
+              <tr><td className="py-3 text-sm text-gray-400 w-8">3</td><td className="py-3 text-sm text-gray-600">Accounts Payable</td><td className="py-3 text-sm text-right font-medium text-gray-600">({fmtWithCurrency(data.payables.total)})</td></tr>
+              <tr><td className="py-3 text-sm text-gray-400 w-8">2</td><td className="py-3 text-sm text-green-600 font-medium">Revenue/Sales</td><td className="py-3 text-sm text-right font-medium text-green-600">{fmtWithCurrency(data.totalRevenue)}</td></tr>
+              <tr className="border-t border-border font-semibold"><td className="py-3 text-sm text-gray-400 w-8">1</td><td className="py-3 text-sm text-gray-800">Net Equity</td><td className={`py-3 text-sm text-right font-bold ${data.currentAssets - data.currentLiabilities >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{fmtWithCurrency(data.currentAssets - data.currentLiabilities)}</td></tr>
             </tbody>
           </table>
         </div>
@@ -239,9 +264,9 @@ export default function DashboardPage() {
         <div className="bg-white rounded-lg border border-border p-5 lg:col-span-2">
           <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wider mb-4">Profit Margin Summary</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <MetricBox label="Gross Profit Margin" value={data.totalRevenue > 0 ? ((data.netSales || data.totalRevenue - data.totalPurchases) / data.totalRevenue * 100).toFixed(1) : '0.0'} suffix="%" />
-            <MetricBox label="Operating Margin" value={data.totalRevenue > 0 ? ((data.netProfit || 0) / data.totalRevenue * 100).toFixed(1) : '0.0'} suffix="%" />
-            <MetricBox label="Expense Ratio" value={data.totalRevenue > 0 ? ((Number(data.totalExpenses) + Number(data.totalSalaries)) / Number(data.totalRevenue) * 100).toFixed(1) : '0.0'} suffix="%" />
+            <MetricBox label="Gross Profit Margin" value={grossProfitMargin.toFixed(1)} suffix="%" valueColor={grossProfitMargin > 50 ? 'green' : grossProfitMargin < 20 ? 'red' : undefined} />
+            <MetricBox label="Operating Margin" value={operatingMargin.toFixed(1)} suffix="%" valueColor={operatingMargin > 50 ? 'green' : operatingMargin < 20 ? 'red' : undefined} />
+            <MetricBox label="Expense Ratio" value={expenseRatio.toFixed(1)} suffix="%" valueColor={expenseRatio > 30 ? 'red' : expenseRatio < 10 ? 'green' : undefined} />
           </div>
           <div className="mt-6">
             <ResponsiveContainer width="100%" height={160}>

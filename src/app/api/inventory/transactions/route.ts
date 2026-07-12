@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { query, run, insertReturning, get, withTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
 
-async function applyWeightedAverageCost(tenantId: string, itemId: string, quantity: number, unitCost: number, transactionType: string) {
+async function applyWeightedAverageCost(itemId: string, quantity: number, unitCost: number, transactionType: string) {
   const item = await get(
     'SELECT current_stock, unit_cost FROM inventory_items WHERE id=$1',
     [itemId]
@@ -32,7 +32,7 @@ async function applyWeightedAverageCost(tenantId: string, itemId: string, quanti
       [newQty, itemId]
     );
   } else if (transactionType === 'ADJUSTMENT') {
-    const newQty = Math.max(0, quantity);
+    const newQty = Math.max(0, Number(item.current_stock) + quantity);
     await run(
       'UPDATE inventory_items SET current_stock=$1 WHERE id=$2',
       [newQty, itemId]
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       const cost = Number(body.unit_cost) || 0;
       const total = qty * cost;
 
-      await applyWeightedAverageCost(session.tenant_id!, body.item_id, qty, cost, body.transaction_type);
+      await applyWeightedAverageCost(body.item_id, qty, cost, body.transaction_type);
 
       return await insertReturning<{ id: string }>(
         `INSERT INTO inventory_transactions (tenant_id, item_id, transaction_type, quantity, unit_cost, total_cost, reference_type, reference_id, transaction_date, notes) 

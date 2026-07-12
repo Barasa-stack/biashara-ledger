@@ -426,14 +426,10 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Default Currency</label>
-                    <select value={general.default_currency}
-                      onChange={e => setGeneral(g => ({ ...g, default_currency: e.target.value }))}
-                      className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand">
-                      <option value="KES">KES - Kenyan Shilling</option>
-                      <option value="USD">USD - US Dollar</option>
-                      <option value="TZS">TZS - Tanzanian Shilling</option>
-                      <option value="UGX">UGX - Ugandan Shilling</option>
-                    </select>
+                    <div className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500">
+                      KES - Kenyan Shilling
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Only KES is supported</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Time Zone</label>

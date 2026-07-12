@@ -430,39 +430,54 @@ export default function LandingSections() {
               <p className="text-lg text-white/60 leading-relaxed">Start small and upgrade as you grow. No hidden fees, no surprises.</p>
             </div>
           </AnimatedSection>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {pricingPlans.map((plan) => (
               <AnimatedSection key={plan.name}>
-                <div className={`relative bg-white/10 backdrop-blur-sm rounded-xl border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:shadow-brand/10 ${plan.popular ? 'border-brand shadow-lg shadow-brand/20' : 'border-white/20 hover:border-brand/30'}`}>
+                <div className={`relative bg-white/10 backdrop-blur-sm rounded-xl border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:shadow-brand/10 h-full flex flex-col ${plan.popular ? 'border-brand shadow-lg shadow-brand/20' : plan.name === 'Custom' ? 'border-dashed border-2 border-brand/30 bg-brand/5' : 'border-white/20 hover:border-brand/30'}`}>
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-bold px-4 py-1.5 rounded-full">Most Popular</div>
                   )}
-                  <div className="p-8">
-                    <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
-                    <p className="text-sm text-white/60 mb-6">{plan.desc}</p>
-                    <div className="flex items-baseline mb-6">
-                      <span className="text-4xl font-bold text-white">KSh</span>
-                      <span className="text-5xl font-bold text-white ml-1">{plan.price}</span>
-                      <span className="text-sm text-white/40 ml-1">{plan.period}</span>
+                  <div className="p-6 flex flex-col flex-1">
+                    <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
+                    <p className="text-sm text-white/60 mb-4 min-h-[2.5rem]">{plan.desc}</p>
+                    <div className="flex items-baseline mb-4">
+                      {plan.name === 'Custom' ? (
+                        <span className="text-3xl font-bold text-white">Custom</span>
+                      ) : (
+                        <>
+                          <span className="text-3xl font-bold text-white">KES</span>
+                          <span className="text-4xl font-bold text-white ml-1">{plan.price}</span>
+                          <span className="text-sm text-white/40 ml-1">{plan.period}</span>
+                        </>
+                      )}
                     </div>
-                    <ul className="space-y-3 mb-8">
+                    {plan.name !== 'Custom' && (
+                      <p className="text-xs text-brand font-medium mb-4">KES {plan.priceYearly}/year</p>
+                    )}
+                    <ul className="space-y-2.5 mb-6 flex-1">
                       {plan.features.map((f) => (
-                        <li key={f} className="flex items-start gap-3 text-sm text-white/70">
-                          {f}
+                        <li key={f} className="flex items-start gap-2 text-sm text-white/70">
+                          <span>{f}</span>
                         </li>
                       ))}
                     </ul>
-                    <Link href="/sign-up" className={`block text-center px-6 py-3 rounded-xl text-sm font-semibold transition-all ${plan.popular ? 'bg-brand hover:bg-brand-hover text-white hover:shadow-lg hover:shadow-brand/25' : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'}`}>{plan.cta}</Link>
+                    <Link
+                      href={plan.name === 'Custom' ? '/contact' : `/sign-up?plan=${plan.name}`}
+                      className={`block text-center px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                        plan.popular
+                          ? 'bg-brand hover:bg-brand-hover text-white hover:shadow-lg hover:shadow-brand/25'
+                          : plan.name === 'Custom'
+                          ? 'bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30'
+                          : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                      }`}
+                    >
+                      {plan.cta}
+                    </Link>
                   </div>
                 </div>
               </AnimatedSection>
             ))}
           </div>
-          <AnimatedSection>
-            <div className="text-center mt-12">
-              <p className="text-sm text-white/40">Need a custom plan? <Link href="/contact" className="text-brand font-semibold hover:underline">Contact our sales team</Link></p>
-            </div>
-          </AnimatedSection>
         </div>
       </section>
 

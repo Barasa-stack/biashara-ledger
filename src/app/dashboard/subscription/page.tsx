@@ -100,7 +100,7 @@ export default function SubscriptionPage() {
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Days Remaining</p>
                 <p className={`text-lg font-semibold ${data.daysRemaining > 30 ? 'text-red-600' : data.daysRemaining > 7 ? 'text-yellow-600' : 'text-red-600'}`}>
-                  {data.daysRemaining > 0 ? `KSh {data.daysRemaining} days` : 'Expired'}
+                  {data.daysRemaining > 0 ? `${data.daysRemaining} days` : 'Expired'}
                 </p>
               </div>
             </div>

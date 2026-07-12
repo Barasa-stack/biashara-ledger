@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
-import { get, run, adminGet, adminRun } from './db';
-import { normalizePlan } from './feature-gate';
+import { get, run, adminGet, adminRun, withTenantContext } from './db';
+import { normalizePlan, isFeatureAvailable } from './feature-gate';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -24,10 +24,12 @@ export function generateToken(): string {
 export async function createSession(userId: string, tenantId: string): Promise<{ token: string; expiresAt: string }> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
-  await adminRun(
-    'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
-    [tenantId, userId, token, expiresAt]
-  );
+  await withTenantContext(tenantId, async () => {
+    await run(
+      'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+      [tenantId, userId, token, expiresAt]
+    );
+  });
   return { token, expiresAt };
 }
 
@@ -41,7 +43,8 @@ export async function getSession(token: string) {
             u.id as user_id, u.email, u.first_name, u.last_name, u.phone, u.country,
             u.subscription_plan, u.subscription_status,
             u.verified, u.subscription_expiry,
-            u.grace_period_end, u.last_reminder_sent, u.role, u.license_status
+            u.grace_period_end, u.last_reminder_sent, u.role, u.license_status,
+            u.allowed_modules
      FROM sessions s
      LEFT JOIN users u ON u.id = s.user_id
      WHERE s.token = $1 AND s.expires_at > NOW()
@@ -104,37 +107,27 @@ export async function checkUserSubscription(user: {
   return { active: true };
 }
 
-export async function checkFeatureAccess(user: {
+export async function getRolePermissions(role: string): Promise<string[]> {
+  const row = await get<{ permissions: string }>('SELECT permissions FROM roles WHERE name = $1', [role]);
+  return row ? JSON.parse(row.permissions) : [];
+}
+
+export function checkFeatureAccess(user: {
   subscription_plan?: string;
   role?: string;
-}): Promise<{ canAccess: (feature: string) => boolean; plan: string; role: string; allowedFeatures: string[] }> {
+  allowed_modules?: string;
+}): { canAccess: (feature: string) => boolean; plan: string; role: string; allowedModules: string[] } {
   const plan = normalizePlan(user.subscription_plan);
   const role = user.role || 'employee';
 
-  const rolePermissions = await getRolePermissions(role);
-
-  const allowedFeatures = rolePermissions.includes('all')
-    ? ['all']
-    : plan === 'trial'
-    ? []
-    : plan === 'Basic'
-    ? ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance']
-    : plan === 'Standard'
-    ? ['bookkeeping', 'profitLoss', 'balanceSheet', 'trialBalance', 'hrPayroll', 'generalLedger', 'expenseReport']
-    : ['all'];
+  let allowedModules: string[] = [];
+  if (plan === 'custom' && user.allowed_modules) {
+    try { allowedModules = JSON.parse(user.allowed_modules); } catch { allowedModules = []; }
+  }
 
   const featureAccess = (feature: string): boolean => {
-    if (rolePermissions.includes('all')) return true;
-    if (rolePermissions.includes(feature)) return true;
-    if (plan === 'trial') return false;
-    if (allowedFeatures.includes('all')) return true;
-    return allowedFeatures.includes(feature);
+    return isFeatureAvailable(feature, plan, allowedModules);
   };
 
-  return { canAccess: featureAccess, plan, role, allowedFeatures };
-}
-
-async function getRolePermissions(role: string): Promise<string[]> {
-  const row = await get<{ permissions: string }>('SELECT permissions FROM roles WHERE name = $1', [role]);
-  return row ? JSON.parse(row.permissions) : [];
+  return { canAccess: featureAccess, plan, role, allowedModules };
 }

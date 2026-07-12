@@ -4,22 +4,27 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, LogIn, ArrowLeft, Send, KeyRound, Check, Loader } from 'lucide-react';
+import { Eye, EyeOff, LogIn, ArrowLeft, Send, KeyRound, Check, Loader, Shield } from 'lucide-react';
 
 export default function SignInPage() {
-  const { signIn } = useAuth();
+  const { signIn, completeOtpSignIn } = useAuth();
   const router = useRouter();
-  const [view, setView] = useState<'signin' | 'forgot'>('signin');
+  const [view, setView] = useState<'signin' | 'otp' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [otpSentMsg, setOtpSentMsg] = useState('');
+
+  // OTP step state
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
 
   // Forgot password state
   const [resetStep, setResetStep] = useState<'email' | 'otp' | 'newpw'>('email');
   const [resetEmail, setResetEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
+  const [resetOtpCode, setResetOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showNewPw, setShowNewPw] = useState(false);
   const [resetMsg, setResetMsg] = useState('');
@@ -30,15 +35,33 @@ export default function SignInPage() {
     setBusy(true);
     const result = await signIn(email, password);
     setBusy(false);
+    if (result.requires_otp) {
+      setOtpEmail(result.email || email);
+      setOtpCode('');
+      setOtpSentMsg(`A verification code has been sent to ${result.email}. If you don't see it, please check your spam folder.`);
+      setView('otp');
+    } else if (result.success) {
+      router.push('/dashboard');
+    } else {
+      setError(result.error || 'Invalid email or password.');
+    }
+  }
+
+  async function handleOtpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    const result = await completeOtpSignIn(otpEmail, otpCode);
+    setBusy(false);
     if (result.success) router.push('/dashboard');
-    else setError(result.error || 'Invalid email or password.');
+    else setError(result.error || 'Invalid or expired code.');
   }
 
   function handleForgot() {
     setView('forgot');
     setResetStep('email');
     setResetEmail('');
-    setOtpCode('');
+    setResetOtpCode('');
     setNewPassword('');
     setResetMsg('');
     setError('');
@@ -47,6 +70,7 @@ export default function SignInPage() {
   function handleBackToSignIn() {
     setView('signin');
     setError('');
+    setOtpSentMsg('');
   }
 
   async function handleSendOtp(e: React.FormEvent) {
@@ -80,7 +104,7 @@ export default function SignInPage() {
       const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, code: otpCode, purpose: 'password_reset' }),
+        body: JSON.stringify({ email: resetEmail, code: resetOtpCode, purpose: 'password_reset' }),
       });
       if (res.ok) {
         setResetMsg('');
@@ -107,7 +131,7 @@ export default function SignInPage() {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, newPassword, otp: otpCode }),
+        body: JSON.stringify({ email: resetEmail, newPassword, otp: resetOtpCode }),
       });
       if (res.ok) {
         setView('signin');
@@ -184,6 +208,39 @@ export default function SignInPage() {
               <Link href="/sign-up" className="text-brand font-medium hover:text-[#000000] transition-colors">Sign Up</Link>
             </p>
           </>
+        ) : view === 'otp' ? (
+          <>
+            <button onClick={handleBackToSignIn} className="flex items-center gap-1 text-xs text-brand hover:text-[#000000] mb-4 transition-colors">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Sign In
+            </button>
+            <div className="flex items-center gap-2 mb-5">
+              <Shield className="h-5 w-5 text-brand" />
+              <h2 className="text-sm font-semibold text-brand">Two-Factor Authentication</h2>
+            </div>
+
+            {otpSentMsg && <p className="text-xs text-gray-600 mb-4 bg-gray-50 px-3 py-2 rounded-lg">{otpSentMsg}</p>}
+
+            <form onSubmit={handleOtpSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-[#000000] mb-1">Enter Verification Code</label>
+                <input
+                  type="text"
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full bg-white border border-border rounded-lg px-3 py-2.5 text-sm text-[#000000] text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                  placeholder="0 0 0 0 0 0"
+                  maxLength={6}
+                  required
+                  autoFocus
+                />
+              </div>
+              {error && <p className="text-xs text-brand">{error}</p>}
+              <button type="submit" disabled={busy} className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50">
+                {busy ? <Loader className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                {busy ? 'Verifying...' : 'Verify & Sign In'}
+              </button>
+            </form>
+          </>
         ) : (
           <>
             <button onClick={handleBackToSignIn} className="flex items-center gap-1 text-xs text-brand hover:text-[#000000] mb-4 transition-colors">
@@ -219,8 +276,8 @@ export default function SignInPage() {
                   <label className="block text-xs font-medium text-[#000000] mb-1">Enter Code</label>
                   <input
                     type="text"
-                    value={otpCode}
-                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    value={resetOtpCode}
+                    onChange={e => setResetOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="w-full bg-white border border-border rounded-lg px-3 py-2.5 text-sm text-[#000000] text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-brand"
                     placeholder="0 0 0 0 0 0"
                     maxLength={6}

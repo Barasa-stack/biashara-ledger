@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
-import { adminGet, withTenantContext } from '@/lib/db';
+import { get, withTenantContext } from '@/lib/db';
 import { buildHtml } from '@/lib/print';
 import { createTransporter, getSmtpConfig } from '@/lib/email';
 import { getSessionFromCookies } from '@/lib/auth-server';
+import { generatePdfBuffer } from '@/lib/pdf';
 
 export async function POST(request: Request) {
   try {
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
 
-    const { to, subject, message, item, type } = await request.json();
+    const { to, cc, bcc, subject, message, item, type } = await request.json();
 
     if (!to) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 });
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     const company = await withTenantContext(session.tenant_id!, async () => {
-      return await adminGet('SELECT * FROM company_settings LIMIT 1') as any;
+      return await get('SELECT * FROM company_settings LIMIT 1') as any;
     });
 
     const docNumber = item?.invoice_number || item?.quotation_number || item?.credit_note_number || `#${item?.id || ''}`;
@@ -34,20 +35,7 @@ export async function POST(request: Request) {
     let pdfError: string | null = null;
     try {
       const fullHtml = buildHtml(isType, item, company);
-      let puppeteer: any;
-      try {
-        puppeteer = await import('puppeteer').then(m => m.default);
-      } catch {
-        return NextResponse.json({ error: 'PDF generation is not available' }, { status: 500 });
-      }
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-      });
-      const page = await browser.newPage();
-      await page.setContent(fullHtml, { waitUntil: 'load' });
-      pdfBuffer = await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '8mm' }, printBackground: true });
-      await browser.close();
+      pdfBuffer = await generatePdfBuffer(fullHtml);
     } catch (err: any) {
       pdfError = err.message;
       console.error('PDF generation failed:', pdfError);
@@ -68,7 +56,7 @@ export async function POST(request: Request) {
             </tr>
             <tr>
               <td style="padding: 10px 12px; border-bottom: 1px solid #eee; color: #888;">Amount</td>
-              <td style="padding: 10px 12px; border-bottom: 1px solid #eee; font-weight: 600;">$${amount}</td>
+              <td style="padding: 10px 12px; border-bottom: 1px solid #eee; font-weight: 600;">KSh ${amount}</td>
             </tr>
             <tr>
               <td style="padding: 10px 12px; border-bottom: 1px solid #eee; color: #888;">Status</td>
@@ -97,6 +85,8 @@ export async function POST(request: Request) {
     const mailOptions: any = {
       from: `"${companyName}" <${smtpUser}>`,
       to,
+      cc: cc || undefined,
+      bcc: bcc || undefined,
       subject,
       html,
     };

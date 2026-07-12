@@ -12,13 +12,14 @@ type Props = {
 };
 
 export function StatCard({ icon: Icon, label, value, color, change, onClick }: Props) {
-  const colorClass = color === 'red' ? 'text-red-600' : color === 'gray' ? 'text-gray-600' : 'text-brand';
+  const colorClass = color === 'red' ? 'text-red-600' : color === 'green' ? 'text-green-600' : color === 'gray' ? 'text-gray-600' : 'text-brand';
+  const bgClass = color === 'red' ? 'bg-red-100' : color === 'green' ? 'bg-green-100' : 'bg-brand/10';
   return (
     <div
       onClick={onClick}
       className={`bg-white rounded-lg border border-border p-5 flex items-center gap-4 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
     >
-      <div className={`w-10 h-10 rounded-lg ${color === 'red' ? 'bg-red-100' : 'bg-brand/10'} flex items-center justify-center shrink-0`}>
+      <div className={`w-10 h-10 rounded-lg ${bgClass} flex items-center justify-center shrink-0`}>
         <Icon className={`h-5 w-5 ${colorClass}`} />
       </div>
       <div className="min-w-0 flex-1">

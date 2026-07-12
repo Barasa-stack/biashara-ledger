@@ -14,13 +14,7 @@ JWT_SECRET="replace-me"
 ENCRYPTION_KEY="replace-me"
 ```
 
-Run the Nile schema migration before serving production traffic:
-
-```bash
-psql "$DATABASE_URL" -f scripts/migrate-to-nile.sql
-```
-
-The runtime initializer in `src/lib/schema.ts` also creates the current tables and indexes when the app initializes.
+The runtime initializer in `src/lib/schema.ts` creates all tables and indexes automatically when the app initializes. No manual SQL migration needed.
 
 ## Tenant Isolation
 
@@ -43,13 +37,7 @@ Signup creates a Nile tenant first, then creates the owner user and default comp
 
 ## Verification
 
-Run the tenant isolation check against a Nile database:
-
-```bash
-npm run verify:tenant-isolation
-```
-
-The script creates two tenants, inserts tenant-specific customers, and fails if either tenant can read the other's data.
+Tenant isolation is enforced at the database level via composite primary keys `(tenant_id, id)` and runtime tenant context (`nile.tenant_id`).
 
 Run the application checks:
 
@@ -57,6 +45,6 @@ Run the application checks:
 npm run build
 ```
 
-## Existing Data Migration
+## Data Migration
 
-Use `scripts/migrate-to-nile.sql` for the current Nile schema. The older `scripts/migrate-data.ts` is retained for custom Neon-to-Nile data migration work, but it should be reviewed against the source database schema before running because legacy column names may differ from the current application schema. 
+For migrating data to a Nile database, use `scripts/migrate-consolidated.sql` against a database that already has the runtime schema created by `src/lib/schema.ts`.

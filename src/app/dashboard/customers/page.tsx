@@ -6,8 +6,9 @@ import { Plus, Pencil, Trash2, X, Search, Download, Upload } from 'lucide-react'
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';;
-import { countries } from '@/lib/countries';
+import { countries, getDialCode } from '@/lib/countries';
 import ImportModal from '@/components/ImportModal';
+import SearchableCountrySelect from '@/components/SearchableCountrySelect';
 
 type Customer = {
   id: string;
@@ -307,20 +308,29 @@ export default function CustomersPage() {
                 <Field label="Company Name" value={form.company_name} onChange={set('company_name')} />
                 <Field label="Contact Person" value={form.contact_person} onChange={set('contact_person')} />
                 <Field label="Email Address" value={form.email_address} onChange={set('email_address')} type="email" />
-                <Field label="Phone Number" value={form.phone_number} onChange={set('phone_number')} />
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Phone Number</label>
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 border border-r-0 border-border rounded-l-md bg-gray-50 text-sm text-gray-600">
+                      {getDialCode(form.country)}
+                    </span>
+                    <input
+                      type="tel"
+                      value={form.phone_number}
+                      onChange={e => setForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                      className="flex-1 border border-border rounded-r-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                      placeholder="712345678"
+                    />
+                  </div>
+                </div>
                 <Field label="Tax ID / VAT Reg" value={form.tax_id} onChange={set('tax_id')} />
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Country *</label>
-                  <select
-                    value={form.country}
-                    onChange={set('country')}
-                    className="w-full border border-border bg-white rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
-                  >
-                    <option value="">Select country</option>
-                    {countries.map(c => (
-                      <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.code})</option>
-                    ))}
-                  </select>
+                  <SearchableCountrySelect value={form.country} onChange={code => setForm(prev => {
+                    const dial = getDialCode(code);
+                    const phone = prev.phone_number ? prev.phone_number : dial;
+                    return { ...prev, country: code, phone_number: phone };
+                  })} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Payment Terms</label>

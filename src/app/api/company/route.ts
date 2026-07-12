@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 import { query, get, run, insertReturning, withTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
-import { ensureDbInitialized } from '@/lib/init';
 
 export async function GET() {
   try {
-    await ensureDbInitialized();
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
     const settings = await withTenantContext(session.tenant_id!, async () => {
@@ -26,7 +24,6 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    await ensureDbInitialized();
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
     const body = await request.json();

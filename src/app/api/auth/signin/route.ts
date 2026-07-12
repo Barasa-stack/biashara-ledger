@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { adminRun, adminGet, run, withTenantContext } from '@/lib/db';
+import { adminRun as dbAdminRun, adminGet, run, withTenantContext } from '@/lib/db';
 import { ensureDbInitialized } from '@/lib/init';
 import { normalizePlan } from '@/lib/feature-gate';
+import { sendOTPEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,12 +39,12 @@ export async function POST(req: NextRequest) {
     ) as any;
 
     // Auto-create admin users on first sign-in (Nile bootstrap)
-    const ADMIN_EMAILS = ['digitalbaroz@gmail.com', 'mambombaya1992@gmail.com'];
+    const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'digitalbaroz@gmail.com,mambombaya1992@gmail.com').split(',').map(e => e.trim());
     if (!user && ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
       const hashedPw = await bcrypt.hash(password, 10);
       const tenantUuid = crypto.randomUUID();
       // First create the tenant record, then create the user
-      await adminRun(
+      await dbAdminRun(
         `INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
         [tenantUuid, email.includes('digitalbaroz') ? 'Digital Baroz' : 'Mambombaya']
       );
@@ -100,86 +101,42 @@ export async function POST(req: NextRequest) {
 
     // Ensure company_settings exists for this tenant
     try {
-      await adminRun(
-        `INSERT INTO company_settings (tenant_id, company_name, email, base_currency) 
-         VALUES ($1, $2, $3, 'KES') 
-         ON CONFLICT (tenant_id) DO NOTHING`,
-        [tenantId, user.first_name || user.last_name || 'Business', user.email]
-      );
+      await withTenantContext(tenantId, async () => {
+        await run(
+          `INSERT INTO company_settings (tenant_id, company_name, email, base_currency) 
+           VALUES ($1, $2, $3, 'KES') 
+           ON CONFLICT (tenant_id) DO NOTHING`,
+          [tenantId, user.first_name || user.last_name || 'Business', user.email]
+        );
+      });
     } catch (settingsError) {
       console.warn('Could not ensure company_settings:', settingsError);
     }
 
-    // Invalidate all prior sessions for this email
-    await withTenantContext(tenantId, async () => {
-      await run(
-        `DELETE FROM sessions WHERE user_id IN (
-           SELECT id FROM users WHERE LOWER(email) = LOWER($1)
-         )`,
-        [email.toLowerCase().trim()]
-      );
+    // Generate and send OTP for mandatory 2FA
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    await dbAdminRun(
+      'UPDATE verification_codes SET used = 1 WHERE email = $1 AND purpose = $2 AND used = 0',
+      [email.toLowerCase().trim(), 'signin_2fa']
+    );
+
+    const vcId = Math.floor(Math.random() * 2147483647) + 1;
+    await dbAdminRun(
+      'INSERT INTO verification_codes (id, email, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)',
+      [vcId, email.toLowerCase().trim(), code, 'signin_2fa', expiresAt]
+    );
+
+    await sendOTPEmail(email.toLowerCase().trim(), code, user.first_name || '');
+
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    return NextResponse.json({
+      requires_otp: true,
+      email: user.email,
+      ...(isDev ? { demoCode: code } : {}),
     });
-
-    // Track last login
-    await withTenantContext(tenantId, async () => {
-      await run(`UPDATE users SET last_login = NOW(), last_ip = $1 WHERE id = $2`, [ip, user.id]);
-    });
-
-    const sessionToken = crypto.randomUUID();
-    const sessionId = Math.floor(Math.random() * 2147483647) + 1;
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    await withTenantContext(tenantId, async () => {
-      await run(
-        'INSERT INTO sessions (id, tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4, $5)',
-        [sessionId, tenantId, user.id, sessionToken, expiresAt]
-      );
-    });
-
-    const displayName = user.first_name || user.last_name || '';
-    const userData = await adminGet(
-      'SELECT subscription_plan, subscription_status, license_status, country FROM users WHERE id = $1',
-      [user.id]
-    ) as any;
-    
-    let subPlan = normalizePlan(userData?.subscription_plan || 'trial');
-    const subStatus = userData?.license_status === 'active' ? 'active' : userData?.subscription_status || 'active';
-    const country = userData?.country || 'KE';
-
-    // Override trial to Premium for admin users
-    if (ADMIN_EMAILS.includes(email.toLowerCase().trim()) && subPlan === 'trial') {
-      subPlan = 'Premium';
-      try {
-        await withTenantContext(tenantId, async () => {
-          await run(
-            `UPDATE users SET subscription_plan = 'Premium', subscription_status = 'active', license_status = 'active' WHERE email = $1`,
-            [email.toLowerCase().trim()]
-          );
-        });
-      } catch {}
-    }
-
-    const response = NextResponse.json({
-      success: true,
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        name: displayName, 
-        tenantId: tenantId, 
-        subscriptionPlan: subPlan, 
-        subscriptionStatus: subStatus, 
-        country 
-      }
-    });
-
-    response.cookies.set('bl_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
-
-    return response;
 
   } catch (error: any) {
     const msg = error instanceof Error ? error.message : String(error);

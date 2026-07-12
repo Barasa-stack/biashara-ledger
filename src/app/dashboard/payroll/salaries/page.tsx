@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Pencil, Trash2, X, DollarSign, Calculator } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, DollarSign, Calculator, FileText } from 'lucide-react';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useToast } from '@/components/Toast';
 
@@ -184,6 +184,55 @@ export default function SalariesPage() {
     }
   };
 
+  const handleGeneratePayslip = async (s: Salary) => {
+    if (!await confirm(`Generate payslip for "${s.employee_name}"?`)) return;
+    try {
+      const calcRes = await fetch('/api/payroll/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ basic_salary: s.basic_salary, allowances: s.allowances, deductions: s.deductions, overtime: s.overtime, bonuses: s.bonuses }),
+      });
+      if (!calcRes.ok) throw new Error('Calculation failed');
+      const calc = await calcRes.json();
+      const ref = s.payslip_reference || `PSL-${Date.now().toString(36).toUpperCase()}`;
+      const res = await fetch('/api/payroll/payslips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salary_id: s.id,
+          employee_id: s.employee_id,
+          employee_name: s.employee_name,
+          payslip_reference: ref,
+          basic_salary: s.basic_salary,
+          allowances: s.allowances,
+          deductions: calc.other_deductions || 0,
+          overtime: s.overtime,
+          overtime_hours: calc.overtime_hours || 0,
+          overtime_type: calc.overtime_type || 'none',
+          bonuses: s.bonuses,
+          gross_pay: calc.gross_pay,
+          nssf_employee: calc.nssf_employee,
+          nhif: calc.nhif,
+          shif: calc.shif || 0,
+          ahl: calc.ahl || 0,
+          paye: calc.paye,
+          employer_nssf: calc.employer_nssf,
+          employer_ahl: calc.employer_ahl || 0,
+          net_pay: calc.net_pay,
+          pay_date: s.pay_date,
+          payment_method: s.payment_method,
+          period_start: s.pay_date,
+          period_end: s.pay_date,
+          status: 'generated',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to generate payslip');
+      toast('Payslip generated successfully');
+    } catch (e: any) {
+      toast(e.message || 'Error generating payslip');
+    }
+  };
+
   const handleDelete = async (s: Salary) => {
     if (!await confirm(`Delete salary record for "${s.employee_name}"?`)) return;
     try {
@@ -306,6 +355,9 @@ export default function SalariesPage() {
                     </td>
                     <td className="py-3 text-right">
                       <div className="inline-flex items-center gap-1">
+                        <button onClick={() => handleGeneratePayslip(s)} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Generate Payslip">
+                          <FileText className="h-4 w-4" />
+                        </button>
                         <button onClick={() => openEdit(s)} className="p-1.5 text-gray-400 hover:text-brand hover:bg-brand/5 rounded transition-colors" title="Edit">
                           <Pencil className="h-4 w-4" />
                         </button>
