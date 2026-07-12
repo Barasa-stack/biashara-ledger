@@ -18,10 +18,27 @@ type ApiData = {
   openingInventory: number; purchases: number; directCosts: number; debitNotes: number;
   closingInventory: number; costOfGoodsSold: number; grossProfit: number;
   adminExpenses: number; sellingDistributionExpenses: number; generalOperatingExpenses: number;
-  salariesTotal: number; depreciationExpense: number; totalOperatingExpenses: number; operatingProfit: number;
+  salariesTotal: number; depreciationExpense: number; totalOperatingExpenses: number;   operatingProfit: number;
   ebitda: number;
   grossMarginPercent: number;
   netMarginPercent: number;
+  // Prior period fields (comparative)
+  grossSalesPrior: number; salesReturnsPrior: number; discountsPrior: number;
+  netSalesPrior: number; purchasesPrior: number; debitNotesPrior: number;
+  costOfGoodsSoldPrior: number; grossProfitPrior: number;
+  grossMarginPercentPrior: number; netMarginPercentPrior: number;
+  adminExpensesPrior: number; sellingDistributionExpensesPrior: number; generalOperatingExpensesPrior: number;
+  salariesTotalPrior: number; depreciationExpensePrior: number; totalOperatingExpensesPrior: number;
+  operatingProfitPrior: number; ebitdaPrior: number;
+  otherIncomePrior: number; otherExpensesPrior: number;
+  profitBeforeTaxPrior: number; taxesPrior: number; netProfitPrior: number;
+  expenseByCategoryPrior: { category: string; total: number; count: number }[];
+  // Cash flow prior
+  cashOperatingInflowPrior: number; cashOperatingOutflowPrior: number; netOperatingCashFlowPrior: number;
+  cashSupplierPaymentsPrior: number; cashExpensePaymentsPrior: number; cashSalaryPaymentsPrior: number;
+  financingInflowPrior: number; financingOutflowPrior: number; netFinancingCashFlowPrior: number;
+  netCashFlowPrior: number;
+  // End prior fields
   otherIncome: number; otherExpenses: number; profitBeforeTax: number; taxes: number;
   netProfit: number;
   totalRevenue: number; totalCreditNotes: number; netRevenue: number;
@@ -378,59 +395,59 @@ function ReportsContent() {
       {/* ── Profit & Loss ── */}
       {(activeType === 'all' || activeType === 'profit-loss') && (
         <Section icon={BarChart3} title="Profit & Loss Statement" subtitle="Accrual-based revenues, cost of sales, and net profit">
-          <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Revenue</p>
-          <Row label="Gross Sales" value={cfmt(d.grossSales)} color="text-red-700" />
-          <Row label="Less: Sales Returns (Credit Notes)" value={`(${cfmt(d.salesReturns)})`} color="text-red-500" />
-          <Row label="Less: Discounts" value={`(${cfmt(d.discounts)})`} color="text-red-500" />
+          <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Revenue <span className="text-gray-400 font-normal">(Current vs Prior Period)</span></p>
+          <Row label="Gross Sales" value={`${cfmt(d.grossSales)}  |  Prior: ${cfmt(d.grossSalesPrior)}`} color="text-red-700" />
+          <Row label="Less: Sales Returns (Credit Notes)" value={`(${cfmt(d.salesReturns)})  |  Prior: (${cfmt(d.salesReturnsPrior)})`} color="text-red-500" />
+          <Row label="Less: Discounts" value={`(${cfmt(d.discounts)})  |  Prior: (${cfmt(d.discountsPrior)})`} color="text-red-500" />
           <Row label="Less: Allowances" value={`(${cfmt(d.allowances)})`} color="text-red-500" />
           <div className="border-t border-border my-1" />
-          <Row label="Net Sales" value={cfmt(d.netSales)} color="text-red-700" fontWeight="font-semibold" />
+          <Row label="Net Sales" value={`${cfmt(d.netSales)}  |  Prior: ${cfmt(d.netSalesPrior)}`} color="text-red-700" fontWeight="font-semibold" />
 
           <div className="mt-3">
-            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cost of Goods Sold</p>
+            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cost of Goods Sold <span className="text-gray-400 font-normal">(Current vs Prior Period)</span></p>
             <Row label="Opening Inventory" value={cfmt(d.openingInventory)} />
-            <Row label="Add: Purchases (Cost of Sales)" value={cfmt(d.purchases)} />
+            <Row label="Add: Purchases (Cost of Sales)" value={`${cfmt(d.purchases)}  |  Prior: ${cfmt(d.purchasesPrior)}`} />
             <Row label="Add: Direct Costs" value={cfmt(d.directCosts)} />
-            <Row label="Less: Debit Notes" value={`(${cfmt(d.debitNotes)})`} color="text-red-600" />
+            <Row label="Less: Debit Notes" value={`(${cfmt(d.debitNotes)})  |  Prior: (${cfmt(d.debitNotesPrior)})`} color="text-red-600" />
             <Row label="Less: Closing Inventory" value={`(${cfmt(d.closingInventory)})`} color="text-red-600" />
             <div className="border-t border-border my-1" />
-            <Row label="Cost of Goods Sold" value={cfmt(d.costOfGoodsSold)} color="text-red-600" fontWeight="font-semibold" />
+            <Row label="Cost of Goods Sold" value={`${cfmt(d.costOfGoodsSold)}  |  Prior: ${cfmt(d.costOfGoodsSoldPrior)}`} color="text-red-600" fontWeight="font-semibold" />
           </div>
 
           <div className="border-t border-border my-2" />
-          <Row label="Gross Profit" value={cfmt(d.grossProfit)} color={d.grossProfit >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
-          <Row label="Gross Margin" value={`${d.grossMarginPercent.toFixed(1)}%`} />
+          <Row label="Gross Profit" value={`${cfmt(d.grossProfit)}  |  Prior: ${cfmt(d.grossProfitPrior)}`} color={d.grossProfit >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
+          <Row label="Gross Margin" value={`${d.grossMarginPercent.toFixed(1)}% (Prior: ${d.grossMarginPercentPrior.toFixed(1)}%)`} />
 
           <div className="mt-3">
-            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Operating Expenses</p>
-            <Row label="Administrative Expenses" value={cfmt(d.adminExpenses)} color="text-red-500" />
-            <Row label="Selling & Distribution Expenses" value={cfmt(d.sellingDistributionExpenses)} color="text-red-500" />
-            <Row label="General Operating Expenses" value={cfmt(d.generalOperatingExpenses)} color="text-red-500" />
-            <Row label="Salaries & Wages" value={cfmt(d.salariesTotal)} color="text-red-500" />
+            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Operating Expenses <span className="text-gray-400 font-normal">(Current vs Prior Period)</span></p>
+            <Row label="Administrative Expenses" value={`${cfmt(d.adminExpenses)}  |  Prior: ${cfmt(d.adminExpensesPrior)}`} color="text-red-500" />
+            <Row label="Selling & Distribution Expenses" value={`${cfmt(d.sellingDistributionExpenses)}  |  Prior: ${cfmt(d.sellingDistributionExpensesPrior)}`} color="text-red-500" />
+            <Row label="General Operating Expenses" value={`${cfmt(d.generalOperatingExpenses)}  |  Prior: ${cfmt(d.generalOperatingExpensesPrior)}`} color="text-red-500" />
+            <Row label="Salaries & Wages" value={`${cfmt(d.salariesTotal)}  |  Prior: ${cfmt(d.salariesTotalPrior)}`} color="text-red-500" />
             <div className="border-t border-border my-1" />
-            <Row label="Total Operating Expenses" value={cfmt(d.totalOperatingExpenses)} color="text-red-600" fontWeight="font-semibold" />
+            <Row label="Total Operating Expenses" value={`${cfmt(d.totalOperatingExpenses)}  |  Prior: ${cfmt(d.totalOperatingExpensesPrior)}`} color="text-red-600" fontWeight="font-semibold" />
           </div>
 
           <div className="border-t border-border my-2" />
-          <Row label="Operating Profit / (Loss)" value={cfmt(d.operatingProfit)} color={d.operatingProfit >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
-          <Row label="EBITDA (Operating Profit + Depreciation)" value={cfmt(d.ebitda)} color={d.ebitda >= 0 ? 'text-red-700' : 'text-red-700'} />
+          <Row label="Operating Profit / (Loss)" value={`${cfmt(d.operatingProfit)}  |  Prior: ${cfmt(d.operatingProfitPrior)}`} color={d.operatingProfit >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
+          <Row label="EBITDA (Operating Profit + Depreciation)" value={`${cfmt(d.ebitda)}  |  Prior: ${cfmt(d.ebitdaPrior)}`} color={d.ebitda >= 0 ? 'text-red-700' : 'text-red-700'} />
 
           <div className="mt-3">
-            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Other Income &amp; Expenses</p>
-            <Row label="Other Income" value={cfmt(d.otherIncome)} color="text-red-600" />
-            <Row label="Other Expenses" value={`(${cfmt(d.otherExpenses)})`} color="text-red-500" />
+            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Other Income &amp; Expenses <span className="text-gray-400 font-normal">(Current vs Prior Period)</span></p>
+            <Row label="Other Income" value={`${cfmt(d.otherIncome)}  |  Prior: ${cfmt(d.otherIncomePrior)}`} color="text-red-600" />
+            <Row label="Other Expenses" value={`(${cfmt(d.otherExpenses)})  |  Prior: (${cfmt(d.otherExpensesPrior)})`} color="text-red-500" />
           </div>
 
           <div className="border-t border-border my-2" />
-          <Row label="Profit Before Tax" value={cfmt(d.profitBeforeTax)} color={d.profitBeforeTax >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
-          <Row label="Less: Tax" value={`(${cfmt(d.taxes)})`} color="text-red-500" />
+          <Row label="Profit Before Tax" value={`${cfmt(d.profitBeforeTax)}  |  Prior: ${cfmt(d.profitBeforeTaxPrior)}`} color={d.profitBeforeTax >= 0 ? 'text-red-700' : 'text-red-700'} fontWeight="font-bold" />
+          <Row label="Less: Tax" value={`(${cfmt(d.taxes)})  |  Prior: (${cfmt(d.taxesPrior)})`} color="text-red-500" />
 
           <div className="border-t-2 border-double border-brand my-2" />
           <div className="flex justify-between text-sm font-bold pt-1">
             <span className="text-brand text-base">Net Profit / (Loss)</span>
             <span className={`text-base ${d.netProfit >= 0 ? 'text-red-700' : 'text-red-700'}`}>{cfmt(d.netProfit)}</span>
           </div>
-          <Row label="Net Margin" value={`${d.netMarginPercent.toFixed(1)}%`} />
+          <Row label="Net Margin" value={`${d.netMarginPercent.toFixed(1)}% (Prior: ${d.netMarginPercentPrior.toFixed(1)}%)`} />
 
           {d.expenseByCategory.length > 0 && (
             <div className="mt-4 pt-3 border-t border-border">
@@ -550,19 +567,19 @@ function ReportsContent() {
       {/* ── Cash Flow ── */}
       {(activeType === 'all' || activeType === 'cash-flow') && (
         <Section icon={Wallet} title="Cash Flow Statement" subtitle="Cash inflows and outflows from operating, investing, and financing activities">
-          <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Operating Activities</p>
-          <Row label="Cash Received from Customers" value={cfmt(d.cashOperatingInflow)} />
+          <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Operating Activities <span className="text-gray-400 font-normal">(Current vs Prior Period)</span></p>
+          <Row label="Cash Received from Customers" value={`${cfmt(d.cashOperatingInflow)}  |  Prior: ${cfmt(d.cashOperatingInflowPrior)}`} />
           <div className="border-t border-border my-1" />
           <Row label="Total Operating Inflows" value={cfmt(d.cashOperatingInflow)} />
           <div className="mt-3">
-            <Row label="Cash Paid to Suppliers (Purchases)" value={`(${cfmt(d.cashSupplierPayments)})`} color="text-red-600" />
-            <Row label="Cash Paid for Expenses" value={`(${cfmt(d.cashExpensePayments)})`} color="text-red-600" />
-            <Row label="Cash Paid for Salaries" value={`(${cfmt(d.cashSalaryPayments)})`} color="text-red-600" />
+            <Row label="Cash Paid to Suppliers (Purchases)" value={`(${cfmt(d.cashSupplierPayments)})  |  Prior: (${cfmt(d.cashSupplierPaymentsPrior)})`} color="text-red-600" />
+            <Row label="Cash Paid for Expenses" value={`(${cfmt(d.cashExpensePayments)})  |  Prior: (${cfmt(d.cashExpensePaymentsPrior)})`} color="text-red-600" />
+            <Row label="Cash Paid for Salaries" value={`(${cfmt(d.cashSalaryPayments)})  |  Prior: (${cfmt(d.cashSalaryPaymentsPrior)})`} color="text-red-600" />
             <div className="border-t border-border my-1" />
             <Row label="Total Operating Outflows" value={`(${cfmt(d.cashOperatingOutflow)})`} color="text-red-600" />
           </div>
           <div className="border-t-2 border-double border-border my-2" />
-          <Row label="Net Cash from Operating Activities" value={cfmt(d.netOperatingCashFlow)} fontWeight="font-bold" />
+          <Row label="Net Cash from Operating Activities" value={`${cfmt(d.netOperatingCashFlow)}  |  Prior: ${cfmt(d.netOperatingCashFlowPrior)}`} fontWeight="font-bold" />
           <div className="mt-4 pt-3 border-t border-border">
             <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Investing Activities</p>
             <Row label="Sale of Fixed Assets" value={cfmt(d.investingInflow)} />
@@ -571,14 +588,14 @@ function ReportsContent() {
             <Row label="Net Cash from Investing Activities" value={cfmt(d.netInvestingCashFlow)} />
           </div>
           <div className="mt-4 pt-3 border-t border-border">
-            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Financing Activities</p>
-            <Row label="Capital Contributions" value={cfmt(d.financingInflow)} />
-            <Row label="Owner Withdrawals" value={`(${cfmt(d.financingOutflow)})`} color="text-red-600" />
+            <p className="text-xs font-semibold text-[#000000] uppercase mb-2">Cash Flow from Financing Activities <span className="text-gray-400 font-normal">(Current vs Prior Period)</span></p>
+            <Row label="Capital Contributions" value={`${cfmt(d.financingInflow)}  |  Prior: ${cfmt(d.financingInflowPrior)}`} />
+            <Row label="Owner Withdrawals" value={`(${cfmt(d.financingOutflow)})  |  Prior: (${cfmt(d.financingOutflowPrior)})`} color="text-red-600" />
             <div className="border-t border-border my-1" />
-            <Row label="Net Cash from Financing Activities" value={cfmt(d.netFinancingCashFlow)} />
+            <Row label="Net Cash from Financing Activities" value={`${cfmt(d.netFinancingCashFlow)}  |  Prior: ${cfmt(d.netFinancingCashFlowPrior)}`} />
           </div>
           <div className="border-t-2 border-double border-brand my-3" />
-          <Row label="Net Increase / (Decrease) in Cash" value={cfmt(d.netCashFlow)} fontWeight="font-bold" />
+          <Row label="Net Increase / (Decrease) in Cash" value={`${cfmt(d.netCashFlow)}  |  Prior: ${cfmt(d.netCashFlowPrior)}`} fontWeight="font-bold" />
           <Row label="Net Cash from Operating Activities" value={cfmt(d.netOperatingCashFlow)} />
           <Row label="Net Cash from Investing Activities" value={cfmt(d.netInvestingCashFlow)} />
           <Row label="Net Cash from Financing Activities" value={cfmt(d.netFinancingCashFlow)} />

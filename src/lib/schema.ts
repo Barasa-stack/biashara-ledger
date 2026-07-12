@@ -812,6 +812,11 @@ export async function initSchema() {
       id UUID DEFAULT gen_random_uuid(),
       user_id UUID,
       entity_type TEXT NOT NULL,
+      entity_id TEXT DEFAULT '',
+      action_type TEXT DEFAULT '',
+      old_values TEXT DEFAULT '{}',
+      new_values TEXT DEFAULT '{}',
+      ip_address TEXT DEFAULT '',
       imported_count INTEGER DEFAULT 0,
       errors_count INTEGER DEFAULT 0,
       error_details TEXT DEFAULT '[]',
@@ -820,6 +825,71 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
   `);
+
+  // Add audit log columns to transaction tables (who created/updated)
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS updated_by UUID`);
+  await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await exec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS created_by UUID`);
+
+  // Audit trigger function — logs INSERT/UPDATE/DELETE to audit_log table
+  // Captures old/new values for full before/after visibility.
+  // Application-level user_id tracking requires the API routes to set
+  // created_by/updated_by on the transaction tables.
+  await exec(`
+    CREATE OR REPLACE FUNCTION public.audit_trigger_func()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_tenant_id UUID;
+      v_old_json TEXT := '{}';
+      v_new_json TEXT := '{}';
+    BEGIN
+      IF TG_OP = 'DELETE' OR TG_OP = 'UPDATE' THEN
+        v_old_json := row_to_json(OLD)::TEXT;
+      END IF;
+      IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+        v_new_json := row_to_json(NEW)::TEXT;
+      END IF;
+
+      v_tenant_id := COALESCE(NEW.tenant_id, OLD.tenant_id);
+
+      INSERT INTO public.audit_log (tenant_id, user_id, entity_type, entity_id, action_type, old_values, new_values)
+      VALUES (
+        v_tenant_id,
+        COALESCE(NEW.created_by, OLD.created_by, NEW.updated_by, OLD.updated_by, NULL),
+        TG_TABLE_NAME,
+        COALESCE(NEW.id::TEXT, OLD.id::TEXT),
+        TG_OP,
+        v_old_json,
+        v_new_json
+      );
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  // Attach triggers to key financial tables
+  const auditTables = ['sales_invoices', 'payments', 'purchase_invoices', 'supplier_payments',
+    'expenses', 'salaries', 'credit_notes', 'debit_notes', 'other_transactions',
+    'capital_transactions', 'customers', 'clients', 'inventory_items', 'fixed_assets',
+    'journal_entries', 'journal_entry_lines'];
+  for (const tbl of auditTables) {
+    await exec(`
+      DROP TRIGGER IF EXISTS audit_trigger ON public.${tbl};
+      CREATE TRIGGER audit_trigger
+      AFTER INSERT OR UPDATE OR DELETE ON public.${tbl}
+      FOR EACH ROW EXECUTE FUNCTION public.audit_trigger_func();
+    `);
+  }
 
   await exec(`
     INSERT INTO public.admin_users (username, password_hash, email, role)
