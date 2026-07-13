@@ -64,6 +64,8 @@ export async function GET(request: Request) {
         actualVatOutput,
         actualVatInput,
         fixedAssetsRow,
+        cogsFromTransactions,
+        lowStockResult,
       ] = await Promise.all([
         safeGet<{ total: number }>(
           `SELECT COALESCE(SUM(subtotal),0) as total FROM sales_invoices WHERE status!='cancelled' AND issue_date BETWEEN $1 AND $2`, [from, to]),
@@ -75,8 +77,8 @@ export async function GET(request: Request) {
           `SELECT COALESCE(SUM(amount),0) as total FROM purchase_invoices WHERE status!='cancelled' AND issue_date BETWEEN $1 AND $2`, [from, to]),
         safeGet<{ total: number }>(
           `SELECT COALESCE(SUM(amount),0) as total FROM debit_notes WHERE (status IS NULL OR status!='cancelled') AND issue_date BETWEEN $1 AND $2`, [from, to]),
-        safeQuery<{ opening_value: number; closing_value: number }>(
-          `SELECT COALESCE(SUM(opening_stock*unit_cost),0) as opening_value, COALESCE(SUM(current_stock*unit_cost),0) as closing_value FROM inventory_items`),
+        safeQuery<{ opening_value: number; closing_value: number; count: number }>(
+          `SELECT COALESCE(SUM(opening_stock*unit_cost),0) as opening_value, COALESCE(SUM(current_stock*unit_cost),0) as closing_value, COUNT(*) as count FROM inventory_items`),
         safeQuery<{ category: string; total: number }>(
           `SELECT category, COALESCE(SUM(amount),0) as total FROM expenses WHERE status='approved' AND expense_date BETWEEN $1 AND $2 GROUP BY category`, [from, to]),
         safeGet<{ total: number }>(
@@ -127,6 +129,10 @@ export async function GET(request: Request) {
           `SELECT COALESCE(SUM(tax_vat),0) as total FROM purchase_invoices WHERE status != 'cancelled'`),
         safeQuery<{ total_book_value: number }>(
           `SELECT COALESCE(SUM(book_value),0) as total_book_value FROM fixed_assets WHERE status='active'`),
+        safeGet<{ total: number }>(
+          `SELECT COALESCE(SUM(total_cost),0) as total FROM inventory_transactions WHERE transaction_type='SALE' AND transaction_date BETWEEN $1 AND $2`, [from, to]),
+        safeQuery<{ item_name: string; current_stock: number; reorder_level: number }>(
+          `SELECT item_name, current_stock, reorder_level FROM inventory_items WHERE reorder_level > 0 AND current_stock <= reorder_level ORDER BY item_name`),
       ]);
 
       const gs = Number(grossSales?.total || 0);
@@ -139,7 +145,11 @@ export async function GET(request: Request) {
       const closingInv = Number(inv[0]?.closing_value || 0);
       const purch = Number(purchases?.total || 0);
       const dn = Number(debitNotes?.total || 0);
-      const costOfGoodsSold = openingInv + purch - closingInv - dn;
+      const cogsFromTxns = Number((cogsFromTransactions as any)?.total || 0);
+      const costOfGoodsSold = cogsFromTxns || (openingInv + purch - closingInv - dn);
+
+      // Low stock items
+      const lowStockItems = (lowStockResult || []) as any[];
 
       const expRows = (expensesGrouped || []) as any[];
       const expenseTotal = expRows.reduce((s: number, r: any) => s + Number(r.total), 0);
@@ -228,6 +238,9 @@ export async function GET(request: Request) {
         payables: { total: ap, open: Math.max(0, ap - oap), overdue: oap },
         monthlyCash,
         baseCurrency,
+        inventoryValue,
+        inventoryItemsCount: Number(inv[0]?.count || 0),
+        lowStockItems,
       };
     });
 

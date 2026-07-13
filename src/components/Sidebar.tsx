@@ -62,6 +62,7 @@ const navItems = [
     icon: Archive,
     children: [
       { href: '/dashboard/inventory/items', label: 'Stock Items' },
+      { href: '/dashboard/inventory/transactions', label: 'Stock Movements' },
     ],
   },
   { href: '/dashboard/other-transactions', label: 'Other Income/Expenses', icon: ArrowRightLeft },

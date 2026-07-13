@@ -41,7 +41,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
   const bankCode = s.bank_code || '';
   const swiftCode = s.swift_code || '';
   const termsConds = s.terms_conditions || '';
-  const invoiceFooterText = s.invoice_footer_text || '';
+  const invoiceFooterText = s.invoice_footer_text || 'Thank you for doing business with us!';
   const paymentInstructions = s.payment_instructions || '';
   const themeColor = cssVar(s, 'theme_color', '#df1c1c');
   const vatRate = item.vat_rate ?? s.vat_rate ?? 16;
@@ -49,6 +49,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
   const docNumber = item.invoice_number || item.quotation_number || item.credit_note_number || `#${item.id}`;
   const isInvoice = type === 'Invoice';
   const quoteRef = item.quotation_number || (item.quotation_id ? `#${item.quotation_id}` : '');
+  const customerTaxId = item.customer_tax_id || '';
   const customerName = item.customer_name || '';
   const customerAddress = item.billing_address || item.address || '';
 
@@ -147,6 +148,10 @@ export function buildHtml(type: string, item: any, s?: any): string {
   .header .doc-info { text-align: right; }
   .header .doc-info .type { font-size: 14px; font-weight: 800; color: ${primary}; letter-spacing: 1.5px; line-height: 1; }
   .header .doc-info .num { font-size: 12px; color: #475569; font-weight: 600; margin-top: 4px; }
+  .header .doc-info .doc-meta { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 9.5px; color: #475569; line-height: 1.8; text-align: right; }
+  .header .doc-info .doc-meta .dm-row { display: flex; justify-content: flex-end; gap: 4px; }
+  .header .doc-info .doc-meta .dm-label { color: #64748b; }
+  .header .doc-info .doc-meta .dm-value { color: #1e293b; font-weight: 600; min-width: 90px; text-align: right; }
 
   /* DIVIDER */
   .divider { height: 1px; background: #e5e7eb; margin: 0 48px; }
@@ -221,10 +226,6 @@ export function buildHtml(type: string, item: any, s?: any): string {
   .terms .text { font-size: 9.5px; color: #64748b; line-height: 1.6; }
 
   /* THANKS */
-  .thanks-wrap { padding: 0 48px; }
-  .thanks { text-align: center; padding: 20px 0; border-top: 1px solid #e5e7eb; }
-  .thanks .text { font-size: 12px; color: ${primary}; font-weight: 700; letter-spacing: 0.5px; }
-
   /* WAVE FOOTER — curved banner */
   .wave-footer { margin: 0 48px; background: ${primary}; position: relative; border-radius: 8px; overflow: hidden; }
   .wave-footer::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 40%, transparent 100%); pointer-events: none; border-radius: 8px; }
@@ -258,6 +259,11 @@ export function buildHtml(type: string, item: any, s?: any): string {
     <div class="doc-info">
       <div class="type">${type.toUpperCase()}</div>
       <div class="num">${docNumber}</div>
+      <div class="doc-meta">
+        ${item.issue_date ? `<div class="dm-row"><span class="dm-label">Date:</span><span class="dm-value">${fmtDate(item.issue_date)}</span></div>` : ''}
+        ${item.due_date ? `<div class="dm-row"><span class="dm-label">${isInvoice ? 'Due Date:' : 'Valid Until:'}</span><span class="dm-value">${fmtDate(item.due_date)}</span></div>` : ''}
+        ${item.payment_terms ? `<div class="dm-row"><span class="dm-label">Terms:</span><span class="dm-value">${item.payment_terms}</span></div>` : ''}
+      </div>
     </div>
   </div>
 
@@ -267,21 +273,13 @@ export function buildHtml(type: string, item: any, s?: any): string {
     ${(location || country) ? `<div class="ca-line">${[location, country].filter(Boolean).join(', ')}</div>` : ''}
     ${email ? `<div class="ca-line">${email}</div>` : ''}
     ${phone ? `<div class="ca-line">${phone}</div>` : ''}
+    ${kraPin ? `<div class="ca-line" style="margin-top:4px;padding-top:4px;border-top:1px solid #e5e7eb"><strong>KRA PIN / VAT:</strong> ${kraPin}</div>` : ''}
   </div>
 
   <div class="divider"></div>
 
   <div class="meta-row">
-    <div class="col">
-      <div class="col-label">Invoice Details</div>
-      <div class="detail">
-        <div><strong>Invoice Number:</strong> ${docNumber}</div>
-        ${item.issue_date ? `<div><strong>Invoice Date:</strong> ${fmtDate(item.issue_date)}</div>` : ''}
-        ${item.due_date ? `<div><strong>Due Date:</strong> ${fmtDate(item.due_date)}</div>` : ''}
-        ${item.payment_terms ? `<div><strong>Terms:</strong> ${item.payment_terms}</div>` : ''}
-        ${kraPin ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #e5e7eb"><strong>KRA PIN:</strong> ${kraPin}</div>` : ''}
-      </div>
-    </div>
+    <div class="col"></div>
     <div class="col" style="text-align:right">
       <div class="col-label">Bill To</div>
       <div class="customer-name">${customerName || 'N/A'}</div>
@@ -289,6 +287,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
       ${item.email_address ? `<div class="addr">${item.email_address}</div>` : ''}
       ${item.phone_number ? `<div class="addr">${item.phone_number}</div>` : ''}
       ${customerCountry ? `<div class="addr" style="color:${primary};font-weight:600;margin-top:4px">${customerCountry}</div>` : ''}
+      ${customerTaxId ? `<div class="addr" style="margin-top:4px;padding-top:4px;border-top:1px solid #e5e7eb"><strong>TAX ID / VAT:</strong> ${customerTaxId}</div>` : ''}
     </div>
   </div>
 
@@ -345,11 +344,10 @@ export function buildHtml(type: string, item: any, s?: any): string {
     </div>
   </div>` : ''}
 
-  <div class="thanks-wrap">
-    <div class="thanks">
-      <div class="text">Thank You for Your Payment!</div>
-    </div>
-  </div>
+  ${invoiceFooterText ? `
+  <div style="text-align:center;padding:8px 48px 0;font-size:12px;color:#555;font-style:italic;">
+    ${invoiceFooterText}
+  </div>` : ''}
 
   <div class="wave-footer">
     <svg viewBox="0 0 1440 100" preserveAspectRatio="none">

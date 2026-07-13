@@ -16,7 +16,7 @@ export async function GET() {
         [today]
       );
       return await query(
-        `SELECT q.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number FROM quotations q LEFT JOIN customers c ON c.id = q.customer_id ORDER BY q.created_at DESC`
+        `SELECT q.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number, c.tax_id as customer_tax_id FROM quotations q LEFT JOIN customers c ON c.id = q.customer_id ORDER BY q.created_at DESC`
       );
     });
     return NextResponse.json(data);

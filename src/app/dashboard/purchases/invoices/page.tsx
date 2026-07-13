@@ -37,6 +37,20 @@ type Client = {
   country?: string;
 };
 
+type PurchaseOrder = {
+  id: string;
+  po_number: string;
+  client_id: string;
+  client_name: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  tax_vat: number;
+  amount: number;
+  status: string;
+};
+
 const emptyForm = {
   invoice_number: '',
   po_id: '',
@@ -66,6 +80,7 @@ const PAYMENT_TERMS = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60',
 export default function PurchaseInvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { confirm, dialog } = useConfirm();
@@ -96,7 +111,13 @@ export default function PurchaseInvoicesPage() {
       .then(setClients)
       .catch(() => {});
 
-  useEffect(() => { fetchInvoices(); fetchClients(); }, []);
+  const fetchPOs = () =>
+    fetch('/api/purchases/pos')
+      .then(r => r.ok ? r.json() : [])
+      .then(setPurchaseOrders)
+      .catch(() => {});
+
+  useEffect(() => { fetchInvoices(); fetchClients(); fetchPOs(); }, []);
 
   const filteredInvoices = useMemo(() => {
     let list = [...invoices];
@@ -255,10 +276,10 @@ export default function PurchaseInvoicesPage() {
               <Download className="h-4 w-4" /> Export
             </button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredInvoices, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredInvoices, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Purchase Invoices', filteredInvoices, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Purchase Invoices', filteredInvoices, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredInvoices, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredInvoices, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Purchase Invoices', filteredInvoices, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Purchase Invoices', filteredInvoices, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(dateFrom || dateTo || statusFilter || searchQuery) && (
@@ -352,7 +373,27 @@ export default function PurchaseInvoicesPage() {
             <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Invoice Number" value={form.invoice_number} onChange={set('invoice_number')} required />
-                <Field label="PO Reference" value={form.po_id} onChange={set('po_id')} />
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">PO Reference</label>
+                  <select
+                    value={form.po_id}
+                    onChange={e => {
+                      const id = e.target.value;
+                      const po = purchaseOrders.find(p => p.id === id);
+                      if (po) {
+                        setForm(p => ({ ...p, po_id: id, client_id: po.client_id, client_name: po.client_name, description: po.description, quantity: po.quantity, unit_price: po.unit_price, subtotal: po.subtotal, tax_vat: po.tax_vat, amount: po.amount }));
+                      } else {
+                        setForm(p => ({ ...p, po_id: id }));
+                      }
+                    }}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                  >
+                    <option value="">Select purchase order</option>
+                    {purchaseOrders.map(po => (
+                      <option key={po.id} value={po.id}>{po.po_number}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -388,7 +429,7 @@ export default function PurchaseInvoicesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    {form.client_country ? `KSh {getVatRate(form.client_country).label} (${getVatRate(form.client_country).rate}%)` : 'Tax/VAT'}
+                    {form.client_country ? `${getVatRate(form.client_country).label} (${getVatRate(form.client_country).rate}%)` : 'Tax/VAT'}
                   </label>
                   <input type="number" value={String(form.tax_vat)} readOnly className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 bg-gray-50 focus:outline-none" />
                 </div>

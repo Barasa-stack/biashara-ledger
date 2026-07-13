@@ -21,6 +21,34 @@ export async function GET() {
   }
 }
 
+export async function POST(request: Request) {
+  try {
+    const session = await getSessionFromCookies();
+    if (!session) throw new Error('Unauthorized');
+    const body = await request.json();
+    const result = await withTenantContext(session.tenant_id!, async () => {
+      return await insertReturning<{ id: string }>(
+        `INSERT INTO purchase_orders (tenant_id, po_number, client_id, client_name, description, quantity, unit_price, subtotal, tax_vat, amount, delivery_date, status, notes, issue_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+        [session.tenant_id, body.po_number || body.po_id || '', body.client_id, body.client_name,
+         body.description || '', body.quantity || 1, body.unit_price || 0,
+         body.subtotal || 0, body.tax_vat || 0, body.amount,
+         body.delivery_date || '', body.status || 'pending',
+         body.notes || '', body.issue_date]
+      );
+    });
+    return NextResponse.json({ id: result.id }, { status: 201 });
+  } catch (e: any) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[error] ${msg}`);
+    if (msg === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    console.error('[] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
 export async function PUT(request: Request) {
   try {
     const session = await getSessionFromCookies();
@@ -29,7 +57,7 @@ export async function PUT(request: Request) {
     await withTenantContext(session.tenant_id!, async () => {
       await run(
         `UPDATE purchase_orders SET po_number=$1, client_id=$2, client_name=$3, description=$4, quantity=$5, unit_price=$6, subtotal=$7, tax_vat=$8, amount=$9, delivery_date=$10, status=$11, notes=$12, issue_date=$13 WHERE id=$14`,
-        [body.po_number || '', body.client_id, body.client_name,
+        [body.po_number || body.po_id || '', body.client_id, body.client_name,
          body.description || '', body.quantity || 1, body.unit_price || 0,
          body.subtotal || 0, body.tax_vat || 0, body.amount,
          body.delivery_date || '', body.status || 'pending',

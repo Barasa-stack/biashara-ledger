@@ -111,7 +111,19 @@ export default function JournalEntriesPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setFormEntryNumber('');
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const prefix = `JE-${dd}/${mm}/${yyyy}-`;
+    let maxSeq = 0;
+    for (const e of entries) {
+      if (e.entry_number && e.entry_number.startsWith(prefix)) {
+        const seq = parseInt(e.entry_number.slice(prefix.length), 10);
+        if (seq > maxSeq) maxSeq = seq;
+      }
+    }
+    setFormEntryNumber(`${prefix}${String(maxSeq + 1).padStart(3, '0')}`);
     setFormEntryDate(new Date().toISOString().split('T')[0]);
     setFormDescription('');
     setFormReference('');
@@ -408,9 +420,8 @@ export default function JournalEntriesPage() {
                   <input
                     type="text"
                     value={formEntryNumber}
-                    onChange={e => setFormEntryNumber(e.target.value)}
-                    className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
-                    placeholder="JE-001"
+                    readOnly
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50"
                   />
                 </div>
                 <div>

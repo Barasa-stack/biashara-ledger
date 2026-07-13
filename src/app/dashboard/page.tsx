@@ -22,6 +22,9 @@ type ReportData = {
   payables: { total: number; open: number; overdue: number };
   monthlyCash: { month: string; incoming: number; outgoing: number; profit: number }[];
   baseCurrency: string;
+  inventoryValue?: number;
+  inventoryItemsCount?: number;
+  lowStockItems?: { item_name: string; current_stock: number; reorder_level: number }[];
 };
 
 type EmployeeData = { total: number; active: number; monthlyPayroll: number };
@@ -256,6 +259,45 @@ export default function DashboardPage() {
               <tr className="border-t border-border font-semibold"><td className="py-3 text-sm text-gray-400 w-8">1</td><td className="py-3 text-sm text-gray-800">Net Equity</td><td className={`py-3 text-sm text-right font-bold ${data.currentAssets - data.currentLiabilities >= 0 ? 'text-gray-800' : 'text-red-600'}`}>{fmtWithCurrency(data.currentAssets - data.currentLiabilities)}</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Inventory Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+        <div className="bg-white rounded-lg border border-border p-5">
+          <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wider mb-4">Inventory Value</h3>
+          <p className="text-2xl font-bold text-brand">{fmtWithCurrency(data.inventoryValue || 0)}</p>
+          <p className="text-xs text-gray-500 mt-1">{data.inventoryItemsCount || 0} items tracked</p>
+        </div>
+        <div className="bg-white rounded-lg border border-border p-5">
+          <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wider mb-4">Low Stock Alerts</h3>
+          {data.lowStockItems && data.lowStockItems.length > 0 ? (
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {data.lowStockItems.slice(0, 5).map((item, i) => (
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-800 truncate mr-2">{item.item_name}</span>
+                  <span className="text-red-600 font-medium whitespace-nowrap">{item.current_stock} / {item.reorder_level}</span>
+                </div>
+              ))}
+              {data.lowStockItems.length > 5 && (
+                <p className="text-xs text-gray-400">+{data.lowStockItems.length - 5} more</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No low stock items</p>
+          )}
+        </div>
+        <div className="bg-white rounded-lg border border-border p-5">
+          <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wider mb-4">COGS (Perpetual)</h3>
+          <p className="text-2xl font-bold text-gray-800">{fmtWithCurrency(data.totalCost || 0)}</p>
+          <p className="text-xs text-gray-500 mt-1">Cost of Goods Sold</p>
+        </div>
+        <div className="bg-white rounded-lg border border-border p-5">
+          <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wider mb-4">Inventory Turn</h3>
+          <p className="text-2xl font-bold text-gray-800">
+            {data.totalCost && data.inventoryValue ? (data.totalCost / (data.inventoryValue || 1)).toFixed(1) : '—'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">x turnover ratio</p>
         </div>
       </div>
 

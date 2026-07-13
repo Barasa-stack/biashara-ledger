@@ -90,7 +90,7 @@ function SignUpForm() {
         const otpCode = data.demoCode || '';
         setDevOtp(otpCode);
         setMessage(data.emailSent
-          ? `A 6-digit code has been sent to ${email.trim().toLowerCase()}`
+          ? `A 6-digit code has been sent to ${email.trim().toLowerCase()}. If you don't see it, please check your spam folder.`
           : `Demo code: ${data.demoCode}`
         );
         setStep('otp');

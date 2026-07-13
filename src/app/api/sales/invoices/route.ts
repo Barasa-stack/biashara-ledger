@@ -19,12 +19,12 @@ export async function GET(request: Request) {
       );
       if (id) {
         return await get(
-          `SELECT si.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number FROM sales_invoices si LEFT JOIN customers c ON c.id = si.customer_id WHERE si.id=$1`,
+          `SELECT si.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number, c.tax_id as customer_tax_id FROM sales_invoices si LEFT JOIN customers c ON c.id = si.customer_id WHERE si.id=$1`,
           [id]
         );
       }
       return await query(
-        `SELECT si.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number FROM sales_invoices si LEFT JOIN customers c ON c.id = si.customer_id ORDER BY si.created_at DESC`
+        `SELECT si.*, c.billing_address, c.country as customer_city, c.email_address, c.phone_number, c.tax_id as customer_tax_id FROM sales_invoices si LEFT JOIN customers c ON c.id = si.customer_id ORDER BY si.created_at DESC`
       );
     });
     return NextResponse.json(data || null);

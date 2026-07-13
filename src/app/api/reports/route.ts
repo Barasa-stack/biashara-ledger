@@ -155,7 +155,16 @@ export async function GET(request: Request) {
   const netSalesCur = grossSalesCur - salesReturnsCur - discountsCur - allowances;
   const netSalesPri = grossSalesPri - salesReturnsPri - discountsPri;
 
-  // Cost of Goods Sold
+  // Cost of Goods Sold — Perpetual method using inventory_transactions
+  const cogsTransactions = await safeQuery(`
+    SELECT
+      COALESCE(SUM(CASE WHEN transaction_date BETWEEN $1 AND $2 AND transaction_type='SALE' THEN total_cost ELSE 0 END), 0) as cur,
+      COALESCE(SUM(CASE WHEN transaction_date BETWEEN $3 AND $4 AND transaction_type='SALE' THEN total_cost ELSE 0 END), 0) as pri
+    FROM inventory_transactions WHERE transaction_date BETWEEN $3 AND $2
+  `, [from, to, priorFrom, priorTo]) as any;
+  const cogsFromTransactionsCur = Number((cogsTransactions[0] as any)?.cur || 0);
+  const cogsFromTransactionsPri = Number((cogsTransactions[0] as any)?.pri || 0);
+
   const inventoryItems = await safeQuery(
     `SELECT COALESCE(SUM(opening_stock * unit_cost), 0) as opening_value, 
             COALESCE(SUM(current_stock * unit_cost), 0) as closing_value
@@ -169,8 +178,11 @@ export async function GET(request: Request) {
   const debitNotesCur = pnlDebitNotes.cur;
   const debitNotesPri = pnlDebitNotes.pri;
   const directCosts = 0;
-  const costOfGoodsSoldCur = openingInventory + purchasesCur + directCosts - closingInventory - debitNotesCur;
-  const costOfGoodsSoldPri = openingInventory + purchasesPri + directCosts - closingInventory - debitNotesPri;
+  const periodicCogsCur = openingInventory + purchasesCur + directCosts - closingInventory - debitNotesCur;
+  const periodicCogsPri = openingInventory + purchasesPri + directCosts - closingInventory - debitNotesPri;
+  // Prefer perpetual (from actual transactions), fallback to periodic
+  const costOfGoodsSoldCur = cogsFromTransactionsCur || periodicCogsCur;
+  const costOfGoodsSoldPri = cogsFromTransactionsPri || periodicCogsPri;
 
   // Inventory valuation detail
   const inventoryItemsDetail = await safeQuery(

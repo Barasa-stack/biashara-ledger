@@ -15,28 +15,59 @@ async function applyWeightedAverageCost(itemId: string, quantity: number, unitCo
     const totalCost = (currentQty * currentCost) + (quantity * unitCost);
     const newQty = currentQty + quantity;
     const weightedAvgCost = newQty > 0 ? totalCost / newQty : 0;
-    await run(
-      'UPDATE inventory_items SET current_stock=$1, unit_cost=$2 WHERE id=$3',
-      [newQty, weightedAvgCost, itemId]
-    );
+    await run('UPDATE inventory_items SET current_stock=$1, unit_cost=$2 WHERE id=$3', [newQty, weightedAvgCost, itemId]);
   } else if (transactionType === 'SALE') {
     const newQty = Math.max(0, Number(item.current_stock) - quantity);
-    await run(
-      'UPDATE inventory_items SET current_stock=$1 WHERE id=$2',
-      [newQty, itemId]
-    );
+    await run('UPDATE inventory_items SET current_stock=$1 WHERE id=$2', [newQty, itemId]);
   } else if (transactionType === 'RETURN') {
     const newQty = Number(item.current_stock) + quantity;
-    await run(
-      'UPDATE inventory_items SET current_stock=$1 WHERE id=$2',
-      [newQty, itemId]
-    );
+    await run('UPDATE inventory_items SET current_stock=$1 WHERE id=$2', [newQty, itemId]);
   } else if (transactionType === 'ADJUSTMENT') {
     const newQty = Math.max(0, Number(item.current_stock) + quantity);
-    await run(
-      'UPDATE inventory_items SET current_stock=$1 WHERE id=$2',
-      [newQty, itemId]
-    );
+    await run('UPDATE inventory_items SET current_stock=$1 WHERE id=$2', [newQty, itemId]);
+  }
+}
+
+async function createInventoryJournal(tenantId: string, itemId: string, transactionType: string, quantity: number, unitCost: number, totalCost: number, transactionDate: string) {
+  const item = await get('SELECT item_name, sku FROM inventory_items WHERE id=$1', [itemId]) as any;
+  if (!item) return;
+  const itemName = item.item_name || 'Unknown';
+  const description = `[Auto] ${transactionType} - ${itemName} (${item.sku || 'no SKU'}) x${quantity} @ ${unitCost}`;
+
+  const accounts = await query(`SELECT account_code, id FROM chart_of_accounts WHERE account_code IN ('1200','5000','2000','1000','3000')`) as any[];
+  const findId = (code: string) => accounts.find((a: any) => a.account_code === code)?.id;
+  const invId = findId('1200');
+  const cogsId = findId('5000');
+  const apId = findId('2000');
+  const cashId = findId('1000');
+  const equityId = findId('3000');
+  if (!invId || !cogsId) return;
+
+  const entryNum = `INV-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')}`;
+  const entry = await insertReturning<{ id: string }>(
+    `INSERT INTO journal_entries (tenant_id, entry_number, description, entry_date, reference, status) VALUES ($1,$2,$3,$4,$5,'posted') RETURNING id`,
+    [tenantId, entryNum, description, transactionDate, `item:${itemId}`]
+  );
+  const jeId = entry.id;
+
+  if (transactionType === 'PURCHASE' && apId) {
+    await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, invId, description, totalCost, 0]);
+    await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, apId, description, 0, totalCost]);
+  } else if (transactionType === 'SALE') {
+    await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, cogsId, description, totalCost, 0]);
+    await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, invId, description, 0, totalCost]);
+  } else if (transactionType === 'RETURN') {
+    await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, invId, description, totalCost, 0]);
+    await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, cogsId, description, 0, totalCost]);
+  } else if (transactionType === 'ADJUSTMENT') {
+    if (quantity > 0) {
+      await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, invId, description, totalCost, 0]);
+      const creditId = equityId || cogsId;
+      await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, creditId, description, 0, totalCost]);
+    } else {
+      await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, cogsId, description, Math.abs(totalCost), 0]);
+      await run('INSERT INTO journal_entry_lines (tenant_id, journal_entry_id, account_id, description, debit_amount, credit_amount) VALUES ($1,$2,$3,$4,$5,$6)', [tenantId, jeId, invId, description, 0, Math.abs(totalCost)]);
+    }
   }
 }
 
@@ -56,11 +87,7 @@ export async function GET() {
     return NextResponse.json(transactions);
   } catch (e: any) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[error] ${msg}`);
-    if (msg === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[] Error:', e instanceof Error ? e.message : e);
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
@@ -74,25 +101,25 @@ export async function POST(request: Request) {
       const qty = Number(body.quantity) || 0;
       const cost = Number(body.unit_cost) || 0;
       const total = qty * cost;
+      const txnDate = body.transaction_date || new Date().toISOString().split('T')[0];
 
       await applyWeightedAverageCost(body.item_id, qty, cost, body.transaction_type);
 
-      return await insertReturning<{ id: string }>(
+      const txn = await insertReturning<{ id: string }>(
         `INSERT INTO inventory_transactions (tenant_id, item_id, transaction_type, quantity, unit_cost, total_cost, reference_type, reference_id, transaction_date, notes) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
         [session.tenant_id, body.item_id, body.transaction_type || 'PURCHASE', qty, cost, total,
-         body.reference_type || '', body.reference_id || '', body.transaction_date || new Date().toISOString().split('T')[0],
-         body.notes || '']
+         body.reference_type || '', body.reference_id || '', txnDate, body.notes || '']
       );
+
+      await createInventoryJournal(session.tenant_id, body.item_id, body.transaction_type, qty, cost, total, txnDate);
+
+      return txn;
     });
     return NextResponse.json({ id: result.id }, { status: 201 });
   } catch (e: any) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[error] ${msg}`);
-    if (msg === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[] Error:', e instanceof Error ? e.message : e);
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

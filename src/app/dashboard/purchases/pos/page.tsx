@@ -10,7 +10,7 @@ import { fetchWithAuth } from '@/lib/auth';
 
 type PO = {
   id: string;
-  po_id: string;
+  po_number: string;
   client_id: string;
   client_name: string;
   description: string;
@@ -29,7 +29,7 @@ type Client = {
 };
 
 const emptyForm = {
-  po_id: '',
+  po_number: '',
   client_id: '',
   client_name: '',
   description: '',
@@ -89,7 +89,7 @@ export default function PurchaseOrdersPage() {
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       list = list.filter(po =>
-        (po.po_id || '').toLowerCase().includes(q) ||
+        (po.po_number || '').toLowerCase().includes(q) ||
         (po.client_name || '').toLowerCase().includes(q)
       );
     }
@@ -97,7 +97,7 @@ export default function PurchaseOrdersPage() {
   }, [pos, dateFrom, dateTo, statusFilter, debouncedSearch]);
 
   const exportColumns = [
-    { key: 'po_id', label: 'PO#' },
+    { key: 'po_number', label: 'PO#' },
     { key: 'client_name', label: 'Supplier' },
     { key: 'amount', label: 'Amount (KES)' },
     { key: 'status', label: 'Status' },
@@ -115,7 +115,7 @@ export default function PurchaseOrdersPage() {
   const openEdit = (po: PO) => {
     setEditing(po);
     setForm({
-      po_id: po.po_id,
+      po_number: po.po_number,
       client_id: po.client_id,
       client_name: po.client_name,
       description: po.description,
@@ -151,7 +151,7 @@ export default function PurchaseOrdersPage() {
   };
 
   const handleDelete = async (po: PO) => {
-    if (!await confirm(`Delete purchase order "${po.po_id}"?`)) return;
+    if (!await confirm(`Delete purchase order "${po.po_number}"?`)) return;
     try {
       const res = await fetch('/api/purchases/pos', {
         method: 'DELETE',
@@ -225,10 +225,10 @@ export default function PurchaseOrdersPage() {
               <Download className="h-4 w-4" /> Export
             </button>
             <div className="absolute right-0 mt-1 w-40 bg-white border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button onClick={() => exportCSV(filteredPos, exportColumns, `KSh {exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
-              <button onClick={() => exportExcel(filteredPos, exportColumns, `KSh {exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
-              <button onClick={() => exportPDF('Purchase Orders', filteredPos, exportColumns, `KSh {exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
-              <button onClick={() => exportWord('Purchase Orders', filteredPos, exportColumns, `KSh {exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
+              <button onClick={() => exportCSV(filteredPos, exportColumns, `${exportFileName}.csv`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</button>
+              <button onClick={() => exportExcel(filteredPos, exportColumns, `${exportFileName}.xlsx`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Excel (.xlsx)</button>
+              <button onClick={() => exportPDF('Purchase Orders', filteredPos, exportColumns, `${exportFileName}.pdf`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">PDF</button>
+              <button onClick={() => exportWord('Purchase Orders', filteredPos, exportColumns, `${exportFileName}.doc`)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Word (.doc)</button>
             </div>
           </div>
           {(dateFrom || dateTo || statusFilter || searchQuery) && (
@@ -272,7 +272,7 @@ export default function PurchaseOrdersPage() {
                 {filteredPos.map((po, i) => (
                   <tr key={po.id} className="hover:bg-surface/50 transition-colors">
                     <td className="py-3 pr-4 text-gray-400 w-8">{filteredPos.length - i}</td>
-                    <td className="py-3 pr-4 font-medium text-gray-800">{po.po_id}</td>
+                    <td className="py-3 pr-4 font-medium text-gray-800">{po.po_number}</td>
                     <td className="py-3 pr-4 text-gray-700">{po.client_name || '—'}</td>
                     <td className="py-3 pr-4 text-right font-medium text-gray-800">{fmtKES(po.amount)}</td>
                     <td className="py-3 pr-4">
@@ -318,7 +318,7 @@ export default function PurchaseOrdersPage() {
 
             <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="PO ID" value={form.po_id} onChange={set('po_id')} required />
+                <Field label="PO Number" value={form.po_number} onChange={set('po_number')} required />
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Supplier</label>
                   <select
@@ -368,7 +368,7 @@ export default function PurchaseOrdersPage() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={saving || !form.po_id.trim()}
+                disabled={saving || !(form.po_number || '').trim()}
                 className="inline-flex items-center gap-1.5 bg-brand text-white text-xs font-semibold px-5 py-2 rounded-lg hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {saving ? (

@@ -709,11 +709,28 @@ export async function initSchema() {
       item_name TEXT NOT NULL DEFAULT '',
       sku TEXT DEFAULT '',
       category TEXT DEFAULT '',
+      category_id UUID,
       unit_of_measure TEXT DEFAULT 'pcs',
+      purchase_uom TEXT DEFAULT '',
+      sale_uom TEXT DEFAULT '',
       opening_stock REAL DEFAULT 0,
       current_stock REAL DEFAULT 0,
       unit_cost REAL DEFAULT 0,
       reorder_level REAL DEFAULT 0,
+      custom_fields JSONB DEFAULT '{}',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id),
+      UNIQUE (tenant_id, sku)
+    );
+  `);
+
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.categories (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL DEFAULT '',
+      parent_id UUID,
+      sort_order INT DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (tenant_id, id)
     );
@@ -732,6 +749,19 @@ export async function initSchema() {
       reference_id TEXT DEFAULT '',
       transaction_date TEXT NOT NULL,
       notes TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+
+  await exec(`
+    CREATE TABLE IF NOT EXISTS public.unit_conversions (
+      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+      id UUID DEFAULT gen_random_uuid(),
+      item_id UUID NOT NULL,
+      from_uom TEXT NOT NULL DEFAULT '',
+      to_uom TEXT NOT NULL DEFAULT '',
+      conversion_factor REAL NOT NULL DEFAULT 1,
       created_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (tenant_id, id)
     );
@@ -910,6 +940,9 @@ export async function initSchema() {
   // MULTI-CURRENCY — currency fields on all tables
   // ═══════════════════════════════════════════════
   await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS base_currency TEXT DEFAULT 'KES'`);
+  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS industry TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS industries TEXT[] DEFAULT '{}'`);
+  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS custom_field_templates JSONB DEFAULT '[]'`);
   await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
   await exec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
   await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
@@ -936,6 +969,10 @@ export async function initSchema() {
   await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
   await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS category_id UUID`);
+  await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'`);
+  await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS purchase_uom TEXT DEFAULT ''`);
+  await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS sale_uom TEXT DEFAULT ''`);
   await exec(`
     CREATE TABLE IF NOT EXISTS public.exchange_rates (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
@@ -1487,6 +1524,9 @@ export async function initSchema() {
     { table: 'chart_of_accounts', column: 'parent_id', ref: 'chart_of_accounts(id)', name: 'fk_coa_parent' },
     { table: 'approval_requests', column: 'requested_by', ref: 'users(id)', name: 'fk_ar_requestor' },
     { table: 'approval_requests', column: 'approved_by', ref: 'users(id)', name: 'fk_ar_approver' },
+    { table: 'categories', column: 'parent_id', ref: 'categories(id)', name: 'fk_cat_parent' },
+    { table: 'inventory_items', column: 'category_id', ref: 'categories(id)', name: 'fk_item_category' },
+    { table: 'unit_conversions', column: 'item_id', ref: 'inventory_items(id)', name: 'fk_uc_item' },
   ];
   for (const { table, column, ref, name } of fkConstraints) {
     try {

@@ -24,6 +24,27 @@ type Expense = {
   created_at: string;
 };
 
+type Client = {
+  id: string;
+  supplier_name: string;
+};
+
+function generateExpenseCode(existing: Expense[]): string {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const prefix = `EXP-${dd}/${mm}/${yyyy}-`;
+  let maxSeq = 0;
+  for (const e of existing) {
+    if (e.expense_code && e.expense_code.startsWith(prefix)) {
+      const seq = parseInt(e.expense_code.slice(prefix.length), 10);
+      if (seq > maxSeq) maxSeq = seq;
+    }
+  }
+  return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`;
+}
+
 const emptyForm = {
   expense_code: '',
   category: '',
@@ -50,6 +71,7 @@ export default function ExpensesPage() {
   const { toast } = useToast();
   const { confirm, dialog } = useConfirm();
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -73,7 +95,13 @@ export default function ExpensesPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchExpenses(); }, []);
+  const fetchClients = () =>
+    fetch('/api/clients')
+      .then(r => r.ok ? r.json() : [])
+      .then(setClients)
+      .catch(() => {});
+
+  useEffect(() => { fetchExpenses(); fetchClients(); }, []);
 
   const filteredExpenses = useMemo(() => {
     let list = [...expenses];
@@ -94,7 +122,7 @@ export default function ExpensesPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, expense_code: generateExpenseCode(expenses) });
     setShowModal(true);
   };
 
@@ -324,7 +352,7 @@ export default function ExpensesPage() {
 
             <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Expense Code" value={form.expense_code} onChange={set('expense_code')} required />
+                <Field label="Expense Code" value={form.expense_code} onChange={set('expense_code')} required readOnly />
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Category</label>
                   <select
@@ -338,7 +366,23 @@ export default function ExpensesPage() {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Supplier/Vendor" value={form.supplier_vendor} onChange={set('supplier_vendor')} />
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Supplier/Vendor</label>
+                  <select
+                    value={form.supplier_vendor}
+                    onChange={e => {
+                      const name = e.target.value;
+                      const c = clients.find(cl => cl.supplier_name === name);
+                      setForm(p => ({ ...p, supplier_vendor: name }));
+                    }}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                  >
+                    <option value="">Select supplier</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.supplier_name}>{c.supplier_name}</option>
+                    ))}
+                  </select>
+                </div>
                 <Field label="Invoice/Receipt #" value={form.invoice_receipt_number} onChange={set('invoice_receipt_number')} />
               </div>
               <Field label="Description" value={form.description} onChange={set('description')} />
@@ -402,12 +446,13 @@ export default function ExpensesPage() {
   );
 }
 
-function Field({ label, value, onChange, type, required }: {
+function Field({ label, value, onChange, type, required, readOnly }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   required?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <div>
@@ -419,7 +464,8 @@ function Field({ label, value, onChange, type, required }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         required={required}
-        className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+        readOnly={readOnly}
+        className={`w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${readOnly ? 'bg-gray-50 text-gray-500' : 'text-gray-800'}`}
       />
     </div>
   );
