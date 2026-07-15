@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { adminRun, adminGet } from '@/lib/db';
 import { createTransporter } from '@/lib/email';
 import { createNotification } from '@/lib/admin-notify';
+import { normalizePlan } from '@/lib/feature-gate';
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +22,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'An account with this email already exists. Please sign in.' }, { status: 409 });
     }
 
+    // Validate OTP
+    if (!otp) {
+      return NextResponse.json({ error: 'Verification code is required.' }, { status: 400 });
+    }
+    const validOtp = await adminGet(
+      `SELECT id FROM verification_codes WHERE email = $1 AND code = $2 AND purpose = 'signup' AND used = 0 AND expires_at > NOW()`,
+      [normalizedEmail, otp]
+    );
+    if (!validOtp) {
+      return NextResponse.json({ error: 'Invalid or expired verification code. Please request a new one.' }, { status: 400 });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const tenantUuid = crypto.randomUUID();
 
@@ -35,14 +48,19 @@ export async function POST(req: NextRequest) {
     } catch {}
 
     // Create user with trial license
-    // Provide both plaintext password (for Nile) and bcrypt hash (for our auth)
+    const plan = normalizePlan(selectedPackage);
     const userId = Math.floor(Math.random() * 2147483647) + 1;
     await adminRun(
       `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, last_name, phone, country, role, verified,
-        subscription_plan, subscription_status, subscription_expiry, license_key, license_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'user', true, 'Premium', 'trial', $10, $11, 'trial')`,
-      [userId, tenantUuid, normalizedEmail, password, hashedPassword, firstName || '', lastName || '', phone || '', country || 'KE', trialExpiry, trialKey]
+        subscription_plan, subscription_status, subscription_expiry, license_key, license_status,
+        trial_start_date, trial_end_date, trial_used)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'user', true, $10, 'trial', $11, $12, 'trial',
+        NOW(), $11, 1)`,
+      [userId, tenantUuid, normalizedEmail, password, hashedPassword, firstName || '', lastName || '', phone || '', country || 'KE', plan, trialExpiry, trialKey]
     );
+
+    // Mark OTP as used
+    await adminRun('UPDATE verification_codes SET used = 1 WHERE email = $1 AND code = $2', [normalizedEmail, otp]);
 
     // Send trial license key via email
     let emailSent = false;

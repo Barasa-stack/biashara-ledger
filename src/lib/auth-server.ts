@@ -44,6 +44,7 @@ export async function getSession(token: string) {
             u.subscription_plan, u.subscription_status,
             u.verified, u.subscription_expiry,
             u.grace_period_end, u.last_reminder_sent, u.role, u.license_status,
+            u.trial_end_date, u.trial_used,
             u.allowed_modules
      FROM sessions s
      LEFT JOIN users u ON u.id = s.user_id

@@ -1,7 +1,7 @@
 import { getExpiringLicenses, markReminderSent } from '@/lib/license';
 import { sendExpiryReminderEmail } from '@/lib/email';
 import { logInfo, logError } from '@/lib/logger';
-import { adminRun } from '@/lib/db';
+import { adminRun, adminQuery } from '@/lib/db';
 import { createNotification } from '@/lib/admin-notify';
 
 export const checkExpiringLicenses = async () => {
@@ -59,14 +59,66 @@ export const checkExpiringLicenses = async () => {
         logError('cron', `Expiry reminder exception for ${license.license_key}`, { email, daysRemaining: item.days, error: err?.message || err });
       }
     }
+
+    // Also check trial users (only for short-range reminders)
+    if (item.days <= 3) {
+      const rangeCondition = item.days === 3
+        ? `u.trial_end_date > CURRENT_TIMESTAMP + interval '1 days' AND u.trial_end_date <= CURRENT_TIMESTAMP + interval '3 days'`
+        : item.days === 1
+        ? `u.trial_end_date > CURRENT_TIMESTAMP AND u.trial_end_date <= CURRENT_TIMESTAMP + interval '1 days'`
+        : `u.trial_end_date > CURRENT_TIMESTAMP AND u.trial_end_date <= CURRENT_TIMESTAMP + interval '12 hours'`;
+
+      const trialLicenses = await adminQuery(
+        `SELECT u.email, u.first_name || ' ' || u.last_name AS company_name, u.license_key, u.trial_end_date AS expires_at
+         FROM users u
+         WHERE u.license_status = 'trial'
+           AND u.trial_end_date IS NOT NULL
+           AND ${rangeCondition}
+         ORDER BY u.trial_end_date ASC`,
+        []
+      );
+
+      for (const tl of trialLicenses) {
+        const email = tl.email as string;
+        const name = tl.company_name || email || 'Valued Customer';
+        const expiresAt = tl.expires_at ? new Date(tl.expires_at).toISOString() : new Date().toISOString();
+        const isPaymentNotice = item.type === '12h';
+
+        try {
+          const result = await sendExpiryReminderEmail({
+            to: email,
+            name,
+            licenseKey: tl.license_key,
+            daysRemaining: isPaymentNotice ? 0 : Math.round(item.days),
+            expiresAt,
+            urgent: true,
+            paymentNotice: isPaymentNotice,
+          });
+
+          if (result.sent) {
+            summary.remindersSent += 1;
+            logInfo('cron', `Trial expiry reminder sent for ${tl.license_key}`, { email, daysRemaining: item.days });
+          } else {
+            summary.remindersFailed += 1;
+            logError('cron', `Trial expiry reminder failed for ${tl.license_key}`, { email, daysRemaining: item.days, error: result.error || 'unknown' });
+          }
+        } catch (err: any) {
+          summary.remindersFailed += 1;
+          logError('cron', `Trial expiry reminder exception for ${tl.license_key}`, { email, daysRemaining: item.days, error: err?.message || err });
+        }
+      }
+    }
   }
 
-  // Auto-deactivate expired licenses
+  // Auto-deactivate expired licenses (both paid and trial)
   try {
     const deactivated = await adminRun(
       `UPDATE users SET license_status = 'expired', subscription_status = 'expired'
-       WHERE subscription_expiry IS NOT NULL
-       AND subscription_expiry < NOW()
+       WHERE (
+         (subscription_expiry IS NOT NULL AND subscription_expiry < NOW())
+         OR
+         (trial_end_date IS NOT NULL AND trial_end_date < NOW())
+       )
        AND license_status NOT IN ('expired', 'revoked')`
     );
     summary.deactivated = deactivated?.rowCount || 0;

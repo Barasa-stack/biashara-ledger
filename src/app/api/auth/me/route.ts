@@ -13,10 +13,12 @@ export async function GET() {
     }
 
     const expiry = session.subscription_expiry ? new Date(session.subscription_expiry) : null;
-    const trialDaysRemaining = expiry ? Math.ceil((expiry.getTime() - Date.now()) / 86400000) : 0;
+    const trialEnd = session.trial_end_date ? new Date(session.trial_end_date) : null;
+    const trialDaysRemaining = trialEnd ? Math.ceil((trialEnd.getTime() - Date.now()) / 86400000) : 0;
     const licenseStatus = session.license_status || 'trial';
 
     const effectiveStatus = session.license_status === 'active' ? 'active' : session.subscription_status;
+    const normalizedPlan = normalizePlan(session.subscription_plan);
     const response = NextResponse.json({
       user: {
         id: session.user_id,
@@ -27,14 +29,20 @@ export async function GET() {
         phone: session.phone,
         country: session.country,
         verified: session.verified,
-        subscriptionPlan: normalizePlan(session.subscription_plan),
+        subscriptionPlan: normalizedPlan,
         subscriptionStatus: effectiveStatus,
         subscriptionExpiry: session.subscription_expiry,
-        trialEndDate: session.subscription_expiry,
+        trialEndDate: session.trial_end_date,
         trialDaysRemaining,
         licenseStatus,
         allowedModules: session.allowed_modules || '[]',
       }
+    });
+
+    response.cookies.set('user_plan', normalizedPlan, {
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: 'lax',
     });
 
     return response;

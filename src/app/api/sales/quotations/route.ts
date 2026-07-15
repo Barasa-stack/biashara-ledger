@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     }
     const result = await withTenantContext(session.tenant_id!, async () => {
       const qNumber = body.quotation_number || await generateNextNumber('quotation');
-      const itemsJson = JSON.stringify(body.items || []);
+      const itemsJson = typeof body.items === 'string' ? body.items : JSON.stringify(body.items || []);
       const countryCode = body.customer_country || '';
       const defaultVatRate = getVatRate(countryCode).rate;
       const vatRate = body.vat_rate !== undefined ? Number(body.vat_rate) : defaultVatRate;
@@ -100,7 +100,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: errors.join(', ') }, { status: 400 });
     }
     await withTenantContext(session.tenant_id!, async () => {
-      const itemsJson = JSON.stringify(body.items || []);
+      const itemsJson = typeof body.items === 'string' ? body.items : JSON.stringify(body.items || []);
       const countryCode = body.customer_country || '';
       const defaultVatRate = getVatRate(countryCode).rate;
       const vatRate = body.vat_rate !== undefined ? Number(body.vat_rate) : defaultVatRate;

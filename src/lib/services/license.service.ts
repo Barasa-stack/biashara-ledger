@@ -64,6 +64,49 @@ export class LicenseService {
       }
     }
 
+    // 3. Fallback: check users table for trial keys
+    if (!license) {
+      const trialUser = await adminGet<{
+        id: string;
+        trial_end_date: string;
+        subscription_plan: string;
+      }>(
+        `SELECT id, trial_end_date, subscription_plan
+         FROM users
+         WHERE LOWER(license_key) = LOWER($1) AND license_status = 'trial'
+         LIMIT 1`,
+        [key]
+      );
+
+      if (trialUser) {
+        // Trial license activation — skip admin_clients checks
+        const plan = normalizePlan(trialUser.subscription_plan || 'trial');
+        await adminRun(
+          `UPDATE users
+           SET subscription_status = 'active',
+               license_status = 'active',
+               trial_used = 1
+           WHERE id = $1`,
+          [trialUser.id]
+        );
+
+        await logLicenseActivation({
+          licenseKey: key,
+          userEmail: sessionEmail,
+          ipAddress: '',
+          deviceInfo: 'web',
+          status: 'success',
+        });
+
+        return {
+          success: true,
+          plan,
+          expiresAt: trialUser.trial_end_date,
+          companyName: sessionEmail,
+        };
+      }
+    }
+
     if (!license) {
       return { error: 'License key not found' };
     }

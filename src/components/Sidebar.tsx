@@ -13,13 +13,24 @@ import {
 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 import { isFeatureAvailable, isModuleAvailable, normalizePlan, getModuleName } from '@/lib/feature-gate';
+import type { Plan } from '@/lib/feature-gate';
 import UpgradeModal from './UpgradeModal';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+// Map nav item labels/modules to their required plan level for visibility
+type NavItem = {
+  href?: string;
+  label: string;
+  icon?: any;
+  moduleKey?: string;
+  children?: { href: string; label: string; moduleKey?: string }[];
+};
+
+const navItems: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, moduleKey: 'core-accounting' },
   {
     label: 'Customers & Suppliers',
     icon: Users,
+    moduleKey: 'core-accounting',
     children: [
       { href: '/dashboard/customers', label: 'Customers' },
       { href: '/dashboard/clients', label: 'Suppliers' },
@@ -28,6 +39,7 @@ const navItems = [
   {
     label: 'Sales',
     icon: ShoppingCart,
+    moduleKey: 'core-accounting',
     children: [
       { href: '/dashboard/sales/quotations', label: 'Quotations' },
       { href: '/dashboard/sales/invoices', label: 'Invoices' },
@@ -38,6 +50,7 @@ const navItems = [
   {
     label: 'Purchases',
     icon: Package,
+    moduleKey: 'core-accounting',
     children: [
       { href: '/dashboard/purchases/pos', label: 'Purchase Orders' },
       { href: '/dashboard/purchases/invoices', label: 'Purchase Invoices' },
@@ -47,6 +60,7 @@ const navItems = [
   {
     label: 'HR & Payroll',
     icon: UsersRound,
+    moduleKey: 'hr-payroll',
     children: [
       { href: '/dashboard/payroll', label: 'Employees' },
       { href: '/dashboard/payroll/attendance', label: 'Attendance' },
@@ -56,39 +70,43 @@ const navItems = [
       { href: '/dashboard/payroll/reports', label: 'Payroll Reports' },
     ],
   },
-  { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt },
+  { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt, moduleKey: 'core-accounting' },
   {
     label: 'Inventory',
     icon: Archive,
+    moduleKey: 'inventory',
     children: [
       { href: '/dashboard/inventory/items', label: 'Stock Items' },
       { href: '/dashboard/inventory/transactions', label: 'Stock Movements' },
     ],
   },
-  { href: '/dashboard/other-transactions', label: 'Other Income/Expenses', icon: ArrowRightLeft },
-  { href: '/dashboard/capital-transactions', label: 'Capital Transactions', icon: Banknote },
-  { href: '/dashboard/budgets', label: 'Budgets', icon: Target },
-  { href: '/dashboard/exchange-rates', label: 'Exchange Rates', icon: Globe },
+  { href: '/dashboard/other-transactions', label: 'Other Income/Expenses', icon: ArrowRightLeft, moduleKey: 'core-accounting' },
+  { href: '/dashboard/capital-transactions', label: 'Capital Transactions', icon: Banknote, moduleKey: 'core-accounting' },
+  { href: '/dashboard/budgets', label: 'Budgets', icon: Target, moduleKey: 'financial-reports' },
+  { href: '/dashboard/exchange-rates', label: 'Exchange Rates', icon: Globe, moduleKey: 'core-accounting' },
   {
     label: 'Chart of Accounts',
     icon: BookOpen,
+    moduleKey: 'core-accounting',
     children: [
       { href: '/dashboard/chart-of-accounts', label: 'Accounts' },
     ],
   },
-  { href: '/dashboard/journal-entries', label: 'Journal Entries', icon: PenTool },
+  { href: '/dashboard/journal-entries', label: 'Journal Entries', icon: PenTool, moduleKey: 'core-accounting' },
   {
     label: 'Banking',
     icon: Landmark,
+    moduleKey: 'core-accounting',
     children: [
       { href: '/dashboard/bank-accounts', label: 'Bank Accounts' },
       { href: '/dashboard/bank-reconciliation', label: 'Reconciliation' },
     ],
   },
-  { href: '/dashboard/fixed-assets', label: 'Fixed Assets', icon: Building2 },
+  { href: '/dashboard/fixed-assets', label: 'Fixed Assets', icon: Building2, moduleKey: 'core-accounting' },
   {
     label: 'Automation',
     icon: RotateCcw,
+    moduleKey: 'automation',
     children: [
       { href: '/dashboard/recurring', label: 'Recurring' },
       { href: '/dashboard/approvals', label: 'Approvals' },
@@ -97,6 +115,7 @@ const navItems = [
   {
     label: 'CRM',
     icon: TrendingUp,
+    moduleKey: 'crm',
     children: [
       { href: '/dashboard/crm', label: 'Analytics Board' },
       { href: '/dashboard/crm/pipeline', label: 'Pipeline' },
@@ -106,10 +125,11 @@ const navItems = [
       { href: '/dashboard/crm/customers', label: 'CRM Customers' },
     ],
   },
-  { href: '/dashboard/projects', label: 'Projects', icon: Briefcase },
+  { href: '/dashboard/projects', label: 'Projects', icon: Briefcase, moduleKey: 'projects' },
   {
     label: 'Developer',
     icon: Key,
+    moduleKey: 'api-access',
     children: [
       { href: '/dashboard/api-keys', label: 'API Keys' },
       { href: '/dashboard/webhooks', label: 'Webhooks' },
@@ -118,6 +138,7 @@ const navItems = [
   {
     label: 'Financial Reports',
     icon: FileBarChart,
+    moduleKey: 'financial-reports',
     children: [
       { href: '/dashboard/reports?type=profit-loss', label: 'Profit & Loss' },
       { href: '/dashboard/reports?type=balance-sheet', label: 'Balance Sheet' },
@@ -135,9 +156,9 @@ const navItems = [
       { href: '/dashboard/reports?type=audit-trail', label: 'Audit Trail' },
     ],
   },
-  { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
-  { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard },
-  { href: '/dashboard/settings', label: 'Company Settings', icon: Settings },
+  { href: '/dashboard/notifications', label: 'Notifications', icon: Bell, moduleKey: 'core-accounting' },
+  { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard, moduleKey: 'core-accounting' },
+  { href: '/dashboard/settings', label: 'Company Settings', icon: Settings, moduleKey: 'core-accounting' },
 ];
 
 function NavLink({ href, icon: Icon, label, locked }: { href: string; icon?: any; label: string; locked?: boolean }) {
@@ -188,11 +209,20 @@ function Sidebar({ subscriptionPlan, allowedModules }: SidebarProps) {
 
   const plan = normalizePlan(subscriptionPlan);
 
+  // Check if a module is visible for the current plan
+  function isModuleVisible(moduleKey?: string): boolean {
+    if (!moduleKey) return true;
+    return isModuleAvailable(moduleKey as any, plan, allowedModules);
+  }
+
   useEffect(() => {
     setExpandedMenus(
       navItems.filter(item => 'children' in item && item.children?.some(c => fullPath === c.href)).map(i => i.label)
     );
   }, [fullPath]);
+
+  // Filter nav items based on plan visibility
+  const visibleNavItems = navItems.filter(item => isModuleVisible(item.moduleKey));
 
   function toggleMenu(label: string) {
     setExpandedMenus((prev) =>
@@ -218,26 +248,17 @@ function Sidebar({ subscriptionPlan, allowedModules }: SidebarProps) {
     <aside className="w-60 border-r border-dark-border bg-dark flex flex-col shrink-0">
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" locked={isLocked('Dashboard')} />
-        {navItems.slice(1).map((item) => {
+        {visibleNavItems.slice(1).map((item) => {
           if ('children' in item && item.children) {
             const isExpanded = expandedMenus.includes(item.label);
             const isActive = item.children.some((c) => fullPath === c.href);
-            const groupLocked = isLocked(item.label);
 
             return (
               <div key={item.label}>
                 <button
-                  onClick={() => {
-                    if (groupLocked) {
-                      handleLockedClick(item.label);
-                      return;
-                    }
-                    toggleMenu(item.label);
-                  }}
+                  onClick={() => toggleMenu(item.label)}
                   className={`flex items-center justify-between w-full rounded-md px-3 py-2 text-sm transition-all ${
-                    groupLocked
-                      ? 'text-white/30 cursor-not-allowed'
-                      : isActive
+                    isActive
                       ? 'bg-brand/10 text-brand font-semibold'
                       : 'text-white hover:bg-brand/10 hover:text-brand'
                   }`}
@@ -246,9 +267,7 @@ function Sidebar({ subscriptionPlan, allowedModules }: SidebarProps) {
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span className="truncate">{item.label}</span>
                   </div>
-                  {groupLocked ? (
-                    <Lock className="h-3 w-3 shrink-0 text-white/20" />
-                  ) : isExpanded ? (
+                  {isExpanded ? (
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white" />
                   ) : (
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-white" />

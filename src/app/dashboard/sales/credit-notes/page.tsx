@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useDebounce } from '@/lib/use-debounce';
-import { Plus, Pencil, Trash2, X, FileText, Search, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, FileText, Search, Download, Printer } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
+import { buildHtml } from '@/lib/print';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { getVatRate } from '@/lib/vat-rates';
@@ -42,6 +43,8 @@ type CreditNote = {
   customer_name: string;
   customer_email: string;
   description: string;
+  quantity: number;
+  unit_price: number;
   amount: number;
   subtotal: number;
   tax_vat: number;
@@ -51,6 +54,10 @@ type CreditNote = {
   reason: string;
   payment_terms: string;
   issue_date: string;
+  billing_address?: string;
+  phone_number?: string;
+  invoice_number?: string;
+  items?: string;
 };
 
 const emptyForm = {
@@ -231,6 +238,40 @@ export default function CreditNotesPage() {
     }
   };
 
+  let companyCache: any = null;
+
+  const handlePrint = async (n: CreditNote) => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    try {
+      if (!companyCache) {
+        const res = await fetch('/api/company');
+        companyCache = res.ok ? await res.json() : {};
+      }
+      let printData: any = { ...n };
+      if (n.invoice_id) {
+        try {
+          const invRes = await fetch('/api/sales/invoices?id=' + n.invoice_id);
+          if (invRes.ok) {
+            const inv = await invRes.json();
+            if (inv) {
+              printData.billing_address = inv.billing_address || printData.billing_address;
+              printData.phone_number = inv.phone_number || printData.phone_number;
+              printData.items = inv.items || printData.items;
+              printData.invoice_number = inv.invoice_number || printData.invoice_number;
+            }
+          }
+        } catch {}
+      }
+      const html = buildHtml('Credit Note', printData, companyCache);
+      w.document.write(html);
+      w.document.close();
+    } catch {
+      w.document.write('<p>Failed to load credit note template.</p>');
+      w.document.close();
+    }
+  };
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -359,6 +400,13 @@ export default function CreditNotesPage() {
                           title="Edit"
                         >
                           <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handlePrint(n)}
+                          className="p-1.5 rounded-md text-gray-400 hover:text-brand hover:bg-brand/5 transition-colors"
+                          title="Print"
+                        >
+                          <Printer className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(n)}

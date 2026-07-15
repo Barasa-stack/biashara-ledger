@@ -967,6 +967,12 @@ export async function initSchema() {
   await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
   await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+
+  // IDEMPOTENCY & SOFT DELETE — sales_invoices
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
+  await exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_sales_invoices_idempotency ON public.sales_invoices (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL`);
+  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+  await exec(`CREATE INDEX IF NOT EXISTS idx_sales_invoices_deleted_at ON public.sales_invoices (deleted_at)`);
   await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
   await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
   await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS category_id UUID`);

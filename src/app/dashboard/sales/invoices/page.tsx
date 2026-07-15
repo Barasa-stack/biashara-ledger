@@ -101,6 +101,7 @@ export default function InvoicesPage() {
     invoice: Invoice;
     paymentType: 'full' | 'partial';
     partialAmount: string;
+    paymentMethod: string;
   } | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -237,7 +238,7 @@ export default function InvoicesPage() {
   const openEdit = (inv: any) => {
     setEditing(inv);
     let items: LineItem[] = [];
-    try { items = typeof inv.items === 'string' ? JSON.parse(inv.items) : (Array.isArray(inv.items) ? inv.items : []); } catch {}
+    try { const parsed = typeof inv.items === 'string' ? JSON.parse(inv.items) : inv.items; items = Array.isArray(parsed) ? parsed : []; } catch {}
     setLineItems(items);
     setForm(recalc({
       invoice_number: inv.invoice_number,
@@ -347,7 +348,7 @@ export default function InvoicesPage() {
 
   const handleMarkPaid = async (inv: Invoice) => {
     const remaining = inv.amount - (inv.paid_amount || 0);
-    setPaymentModal({ invoice: inv, paymentType: remaining >= inv.amount ? 'full' : 'partial', partialAmount: '' });
+    setPaymentModal({ invoice: inv, paymentType: remaining >= inv.amount ? 'full' : 'partial', partialAmount: '', paymentMethod: 'cash' });
   };
 
   const handleSendClick = (inv: Invoice) => {
@@ -373,13 +374,16 @@ export default function InvoicesPage() {
     try {
       const paidAmount = paymentModal.paymentType === 'partial' ? Number(paymentModal.partialAmount) : paymentModal.invoice.amount;
       if (!paidAmount || paidAmount <= 0) throw new Error('Invalid payment amount');
+      const idempotencyKey = crypto.randomUUID();
       const res = await fetch('/api/sales/invoices/mark-paid', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-idempotency-key': idempotencyKey },
         body: JSON.stringify({
           id: paymentModal.invoice.id,
           payment_type: paymentModal.paymentType,
           partial_amount: paidAmount,
+          payment_method: paymentModal.paymentMethod || 'cash',
+          idempotency_key: idempotencyKey,
         }),
       });
       if (!res.ok) {
@@ -425,11 +429,22 @@ export default function InvoicesPage() {
         const res = await fetch('/api/company');
         companyCache = res.ok ? await res.json() : {};
       }
-      const html = buildHtml('Invoice', inv, companyCache);
+      // Fetch full invoice including items if needed
+      let printInv = inv;
+      if (!inv.hasOwnProperty('items') || !inv.items) {
+        try {
+          const res = await fetch('/api/sales/invoices?id=' + inv.id);
+          if (res.ok) {
+            const full = await res.json();
+            if (full) printInv = full;
+          }
+        } catch {}
+      }
+      const html = buildHtml('Invoice', printInv, companyCache);
       w.document.write(html);
       w.document.close();
-    } catch {
-      w.document.write('<p>Failed to load invoice template.</p>');
+    } catch (e: any) {
+      w.document.write('<p>Failed to load invoice template: ' + (e?.message || String(e)) + '</p>');
       w.document.close();
     }
   };
@@ -608,7 +623,7 @@ export default function InvoicesPage() {
                     <td className="py-3 pr-4 text-gray-700">{inv.due_date?.split('T')[0] || '—'}</td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {(inv.status === 'unpaid' || inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'partially_paid') && (
+                        {(inv.status === 'draft' || inv.status === 'unpaid' || inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'partially_paid') && (
                           <button
                             onClick={() => handleMarkPaid(inv)}
                             className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
@@ -668,7 +683,7 @@ export default function InvoicesPage() {
 
       {pageToast && (
         <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${
-          pageToast.type === 'success' ? 'bg-red-600' : pageToast.type === 'warning' ? 'bg-amber-500' : 'bg-red-600'
+          pageToast.type === 'success' ? 'bg-emerald-600' : pageToast.type === 'warning' ? 'bg-amber-500' : 'bg-red-600'
         }`}>
           <span>{pageToast.message}</span>
           <button onClick={() => setToast(null)} className="text-white/80 hover:text-white">
@@ -905,21 +920,21 @@ export default function InvoicesPage() {
       )}
 
       {paymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in zoom-in-95">
-            <div className="bg-gradient-to-r from-red-500 to-red-600 p-6 text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden animate-in zoom-in-95 flex flex-col">
+            <div className="bg-gradient-to-r from-red-500 to-red-600 p-6 text-center flex-shrink-0">
               <div className="w-14 h-14 rounded-full bg-white/20 mx-auto flex items-center justify-center mb-3">
                 <CheckCircle className="h-8 w-8 text-white" />
               </div>
               <h3 className="text-lg font-bold text-white">Confirm Payment</h3>
               <p className="text-sm text-white/80 mt-1">{paymentModal.invoice.invoice_number}</p>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="flex justify-between text-sm py-2 border-b border-gray-100 flex-shrink-0">
                 <span className="text-gray-500">Customer</span>
                 <span className="font-medium text-gray-800">{paymentModal.invoice.customer_name}</span>
               </div>
-              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
+              <div className="flex justify-between text-sm py-2 border-b border-gray-100 flex-shrink-0">
                 <span className="text-gray-500">Total Amount</span>
                 <span className="font-semibold text-gray-800">{fmtKES(paymentModal.invoice.amount)}</span>
               </div>
@@ -931,9 +946,9 @@ export default function InvoicesPage() {
                       name="paymentType"
                       checked={paymentModal.paymentType === 'full'}
                       onChange={() => setPaymentModal({ ...paymentModal, paymentType: 'full', partialAmount: String(paymentModal.invoice.amount) })}
-                      className="accent-red-600 w-4 h-4"
+                      className="accent-red-600 w-4 h-4 flex-shrink-0"
                     />
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-sm font-medium text-gray-800">Full Payment</span>
                       <p className="text-xs text-gray-500">Pay the full invoice amount</p>
                     </div>
@@ -946,40 +961,57 @@ export default function InvoicesPage() {
                       onChange={() => {
                         setPaymentModal({ ...paymentModal, paymentType: 'partial', partialAmount: '' });
                       }}
-                      className="accent-red-600 w-4 h-4"
+                      className="accent-red-600 w-4 h-4 flex-shrink-0"
                     />
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <span className="text-sm font-medium text-gray-800">Partial Payment</span>
                       <p className="text-xs text-gray-500">Pay a portion of the amount</p>
                     </div>
                   </label>
-                {paymentModal.paymentType === 'partial' && (
-                  <div className="pl-7 space-y-2">
-                    <div className="flex justify-between text-sm py-1.5 px-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <span className="text-amber-700 font-medium">Outstanding Balance</span>
-                      <span className="text-amber-800 font-bold">{fmtKES(paymentModal.invoice.amount - (paymentModal.invoice.paid_amount || 0))}</span>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Amount to be Paid</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">KES</span>
-                        <input
-                          type="number"
-                          value={paymentModal.partialAmount}
-                          onChange={e => setPaymentModal({ ...paymentModal, partialAmount: e.target.value })}
-                          max={paymentModal.invoice.amount}
-                          min={0}
-                          step="0.01"
-                          placeholder="0.00"
-                          className="w-full border border-gray-200 rounded-lg pl-12 pr-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400"
-                        />
+{paymentModal.paymentType === 'partial' && (
+                    <div className="pl-7 space-y-2">
+                      <div className="flex justify-between text-sm py-1.5 px-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <span className="text-amber-700 font-medium">Outstanding Balance</span>
+                        <span className="text-amber-800 font-bold">{fmtKES(paymentModal.invoice.amount - (paymentModal.invoice.paid_amount || 0))}</span>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Amount to be Paid</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">KES</span>
+                          <input
+                            type="number"
+                            value={paymentModal.partialAmount}
+                            onChange={e => setPaymentModal({ ...paymentModal, partialAmount: e.target.value })}
+                            max={paymentModal.invoice.amount}
+                            min={0}
+                            step="0.01"
+                            placeholder="0.00"
+                            className="w-full border border-gray-200 rounded-lg pl-12 pr-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400"
+                          />
+                        </div>
                       </div>
                     </div>
+                  )}
+
+                  {/* Payment Method Selector */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Payment Method</label>
+                    <select
+                      value={paymentModal.paymentMethod || 'cash'}
+                      onChange={e => setPaymentModal({ ...paymentModal, paymentMethod: e.target.value })}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="mpesa">M-Pesa</option>
+                      <option value="card">Card</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="other">Other</option>
+                    </select>
                   </div>
-                )}
-              </div>
+                </div>
             </div>
-            <div className="px-6 pb-6 flex items-center gap-3">
+            <div className="px-6 pb-6 flex items-center gap-3 flex-shrink-0 border-t border-gray-100">
               <button
                 onClick={() => setPaymentModal(null)}
                 disabled={processingPayment}

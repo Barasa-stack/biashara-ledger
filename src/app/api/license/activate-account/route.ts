@@ -103,14 +103,14 @@ export async function POST(req: Request) {
     if (userToActivate?.tenant_id) {
       await withTenantContext(userToActivate.tenant_id, async () => {
         await run(
-          `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', allowed_modules = $4, last_login = NOW(), last_ip = $5, user_agent = $6 WHERE LOWER(email) = LOWER($7)`,
+          `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', allowed_modules = $4, trial_used = 1, last_login = NOW(), last_ip = $5, user_agent = $6 WHERE LOWER(email) = LOWER($7)`,
           [key, plan, expiresAt, modulesJson, activationIp, userAgent, normalizedEmail]
         );
       });
     } else {
       // Fallback: direct update in public schema (non-Nile environments)
       await adminRun(
-        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', allowed_modules = $4, last_login = NOW(), last_ip = $5, user_agent = $6 WHERE LOWER(email) = LOWER($7)`,
+        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', allowed_modules = $4, trial_used = 1, last_login = NOW(), last_ip = $5, user_agent = $6 WHERE LOWER(email) = LOWER($7)`,
         [key, plan, expiresAt, modulesJson, activationIp, userAgent, normalizedEmail]
       );
     }

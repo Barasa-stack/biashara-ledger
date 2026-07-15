@@ -7,10 +7,21 @@ export function validateLicenseKeyStructure(key: string): { valid: boolean; reas
   try {
     const parts = key.split('-');
     if (parts.length !== 4) return { valid: false, reason: 'Invalid key format' };
-    if (parts[0] !== 'BL') return { valid: false, reason: 'Invalid key prefix' };
-    if (parts[1].length < 4) return { valid: false, reason: 'Invalid identifier segment' };
-    if (parts[2].length < 4) return { valid: false, reason: 'Invalid random segment' };
-    if (parts[3].length < 4) return { valid: false, reason: 'Invalid hash segment' };
+    // Accept BL-prefix format (paid) OR plain hex format (trial)
+    if (parts[0] === 'BL') {
+      if (parts[1].length < 4) return { valid: false, reason: 'Invalid identifier segment' };
+      if (parts[2].length < 4) return { valid: false, reason: 'Invalid random segment' };
+      if (parts[3].length < 4) return { valid: false, reason: 'Invalid hash segment' };
+    } else {
+      // Trial key format: XXXX-XXXX-XXXX-XXXX (each exactly 4 hex chars)
+      if (parts[0].length !== 4 || parts[1].length !== 4 || parts[2].length !== 4 || parts[3].length !== 4) {
+        return { valid: false, reason: 'Invalid key segment length' };
+      }
+      if (!/^[A-F0-9]{4}$/i.test(parts[0]) || !/^[A-F0-9]{4}$/i.test(parts[1]) ||
+          !/^[A-F0-9]{4}$/i.test(parts[2]) || !/^[A-F0-9]{4}$/i.test(parts[3])) {
+        return { valid: false, reason: 'Invalid key characters' };
+      }
+    }
     return { valid: true };
   } catch {
     return { valid: false, reason: 'Invalid key format' };

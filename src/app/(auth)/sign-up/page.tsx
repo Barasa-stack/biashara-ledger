@@ -4,7 +4,7 @@ import { Suspense, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Send, Check, Loader, RefreshCw, Bug, Search } from 'lucide-react';
+import { Eye, EyeOff, Send, Check, Loader, RefreshCw, Bug, Search, CheckCircle2 } from 'lucide-react';
 import { countries, filterCountries, getCountryByCode, getDialCode } from '@/lib/countries';
 
 const SHOW_OTP = true;
@@ -31,7 +31,7 @@ function SignUpForm() {
   const { signUp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const selectedPlan = searchParams?.get('plan') || 'Premium';
+  const [selectedPlan, setSelectedPlan] = useState(searchParams?.get('plan') || 'Premium');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -320,6 +320,35 @@ function SignUpForm() {
                   <button type="button" onClick={() => setShowPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#000000] hover:text-brand">
                     {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
+                </div>
+              </div>
+
+              {/* Plan selector */}
+              <div>
+                <label className="block text-xs font-medium text-[#000000] mb-2">Choose your trial plan</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'Basic', label: 'Basic', desc: 'Core + Inventory' },
+                    { id: 'Standard', label: 'Standard', desc: 'Basic + CRM' },
+                    { id: 'Premium', label: 'Premium', desc: 'Everything' },
+                  ].map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedPlan(p.id)}
+                      className={`relative flex flex-col items-center gap-0.5 p-2.5 rounded-lg border text-center transition-all ${
+                        selectedPlan === p.id
+                          ? 'border-brand bg-red-50 ring-1 ring-brand'
+                          : 'border-border hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      {selectedPlan === p.id && (
+                        <CheckCircle2 className="absolute top-1 right-1 h-3.5 w-3.5 text-brand" />
+                      )}
+                      <span className="text-xs font-semibold text-[#000000]">{p.label}</span>
+                      <span className="text-[10px] text-gray-500 leading-tight">{p.desc}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 

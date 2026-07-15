@@ -50,7 +50,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ? Math.ceil((new Date(user.subscriptionExpiry).getTime() - Date.now()) / 86400000)
     : 0;
   const planName = user?.subscriptionPlan || 'Basic';
-  const isTrialPeriod = (user?.subscriptionStatus === 'trial' || user?.subscriptionStatus === 'active') && !!user?.subscriptionExpiry && trialDaysLeft > 0;
+  const planDisplay = planName.charAt(0).toUpperCase() + planName.slice(1);
+  const isTrialPeriod = user?.subscriptionStatus === 'trial' && !!user?.subscriptionExpiry && trialDaysLeft > 0;
   const showUpgradeBanner = user && planName !== 'premium' && !isTrialPeriod;
   const showTrialBanner = isTrialPeriod && trialDaysLeft <= 3;
 
@@ -197,7 +198,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <p className="text-xs text-amber-800">
               <span className="font-semibold">{trialDaysLeft} day(s)</span> remaining in your{' '}
-              <span className="font-semibold">{planName}</span> trial.{' '}
+              <span className="font-semibold">{planDisplay}</span> trial.{' '}
               <Link href="/dashboard/subscription" className="underline font-medium">Upgrade now</Link> to keep access.
             </p>
             <Link
@@ -215,7 +216,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="bg-brand/5 border-b border-brand/20 px-6 py-2.5">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <p className="text-xs text-gray-700">
-              You&apos;re on the <span className="font-semibold">{planName}</span> plan. Upgrade for more features.
+              You&apos;re on the <span className="font-semibold">{planDisplay}</span> plan. Upgrade for more features.
             </p>
             <Link
               href="/pricing"

@@ -12,9 +12,51 @@ const DASHBOARD_LOGIN_PATH = '/sign-in';
 const RENEW_PATH = '/renew';
 const PROTECTED_ROUTES = ['/dashboard', '/admin', '/payment', '/select-package'];
 
+const PLAN_HIERARCHY: Record<string, number> = { trial: 0, basic: 1, standard: 2, premium: 3, custom: 4 };
+
+// API path patterns mapped to minimum plan level required
+const API_PLAN_GATES: [string, number][] = [
+  // Premium-only features (level 3)
+  ['/api/payroll', 3],
+  ['/api/employees', 3],
+  ['/api/projects', 3],
+  ['/api/automation', 3],
+  ['/api/recurring', 3],
+  ['/api/approvals', 3],
+  ['/api/api-keys', 3],
+  ['/api/webhooks', 3],
+  // Standard features (level 2)
+  ['/api/crm', 2],
+  // Basic features (level 1)
+  ['/api/inventory', 1],
+];
+
+// Dashboard page path patterns mapped to minimum plan level
+const PAGE_PLAN_GATES: [string, number][] = [
+  ['/dashboard/payroll', 3],
+  ['/dashboard/employees', 3],
+  ['/dashboard/projects', 3],
+  ['/dashboard/recurring', 3],
+  ['/dashboard/approvals', 3],
+  ['/dashboard/automation', 3],
+  ['/dashboard/api-keys', 3],
+  ['/dashboard/webhooks', 3],
+  ['/dashboard/crm', 2],
+  ['/dashboard/inventory', 1],
+];
+
+function getRequiredLevel(pathname: string, gates: [string, number][]): number | null {
+  for (const [prefix, level] of gates) {
+    if (pathname.startsWith(prefix)) return level;
+  }
+  return null;
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('bl_session');
+  const planCookie = request.cookies.get('user_plan');
+  const userPlanLevel = PLAN_HIERARCHY[planCookie?.value || 'trial'] || 0;
 
   if (pathname === '/sign-up' && request.method === 'POST') {
     return NextResponse.next();
@@ -39,10 +81,23 @@ export function proxy(request: NextRequest) {
     if (!sessionCookie) {
       return NextResponse.redirect(new URL(DASHBOARD_LOGIN_PATH, request.url));
     }
+    // Block dashboard page access to premium features based on plan
+    const pageRequiredLevel = getRequiredLevel(pathname, PAGE_PLAN_GATES);
+    if (pageRequiredLevel !== null && userPlanLevel < pageRequiredLevel) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
   }
 
   if ((pathname.startsWith('/payment') || pathname.startsWith('/select-package')) && !sessionCookie) {
     return NextResponse.redirect(new URL(DASHBOARD_LOGIN_PATH, request.url));
+  }
+
+  // Block API requests to features above user's plan level
+  if (pathname.startsWith('/api/') && !pathname.startsWith(ADMIN_API_PREFIX)) {
+    const apiRequiredLevel = getRequiredLevel(pathname, API_PLAN_GATES);
+    if (apiRequiredLevel !== null && userPlanLevel < apiRequiredLevel) {
+      return NextResponse.json({ error: 'Upgrade required to access this feature' }, { status: 403 });
+    }
   }
 
   const allowedOrigins = [
@@ -72,6 +127,7 @@ export function proxy(request: NextRequest) {
   if (origin && allowedOrigins.includes(origin)) {
     const response = NextResponse.next();
     Object.entries(getCorsHeaders(origin)).forEach(([k, v]) => response.headers.set(k, v));
+    response.headers.set('X-User-Plan', planCookie?.value || 'trial');
     return response;
   }
 
@@ -84,6 +140,9 @@ export function proxy(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+
+  // Set user plan header for frontend access
+  response.headers.set('X-User-Plan', planCookie?.value || 'trial');
 
   if (process.env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');

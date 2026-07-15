@@ -11,6 +11,12 @@ import { getCountryByCode } from '@/lib/countries';
 import { buildHtml } from '@/lib/print';
 import SearchableCountrySelect from '@/components/SearchableCountrySelect';
 
+type LineItem = {
+  description: string;
+  quantity: number;
+  unit_price: number;
+};
+
 type Quotation = {
   id: string;
   quotation_number: string;
@@ -29,6 +35,7 @@ type Quotation = {
   due_date: string;
   customer_country?: string;
   vat_rate?: number;
+  items?: string;
 };
 
 type Customer = {
@@ -65,6 +72,7 @@ export default function QuotationsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [sendConfirm, setSendConfirm] = useState<{ to: string; cc: string; bcc: string; subject: string; item: any } | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,21 +153,27 @@ export default function QuotationsPage() {
     return `VAT (${rate}%)`;
   }, [form.vat_rate, form.customer_country, vatRate]);
 
-  const recalc = (f: typeof form) => {
-    const qty = Number(f.quantity) || 0;
-    const price = Number(f.unit_price) || 0;
-    const subtotal = qty * price;
+  const recalc = (f: typeof form, items?: LineItem[]) => {
+    const useItems = items ?? lineItems;
+    let subtotal = 0;
+    if (useItems.length > 0) {
+      subtotal = useItems.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0);
+    } else {
+      subtotal = (Number(f.quantity) || 0) * (Number(f.unit_price) || 0);
+    }
     const rate = f.vat_rate !== undefined ? Number(f.vat_rate) : (f.customer_country ? getVatRate(f.customer_country).rate : vatRate);
     const vat = subtotal * rate / 100;
     const disc = Number(f.discounts) || 0;
     const amount = subtotal + vat - disc;
-    return { ...f, subtotal, tax_vat: vat, amount };
+    const first = useItems[0];
+    return { ...f, description: first?.description || f.description, quantity: useItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0), unit_price: first?.unit_price || f.unit_price, subtotal, tax_vat: vat, amount };
   };
 
   const openAdd = async () => {
     const today = new Date().toISOString().split('T')[0];
     const due = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
     setEditing(null);
+    setLineItems([]);
     let nextNumber = '';
     try {
       const res = await fetch('/api/company/next-number?type=quotation');
@@ -174,6 +188,9 @@ export default function QuotationsPage() {
 
   const openEdit = (q: Quotation) => {
     setEditing(q);
+    let items: LineItem[] = [];
+    try { const parsed = typeof (q as any).items === 'string' ? JSON.parse((q as any).items) : (q as any).items; items = Array.isArray(parsed) ? parsed : []; } catch {}
+    setLineItems(items);
     setForm(recalc({
       quotation_number: q.quotation_number,
       customer_id: q.customer_id,
@@ -191,7 +208,7 @@ export default function QuotationsPage() {
       due_date: q.due_date?.split('T')[0] || '',
       customer_country: q.customer_country || '',
       vat_rate: q.vat_rate ?? (q.customer_country ? getVatRate(q.customer_country).rate : vatRate),
-    }));
+    }, items));
     setModalOpen(true);
   };
 
@@ -205,7 +222,7 @@ export default function QuotationsPage() {
     try {
       const url = '/api/sales/quotations';
       const method = editing ? 'PUT' : 'POST';
-      const payload = { ...recalc(form) };
+      const payload = { ...recalc(form), items: JSON.stringify(lineItems) };
       const body = editing ? { ...payload, id: editing.id } : payload;
       const res = await fetch(url, {
         method,
@@ -544,10 +561,87 @@ export default function QuotationsPage() {
                   <SearchableCountrySelect value={form.customer_country} onChange={code => setForm(prev => recalc({ ...prev, customer_country: code }))} />
                 </div>
               </div>
-              <Field label="Item/Service Description" value={form.description} onChange={set('description')} textarea />
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <Field label="Quantity" value={String(form.quantity)} onChange={set('quantity')} type="number" />
-                <Field label="Unit Price (KES)" value={String(form.unit_price)} onChange={set('unit_price')} type="number" />
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Line Items</label>
+                  <button
+                    type="button"
+                    onClick={() => setLineItems(prev => [...prev, { description: '', quantity: 1, unit_price: 0 }])}
+                    className="text-xs text-brand font-medium hover:text-gray-800 transition-colors"
+                  >
+                    + Add Item
+                  </button>
+                </div>
+                {lineItems.length === 0 ? (
+                  <div className="text-xs text-gray-400 italic py-3 px-3 border border-dashed border-border rounded-lg">
+                    Add items to this quotation
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {lineItems.map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-2 bg-surface/50 p-2 rounded-lg border border-border">
+                        <div className="flex-1 min-w-0">
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={e => {
+                              const next = [...lineItems];
+                              next[idx] = { ...next[idx], description: e.target.value };
+                              setLineItems(next);
+                              setForm(prev => recalc(prev, next));
+                            }}
+                            placeholder="Item description"
+                            className="w-full border border-border bg-white rounded-md px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand mb-1"
+                          />
+                        </div>
+                        <div className="w-20 shrink-0">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={e => {
+                              const next = [...lineItems];
+                              next[idx] = { ...next[idx], quantity: Number(e.target.value) || 0 };
+                              setLineItems(next);
+                              setForm(prev => recalc(prev, next));
+                            }}
+                            placeholder="Qty"
+                            className="w-full border border-border bg-white rounded-md px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand text-center"
+                          />
+                        </div>
+                        <div className="w-28 shrink-0">
+                          <input
+                            type="number"
+                            value={item.unit_price}
+                            onChange={e => {
+                              const next = [...lineItems];
+                              next[idx] = { ...next[idx], unit_price: Number(e.target.value) || 0 };
+                              setLineItems(next);
+                              setForm(prev => recalc(prev, next));
+                            }}
+                            placeholder="Price"
+                            className="w-full border border-border bg-white rounded-md px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand text-right"
+                          />
+                        </div>
+                        <div className="w-24 shrink-0 flex items-center justify-end pr-1">
+                          <span className="text-sm font-medium text-gray-700">{fmtKES((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = lineItems.filter((_, i) => i !== idx);
+                            setLineItems(next);
+                            setForm(prev => recalc(prev, next));
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">VAT Rate</label>
                   <select

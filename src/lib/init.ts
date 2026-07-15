@@ -191,6 +191,20 @@ export async function ensureDbInitialized() {
       await exec('ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS reorder_level REAL DEFAULT 0');
     } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
 
+    // Phase 6c: add idempotency_key and deleted_at to sales_invoices for idempotent creates + soft delete
+    try {
+      await exec('ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS idempotency_key TEXT');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await exec('CREATE UNIQUE INDEX IF NOT EXISTS uq_sales_invoices_idempotency ON public.sales_invoices (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await exec('ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+    try {
+      await exec('CREATE INDEX IF NOT EXISTS idx_sales_invoices_deleted_at ON public.sales_invoices (deleted_at)');
+    } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+
     // Phase 7: create HR & Payroll tables (attendance, leave_requests, payslips)
     // Use adminRun with base pool. Composite PK (tenant_id, id) required by Nile.
     try {

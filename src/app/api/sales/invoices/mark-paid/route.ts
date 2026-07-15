@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { get, run, withTenantContext } from '@/lib/db';
+import { get, run, withTenantContext, transaction } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
 import { buildReceiptHtml } from '@/lib/print';
 import { createTransporter, getSmtpConfig } from '@/lib/email';
 import { generatePdfBuffer } from '@/lib/pdf';
+
+const ALLOWED_PAYMENT_METHODS = ['cash', 'mpesa', 'card', 'bank_transfer', 'cheque', 'other'];
 
 export async function POST(request: Request) {
   try {
@@ -14,37 +16,61 @@ export async function POST(request: Request) {
     const invoice_id = body.invoice_id || body.id;
     const payment_method = body.payment_method || 'cash';
     const payment_type = body.payment_type || 'full';
+    const idempotencyKey = body.idempotency_key; // optional, for duplicate prevention
     if (!invoice_id) return NextResponse.json({ error: 'Missing invoice_id' }, { status: 400 });
+    if (!ALLOWED_PAYMENT_METHODS.includes(payment_method)) {
+      return NextResponse.json({ error: 'Invalid payment_method' }, { status: 400 });
+    }
 
     const ctx = await withTenantContext(session.tenant_id!, async () => {
-      const invoice = await get(
-        'SELECT * FROM sales_invoices WHERE id=$1',
-        [invoice_id]
-      ) as any;
-      if (!invoice) return { error: 'Invoice not found' };
-      if (invoice.status === 'paid') return { error: 'Invoice already paid' };
+      return await transaction(async (client) => {
+        // Lock the invoice row for the duration of the transaction
+        const invoiceRes = await client.query(
+          'SELECT * FROM sales_invoices WHERE id=$1 FOR UPDATE',
+          [invoice_id]
+        );
+        const invoice = invoiceRes.rows[0] as any;
+        if (!invoice) return { error: 'Invoice not found' };
+        if (invoice.status === 'paid') return { error: 'Invoice already paid' };
 
-      const customer = await get('SELECT * FROM customers WHERE id=$1', [invoice.customer_id]) as any;
-      const company = await get('SELECT * FROM company_settings') as any;
+        const customerRes = await client.query('SELECT * FROM customers WHERE id=$1', [invoice.customer_id]);
+        const customer = customerRes.rows[0] as any;
+        const companyRes = await client.query('SELECT * FROM company_settings LIMIT 1');
+        const company = companyRes.rows[0] as any;
 
-      const today = new Date().toISOString().split('T')[0];
-      const paidAmount = payment_type === 'partial' ? Math.min(Number(body.partial_amount) || 0, invoice.amount) : invoice.amount;
-      const totalPaid = (Number(invoice.paid_amount) || 0) + paidAmount;
-      const newRemaining = Number(invoice.amount) - totalPaid;
-      const newStatus = newRemaining <= 0 ? 'paid' : 'partially_paid';
-      // Record the payment
-      await run(
-        `INSERT INTO payments (tenant_id, invoice_id, customer_id, customer_name, amount, payment_date, payment_method, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [session.tenant_id, invoice.id, invoice.customer_id, invoice.customer_name, paidAmount, today, payment_method,
-         payment_type === 'partial'
-           ? `Partial payment for ${invoice.invoice_number}. KES ${paidAmount.toLocaleString('en-US')} received. Total paid: KES ${totalPaid.toLocaleString('en-US')}. Remaining: KES ${newRemaining.toLocaleString('en-US')}`
-           : `Full payment for ${invoice.invoice_number}. KES ${paidAmount.toLocaleString('en-US')} received.`]
-      );
-      // Update invoice: only paid_amount and status — amount stays at original total
-      await run('UPDATE sales_invoices SET paid_amount=$1, status=$2 WHERE id=$3', [totalPaid, newStatus, invoice.id]);
+        const today = new Date().toISOString().split('T')[0];
+        const paidAmount = payment_type === 'partial' ? Math.min(Number(body.partial_amount) || 0, invoice.amount) : invoice.amount;
+        const totalPaid = (Number(invoice.paid_amount) || 0) + paidAmount;
+        const newRemaining = Number(invoice.amount) - totalPaid;
+        const newStatus = newRemaining <= 0 ? 'paid' : 'partially_paid';
 
-      return { invoice, customer, company, today, paidAmount, remaining: newRemaining, newStatus };
+        // Check for idempotency key if provided
+        if (idempotencyKey) {
+          const existing = await client.query(
+            'SELECT id FROM payments WHERE notes ILIKE $1 LIMIT 1',
+            [`%idempotency:${idempotencyKey}%`]
+          );
+          if (existing.rows.length > 0) {
+            return { error: 'Duplicate payment (idempotency key already processed)' };
+          }
+        }
+
+        // Record the payment
+        const notes = payment_type === 'partial'
+          ? `Partial payment for ${invoice.invoice_number}. KES ${paidAmount.toLocaleString('en-US')} received. Total paid: KES ${totalPaid.toLocaleString('en-US')}. Remaining: KES ${newRemaining.toLocaleString('en-US')}${idempotencyKey ? ` [idempotency:${idempotencyKey}]` : ''}`
+          : `Full payment for ${invoice.invoice_number}. KES ${paidAmount.toLocaleString('en-US')} received.${idempotencyKey ? ` [idempotency:${idempotencyKey}]` : ''}`;
+
+        await client.query(
+          `INSERT INTO payments (tenant_id, invoice_id, customer_id, customer_name, amount, payment_date, payment_method, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [session.tenant_id, invoice.id, invoice.customer_id, invoice.customer_name, paidAmount, today, payment_method, notes]
+        );
+
+        // Update invoice: only paid_amount and status — amount stays at original total
+        await client.query('UPDATE sales_invoices SET paid_amount=$1, status=$2 WHERE id=$3', [totalPaid, newStatus, invoice.id]);
+
+        return { invoice, customer, company, today, paidAmount, remaining: newRemaining, newStatus };
+      });
     });
 
     if ('error' in ctx) {

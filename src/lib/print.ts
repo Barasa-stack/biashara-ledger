@@ -46,8 +46,9 @@ export function buildHtml(type: string, item: any, s?: any): string {
   const themeColor = cssVar(s, 'theme_color', '#df1c1c');
   const vatRate = item.vat_rate ?? s.vat_rate ?? 16;
 
-  const docNumber = item.invoice_number || item.quotation_number || item.credit_note_number || `#${item.id}`;
   const isInvoice = type === 'Invoice';
+  const isCreditNote = type === 'Credit Note';
+  const docNumber = isCreditNote ? (item.credit_note_number || `#${item.id}`) : (item.invoice_number || item.quotation_number || item.credit_note_number || `#${item.id}`);
   const quoteRef = item.quotation_number || (item.quotation_id ? `#${item.quotation_id}` : '');
   const customerTaxId = item.customer_tax_id || '';
   const customerName = item.customer_name || '';
@@ -70,10 +71,17 @@ export function buildHtml(type: string, item: any, s?: any): string {
     .join('');
 
   const fmt = (v: number) => `KSh ${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  const fmtQty = (v: number) => { const n = Number(v); return n === Math.floor(n) ? String(n) : n.toFixed(2); };
 
-  let lineItems: any[];
+  let lineItems: any[] = [];
   try {
-    lineItems = typeof item.items === 'string' ? JSON.parse(item.items) : (Array.isArray(item.items) ? item.items : []);
+    const raw = item.items;
+    if (typeof raw === 'string' && raw.trim()) {
+      const parsed = JSON.parse(raw);
+      lineItems = Array.isArray(parsed) ? parsed : [];
+    } else if (Array.isArray(raw)) {
+      lineItems = raw;
+    }
   } catch { lineItems = []; }
 
   const renderItems = (rows: string) => `
@@ -97,7 +105,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
     itemsHtml = renderItems(`
       <tr>
         <td><div class="desc">${item.description || 'N/A'}</div></td>
-        <td class="c">${fmt(item.quantity || 1)}</td>
+        <td class="c">${fmtQty(item.quantity || 1)}</td>
         <td class="r">${fmt(item.unit_price || 0)}</td>
         <td class="r amt">${fmt(subtotal)}</td>
       </tr>`);
@@ -108,7 +116,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
       const lineTotal = qty * unitPrice;
       return `<tr>
         <td><div class="desc">${row.description || 'N/A'}</div></td>
-        <td class="c">${fmt(qty)}</td>
+        <td class="c">${fmtQty(qty)}</td>
         <td class="r">${fmt(unitPrice)}</td>
         <td class="r amt">${fmt(lineTotal)}</td>
       </tr>`;
@@ -117,6 +125,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
   }
 
   const primary = themeColor;
+  const cnPrimary = isCreditNote ? '#d97706' : primary;
 
   const accountName = s.account_name || companyName;
 
@@ -131,27 +140,33 @@ export function buildHtml(type: string, item: any, s?: any): string {
   body { font-family: 'Inter', -apple-system, 'Helvetica Neue', sans-serif; color: #1e293b; font-size: 10px; line-height: 1.5; -webkit-font-smoothing: antialiased; background: #f5f5f5; }
 
   .no-print { text-align: center; padding: 14px 0; background: #fff; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #e2e8f0; }
-  .no-print button { background: ${primary}; color: #fff; border: none; padding: 10px 28px; cursor: pointer; font-size: 14px; font-weight: 600; margin: 0 5px; border-radius: 6px; }
+  .no-print button { background: ${isCreditNote ? '#d97706' : primary}; color: #fff; border: none; padding: 10px 28px; cursor: pointer; font-size: 14px; font-weight: 600; margin: 0 5px; border-radius: 6px; }
   .no-print button:hover { opacity: 0.9; }
-  .no-print button:last-child { background: #fff; color: ${primary}; border: 1px solid ${primary}; }
-  .no-print button:last-child:hover { background: #fef2f2; }
+  .no-print button:last-child { background: #fff; color: ${isCreditNote ? '#d97706' : primary}; border: 1px solid ${isCreditNote ? '#d97706' : primary}; }
+  .no-print button:last-child:hover { background: ${isCreditNote ? '#fffbeb' : '#fef2f2'}; }
 
   .page { max-width: 210mm; margin: 28px auto; background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.06); overflow: hidden; }
 
   /* ACCENT TOP */
-  .accent-bar { height: 5px; background: ${primary}; }
+  .accent-bar { height: 5px; background: ${isCreditNote ? '#d97706' : primary}; }
 
   /* HEADER */
   .header { padding: 30px 48px 20px; display: flex; justify-content: space-between; align-items: flex-start; }
   .header .brand img { max-height: 50px; max-width: 180px; object-fit: contain; }
   .header .brand .logo-fallback { font-size: 26px; font-weight: 900; color: ${primary}; letter-spacing: 0.5px; }
   .header .doc-info { text-align: right; }
-  .header .doc-info .type { font-size: 14px; font-weight: 800; color: ${primary}; letter-spacing: 1.5px; line-height: 1; }
+  .header .doc-info .type { font-size: ${isCreditNote ? '18' : '14'}px; font-weight: 800; color: ${isCreditNote ? '#d97706' : primary}; letter-spacing: ${isCreditNote ? '3' : '1.5'}px; line-height: 1; }
   .header .doc-info .num { font-size: 12px; color: #475569; font-weight: 600; margin-top: 4px; }
   .header .doc-info .doc-meta { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 9.5px; color: #475569; line-height: 1.8; text-align: right; }
   .header .doc-info .doc-meta .dm-row { display: flex; justify-content: flex-end; gap: 4px; }
   .header .doc-info .doc-meta .dm-label { color: #64748b; }
   .header .doc-info .doc-meta .dm-value { color: #1e293b; font-weight: 600; min-width: 90px; text-align: right; }
+
+  /* CREDIT NOTE specific styles */
+  .cn-ref-box { background:#fffbeb;border:1.5px solid #f59e0b;border-radius:8px;padding:14px 18px;margin:0 48px 16px;display:flex;align-items:center;gap:12px; }
+  .cn-ref-box .cn-ref-icon { font-size:20px;line-height:1; }
+  .cn-ref-box .cn-ref-text { font-size:10px;color:#92400e;line-height:1.5; }
+  .cn-ref-box .cn-ref-text strong { color:#78350f;font-size:11px; }
 
   /* DIVIDER */
   .divider { height: 1px; background: #e5e7eb; margin: 0 48px; }
@@ -165,7 +180,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
 
   .meta-row { padding: 20px 48px 0; display: flex; justify-content: space-between; }
   .meta-row .col { width: 48%; }
-  .meta-row .col-label { font-size: 13.5px; font-weight: 700; color: ${primary}; text-transform: uppercase; letter-spacing: 1.8px; margin-bottom: 8px; }
+  .meta-row .col-label { font-size: 13.5px; font-weight: 700; color: ${isCreditNote ? '#d97706' : primary}; text-transform: uppercase; letter-spacing: 1.8px; margin-bottom: 8px; }
   .meta-row .detail { font-size: 10px; color: #475569; line-height: 1.8; }
   .meta-row .detail strong { color: #1e293b; font-weight: 600; }
   .meta-row .customer-name { font-size: 13.5px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
@@ -174,7 +189,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
   /* TABLE */
   .table-wrap { padding: 20px 48px 8px; }
   table.items { width: 100%; border-collapse: collapse; }
-  table.items thead th { padding: 10px 12px; font-size: 8px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 1.2px; text-align: left; background: ${primary}; }
+  table.items thead th { padding: 10px 12px; font-size: 8px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 1.2px; text-align: left; background: ${isCreditNote ? '#d97706' : primary}; }
   table.items thead th.col-desc { width: 48%; }
   table.items thead th.col-qty { width: 12%; text-align: center; }
   table.items thead th.col-price { width: 20%; text-align: right; }
@@ -191,8 +206,8 @@ export function buildHtml(type: string, item: any, s?: any): string {
   .tl { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10.5px; }
   .tl span:first-child { color: #64748b; }
   .tl span:last-child { color: #334155; }
-  .tl.total { border-top: 3px double ${primary}; border-bottom: 3px double ${primary}; margin-top: 8px; padding: 10px 0; }
-  .tl.total span:first-child { font-weight: 800; color: ${primary}; font-size: 12px; }
+  .tl.total { border-top: 3px double ${isCreditNote ? '#d97706' : primary}; border-bottom: 3px double ${isCreditNote ? '#d97706' : primary}; margin-top: 8px; padding: 10px 0; }
+  .tl.total span:first-child { font-weight: 800; color: ${isCreditNote ? '#d97706' : primary}; font-size: 12px; }
   .tl.total span:last-child { font-size: 18px; font-weight: 900; color: #1e2938; }
   .tl-discount span:last-child { color: #dc2626; }
   .tl-paid span:first-child { color: #059669; }
@@ -211,7 +226,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
   /* PAYMENT SECTION */
   .payment-wrap { padding: 0 48px 20px; }
   .payment-card { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-  .payment-card .head { background: ${primary}; padding: 10px 16px; font-size: 8px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 1.5px; }
+  .payment-card .head { background: ${cnPrimary}; padding: 10px 16px; font-size: 8px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 1.5px; }
   .payment-card .body { padding: 14px 16px; }
   .payment-card .body .pf { display: flex; padding: 4px 0; font-size: 10px; }
   .payment-card .body .pl { color: #64748b; width: 120px; flex-shrink: 0; }
@@ -222,12 +237,12 @@ export function buildHtml(type: string, item: any, s?: any): string {
   /* TERMS */
   .terms-wrap { padding: 0 48px 16px; }
   .terms { padding: 14px 0; border-top: 1px solid #e5e7eb; }
-  .terms .head { font-size: 7.5px; font-weight: 700; color: ${primary}; text-transform: uppercase; letter-spacing: 1.8px; margin-bottom: 6px; }
+  .terms .head { font-size: 7.5px; font-weight: 700; color: ${cnPrimary}; text-transform: uppercase; letter-spacing: 1.8px; margin-bottom: 6px; }
   .terms .text { font-size: 9.5px; color: #64748b; line-height: 1.6; }
 
   /* THANKS */
   /* WAVE FOOTER — curved banner */
-  .wave-footer { margin: 0 48px; background: ${primary}; position: relative; border-radius: 8px; overflow: hidden; }
+  .wave-footer { margin: 0 48px; background: ${cnPrimary}; position: relative; border-radius: 8px; overflow: hidden; }
   .wave-footer::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 40%, transparent 100%); pointer-events: none; border-radius: 8px; }
   .wave-footer svg { display: block; width: 100%; height: 20px; }
   .wave-content { padding: 4px 20px 20px; text-align: center; color: #fff; }
@@ -257,11 +272,12 @@ export function buildHtml(type: string, item: any, s?: any): string {
       ${logo ? `<img src="${logo}" alt="Logo">` : `<div class="logo-fallback">${initials}</div>`}
     </div>
     <div class="doc-info">
-      <div class="type">${type.toUpperCase()}</div>
+      <div class="type" style="${isCreditNote ? 'color:#b45309;' : ''}">${isCreditNote ? 'CREDIT NOTE' : type.toUpperCase()}</div>
       <div class="num">${docNumber}</div>
       <div class="doc-meta">
         ${item.issue_date ? `<div class="dm-row"><span class="dm-label">Date:</span><span class="dm-value">${fmtDate(item.issue_date)}</span></div>` : ''}
-        ${item.due_date ? `<div class="dm-row"><span class="dm-label">${isInvoice ? 'Due Date:' : 'Valid Until:'}</span><span class="dm-value">${fmtDate(item.due_date)}</span></div>` : ''}
+        ${item.invoice_id ? `<div class="dm-row"><span class="dm-label">Reference Invoice:</span><span class="dm-value">${item.invoice_number || `#${item.invoice_id}`}</span></div>` : ''}
+        ${item.due_date && !isCreditNote ? `<div class="dm-row"><span class="dm-label">${isInvoice ? 'Due Date:' : 'Valid Until:'}</span><span class="dm-value">${fmtDate(item.due_date)}</span></div>` : ''}
         ${item.payment_terms ? `<div class="dm-row"><span class="dm-label">Terms:</span><span class="dm-value">${item.payment_terms}</span></div>` : ''}
       </div>
     </div>
@@ -276,20 +292,45 @@ export function buildHtml(type: string, item: any, s?: any): string {
     ${kraPin ? `<div class="ca-line" style="margin-top:4px;padding-top:4px;border-top:1px solid #e5e7eb"><strong>KRA PIN / VAT:</strong> ${kraPin}</div>` : ''}
   </div>
 
+  ${isCreditNote ? `
+  <div class="cn-ref-box">
+    <div class="cn-ref-icon" style="font-size:16px;font-weight:900;color:#d97706;">CR</div>
+    <div class="cn-ref-text">
+      <strong>Reference Invoice: ${item.invoice_number || `#${item.invoice_id}`}</strong><br>
+      This credit note reduces the amount of the referenced invoice above.
+    </div>
+  </div>
+  ` : ''}
+
   <div class="divider"></div>
 
   <div class="meta-row">
-    <div class="col"></div>
+    <div class="col">${isCreditNote ? `
+      <div class="col-label" style="color:#d97706;">Credit Note</div>
+      <div class="detail" style="margin-top:4px;">
+        <strong>Number:</strong> ${docNumber}<br>
+        ${item.issue_date ? `<strong>Date:</strong> ${fmtDate(item.issue_date)}` : ''}
+      </div>
+    ` : ''}</div>
     <div class="col" style="text-align:right">
       <div class="col-label">Bill To</div>
       <div class="customer-name">${customerName || 'N/A'}</div>
       ${customerAddress ? `<div class="addr">${customerAddress}</div>` : ''}
       ${item.email_address ? `<div class="addr">${item.email_address}</div>` : ''}
       ${item.phone_number ? `<div class="addr">${item.phone_number}</div>` : ''}
-      ${customerCountry ? `<div class="addr" style="color:${primary};font-weight:600;margin-top:4px">${customerCountry}</div>` : ''}
+      ${customerCountry ? `<div class="addr" style="color:${isCreditNote ? '#d97706' : primary};font-weight:600;margin-top:4px">${customerCountry}</div>` : ''}
       ${customerTaxId ? `<div class="addr" style="margin-top:4px;padding-top:4px;border-top:1px solid #e5e7eb"><strong>TAX ID / VAT:</strong> ${customerTaxId}</div>` : ''}
     </div>
   </div>
+
+  ${item.reason ? `
+  <div style="padding:12px 48px 0;">
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:12px 16px;">
+      <div style="font-size:8px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Reason for Credit</div>
+      <div style="font-size:10px;color:#92400e;line-height:1.5;">${item.reason}</div>
+    </div>
+  </div>
+  ` : ''}
 
   ${lineItems.length || item.description ? `
   <div class="table-wrap">
@@ -307,7 +348,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
       <div class="tl tl-balance"><span>Balance Due</span><span>${fmt(total - paidAmount)}</span></div>
       ` : ''}
       <div class="tl total">
-        <span>${isPartiallyPaid ? 'Original Total' : 'Total'}</span>
+        <span>${isCreditNote ? 'Total Credit' : isPartiallyPaid ? 'Original Total' : 'Total'}</span>
         <span>${fmt(total)}</span>
       </div>
     </div>
@@ -351,7 +392,7 @@ export function buildHtml(type: string, item: any, s?: any): string {
 
   <div class="wave-footer">
     <svg viewBox="0 0 1440 100" preserveAspectRatio="none">
-      <path d="M0,75 Q 720,25 1440,75 L 1440,100 L 0,100 Z" fill="${primary}" style="fill:${primary};print-color-adjust:exact;-webkit-print-color-adjust:exact;" />
+      <path d="M0,75 Q 720,25 1440,75 L 1440,100 L 0,100 Z" fill="${cnPrimary}" style="fill:${cnPrimary};print-color-adjust:exact;-webkit-print-color-adjust:exact;" />
     </svg>
     <div class="wave-content">
       <div class="contact">
