@@ -1,9 +1,17 @@
 import { exec } from './db';
 import { logError } from './logger';
 
+async function safeExec(sql: string, params?: any[]) {
+  try {
+    await exec(sql, params);
+  } catch (e) {
+    logError('schema', e instanceof Error ? e.message : String(e));
+  }
+}
+
 export async function initSchema() {
   // Create tenants table first since all tenant-scoped tables reference it
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.tenants (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       name TEXT NOT NULL,
@@ -11,7 +19,7 @@ export async function initSchema() {
     );
   `);
 
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.users (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -662,7 +670,7 @@ export async function initSchema() {
   // Ensure all business tables have tenant_id column (for local PostgreSQL without Nile)
   async function addTenantIdCol(table: string) {
     try {
-      await exec(`ALTER TABLE public.${table} ADD COLUMN IF NOT EXISTS tenant_id TEXT`);
+      await safeExec(`ALTER TABLE public.${table} ADD COLUMN IF NOT EXISTS tenant_id TEXT`);
     } catch (e) { logError('schema', 'table may not exist yet', { error: e }); }
   }
   const tenantTables = [
@@ -675,34 +683,34 @@ export async function initSchema() {
     await addTenantIdCol(tbl);
   }
 
-  await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS country TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'KE'`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user'`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMPTZ`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS grace_period_end TIMESTAMPTZ`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_reminder_sent TIMESTAMPTZ`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS license_status TEXT DEFAULT 'trial'`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'trial'`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active'`);
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS verified INTEGER DEFAULT 0`);
-  await exec(`ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS client_db TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS client_country TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS client_country TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS country TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
-  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
-  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
-  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
-  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await safeExec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS country TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'KE'`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user'`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_expiry TIMESTAMPTZ`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS grace_period_end TIMESTAMPTZ`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_reminder_sent TIMESTAMPTZ`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS license_status TEXT DEFAULT 'trial'`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'trial'`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active'`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS verified INTEGER DEFAULT 0`);
+  await safeExec(`ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS client_db TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS client_country TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS customer_country TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS client_country TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS country TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await safeExec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await safeExec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await safeExec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await safeExec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
 
   // ═══════════════════════════════════════════════
   // INVENTORY MODULE
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.inventory_items (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -724,7 +732,7 @@ export async function initSchema() {
     );
   `);
 
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.categories (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -736,7 +744,7 @@ export async function initSchema() {
     );
   `);
 
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.inventory_transactions (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -754,7 +762,7 @@ export async function initSchema() {
     );
   `);
 
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.unit_conversions (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -770,7 +778,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // OTHER INCOME & EXPENSES
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.other_transactions (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -788,7 +796,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // CAPITAL CONTRIBUTIONS & WITHDRAWALS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.capital_transactions (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -805,7 +813,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // USER-DEFINED BUDGETS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.budgets (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -820,23 +828,23 @@ export async function initSchema() {
   `);
 
   // Income tax fields on company_settings
-  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_30d BOOLEAN DEFAULT FALSE`);
-  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_7d BOOLEAN DEFAULT FALSE`);
-  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_3d BOOLEAN DEFAULT FALSE`);
-  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_1d BOOLEAN DEFAULT FALSE`);
-  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_12h BOOLEAN DEFAULT FALSE`);
+  await safeExec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_30d BOOLEAN DEFAULT FALSE`);
+  await safeExec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_7d BOOLEAN DEFAULT FALSE`);
+  await safeExec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_3d BOOLEAN DEFAULT FALSE`);
+  await safeExec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_1d BOOLEAN DEFAULT FALSE`);
+  await safeExec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS reminder_sent_12h BOOLEAN DEFAULT FALSE`);
 
-  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS income_tax_rate REAL DEFAULT 0`);
-  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS tax_filing_frequency TEXT DEFAULT 'monthly'`);
+  await safeExec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS income_tax_rate REAL DEFAULT 0`);
+  await safeExec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS tax_filing_frequency TEXT DEFAULT 'monthly'`);
 
-  await exec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS allowed_modules TEXT DEFAULT '[]'`);
-  await exec(`ALTER TABLE public.admin_plans ADD COLUMN IF NOT EXISTS modules TEXT DEFAULT '[]'`);
-  await exec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS modules TEXT DEFAULT '[]'`);
+  await safeExec(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS allowed_modules TEXT DEFAULT '[]'`);
+  await safeExec(`ALTER TABLE public.admin_plans ADD COLUMN IF NOT EXISTS modules TEXT DEFAULT '[]'`);
+  await safeExec(`ALTER TABLE public.admin_license_keys ADD COLUMN IF NOT EXISTS modules TEXT DEFAULT '[]'`);
 
   // ═══════════════════════════════════════════════
   // AUDIT LOG (import tracking)
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.audit_log (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -857,25 +865,25 @@ export async function initSchema() {
   `);
 
   // Add audit log columns to transaction tables (who created/updated)
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS updated_by UUID`);
-  await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS created_by UUID`);
-  await exec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS updated_by UUID`);
+  await safeExec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS created_by UUID`);
+  await safeExec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS created_by UUID`);
 
   // Audit trigger function — logs INSERT/UPDATE/DELETE to audit_log table
   // Captures old/new values for full before/after visibility.
   // Application-level user_id tracking requires the API routes to set
   // created_by/updated_by on the transaction tables.
-  await exec(`
+  await safeExec(`
     CREATE OR REPLACE FUNCTION public.audit_trigger_func()
     RETURNS TRIGGER AS $$
     DECLARE
@@ -913,7 +921,7 @@ export async function initSchema() {
     'capital_transactions', 'customers', 'clients', 'inventory_items', 'fixed_assets',
     'journal_entries', 'journal_entry_lines'];
   for (const tbl of auditTables) {
-    await exec(`
+    await safeExec(`
       DROP TRIGGER IF EXISTS audit_trigger ON public.${tbl};
       CREATE TRIGGER audit_trigger
       AFTER INSERT OR UPDATE OR DELETE ON public.${tbl}
@@ -921,13 +929,13 @@ export async function initSchema() {
     `);
   }
 
-  await exec(`
+  await safeExec(`
     INSERT INTO public.admin_users (username, password_hash, email, role)
     VALUES ('admin', '$2b$10$dummy', 'admin@biasharaledger.com', 'super_admin')
     ON CONFLICT (username) DO NOTHING;
   `);
 
-  await exec(`
+  await safeExec(`
     INSERT INTO public.roles (name, description, permissions) VALUES
       ('admin', 'Full access to all features', '["all"]'),
       ('hr_manager', 'HR and payroll management', '["hr.read","hr.write","payroll.read","payroll.write","dashboard.read"]'),
@@ -939,47 +947,47 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // MULTI-CURRENCY — currency fields on all tables
   // ═══════════════════════════════════════════════
-  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS base_currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS industry TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS industries TEXT[] DEFAULT '{}'`);
-  await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS custom_field_templates JSONB DEFAULT '[]'`);
-  await exec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS base_currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS industry TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS industries TEXT[] DEFAULT '{}'`);
+  await safeExec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS custom_field_templates JSONB DEFAULT '[]'`);
+  await safeExec(`ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.quotations ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.supplier_payments ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.salaries ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.debit_notes ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.other_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
 
   // IDEMPOTENCY & SOFT DELETE — sales_invoices
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
-  await exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_sales_invoices_idempotency ON public.sales_invoices (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL`);
-  await exec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
-  await exec(`CREATE INDEX IF NOT EXISTS idx_sales_invoices_deleted_at ON public.sales_invoices (deleted_at)`);
-  await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
-  await exec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
-  await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS category_id UUID`);
-  await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'`);
-  await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS purchase_uom TEXT DEFAULT ''`);
-  await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS sale_uom TEXT DEFAULT ''`);
-  await exec(`
+  await safeExec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
+  await safeExec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_sales_invoices_idempotency ON public.sales_invoices (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL`);
+  await safeExec(`ALTER TABLE public.sales_invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_sales_invoices_deleted_at ON public.sales_invoices (deleted_at)`);
+  await safeExec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'KES'`);
+  await safeExec(`ALTER TABLE public.capital_transactions ADD COLUMN IF NOT EXISTS exchange_rate REAL DEFAULT 1`);
+  await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS category_id UUID`);
+  await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'`);
+  await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS purchase_uom TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS sale_uom TEXT DEFAULT ''`);
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.exchange_rates (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -995,7 +1003,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // CHART OF ACCOUNTS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.chart_of_accounts (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1014,7 +1022,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // JOURNAL ENTRIES
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.journal_entries (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1027,7 +1035,7 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
   `);
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.journal_entry_lines (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1044,7 +1052,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // BANK RECONCILIATION
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.bank_accounts (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1058,7 +1066,7 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
   `);
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.bank_statements (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1077,7 +1085,7 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
   `);
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.reconciliation_runs (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1096,7 +1104,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // FIXED ASSETS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.fixed_assets (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1121,7 +1129,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // RECURRING TRANSACTIONS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.recurring_templates (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1141,7 +1149,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // WORKFLOW APPROVALS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.approval_workflows (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1154,7 +1162,7 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
   `);
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.approval_requests (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1175,7 +1183,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // CRM PIPELINE
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.deals (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1199,7 +1207,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // PROJECT COSTING
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.projects (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1215,7 +1223,7 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
   `);
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.project_transactions (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1233,7 +1241,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // ADMIN SETTINGS (key-value for admin panel config)
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.admin_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL DEFAULT '',
@@ -1244,7 +1252,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // ADMIN SUBSCRIPTION PLANS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.admin_plans (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
@@ -1257,7 +1265,7 @@ export async function initSchema() {
     );
   `);
 
-  await exec(`
+  await safeExec(`
     INSERT INTO public.admin_plans (name, price, description, sort_order) VALUES
       ('Basic', 5.00, 'Basic plan with essential features', 1),
       ('Standard', 10.00, 'Standard plan with advanced features', 2),
@@ -1268,7 +1276,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // ADMIN AUDIT LOG
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.admin_audit_log (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       admin_id UUID,
@@ -1285,7 +1293,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // ADMIN NOTIFICATIONS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.admin_notifications (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       type TEXT NOT NULL DEFAULT 'info',
@@ -1299,7 +1307,7 @@ export async function initSchema() {
 
   // Seed admin_notifications from existing data (only if table is empty)
   try {
-    await exec(`
+    await safeExec(`
       INSERT INTO admin_notifications (type, title, message, link, created_at)
       SELECT 'info', 'New client registered', 'New client registered: ' || COALESCE(company_name, email), '/admin/clients', created_at
       FROM admin_clients WHERE created_at >= NOW() - INTERVAL '30 days'
@@ -1307,7 +1315,7 @@ export async function initSchema() {
     `);
   } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   try {
-    await exec(`
+    await safeExec(`
       INSERT INTO admin_notifications (type, title, message, link, created_at)
       SELECT 'info', 'License generated', 'License generated for ' || COALESCE(ac.company_name, 'a client'), '/admin/licenses', alk.created_at
       FROM admin_license_keys alk LEFT JOIN admin_clients ac ON alk.client_id = ac.id
@@ -1316,7 +1324,7 @@ export async function initSchema() {
     `);
   } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   try {
-    await exec(`
+    await safeExec(`
       INSERT INTO admin_notifications (type, title, message, link, created_at)
       SELECT 'info', 'Update published', 'Software update v' || version || ' published', '/admin/updates', COALESCE(release_date, created_at)
       FROM app_updates WHERE created_at >= NOW() - INTERVAL '30 days'
@@ -1324,7 +1332,7 @@ export async function initSchema() {
     `);
   } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   try {
-    await exec(`
+    await safeExec(`
       INSERT INTO admin_notifications (type, title, message, link, created_at)
       SELECT 'warning', 'License expiring', 'License ' || license_key || ' expiring in 3 days', '/admin/licenses', expires_at
       FROM admin_license_keys WHERE is_active = true AND expires_at BETWEEN NOW() AND NOW() + INTERVAL '3 days'
@@ -1335,7 +1343,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // OPEN API / WEBHOOKS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.api_keys (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1349,7 +1357,7 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
   `);
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.webhooks (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1367,7 +1375,7 @@ export async function initSchema() {
   // ═══════════════════════════════════════════════
   // NOTIFICATIONS
   // ═══════════════════════════════════════════════
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.notification_preferences (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1383,7 +1391,7 @@ export async function initSchema() {
       PRIMARY KEY (tenant_id, id)
     );
   `);
-  await exec(`
+  await safeExec(`
     CREATE TABLE IF NOT EXISTS public.notification_log (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -1465,7 +1473,7 @@ export async function initSchema() {
   ];
   for (const { table, column } of moneyColumns) {
     try {
-      await exec(`ALTER TABLE public.${table} ALTER COLUMN ${column} TYPE NUMERIC(14,2) USING ${column}::numeric`);
+      await safeExec(`ALTER TABLE public.${table} ALTER COLUMN ${column} TYPE NUMERIC(14,2) USING ${column}::numeric`);
     } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
@@ -1497,7 +1505,7 @@ export async function initSchema() {
   ];
   for (const { table, column } of dateColumns) {
     try {
-      await exec(`ALTER TABLE public.${table} ALTER COLUMN ${column} TYPE DATE USING NULLIF(${column}, '')::date`);
+      await safeExec(`ALTER TABLE public.${table} ALTER COLUMN ${column} TYPE DATE USING NULLIF(${column}, '')::date`);
     } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
@@ -1536,7 +1544,7 @@ export async function initSchema() {
   ];
   for (const { table, column, ref, name } of fkConstraints) {
     try {
-      await exec(`ALTER TABLE public.${table} ADD CONSTRAINT ${name} FOREIGN KEY (${column}) REFERENCES public.${ref} ON DELETE SET NULL`);
+      await safeExec(`ALTER TABLE public.${table} ADD CONSTRAINT ${name} FOREIGN KEY (${column}) REFERENCES public.${ref} ON DELETE SET NULL`);
     } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
@@ -1557,7 +1565,7 @@ export async function initSchema() {
   ];
   for (const { table, columns, name } of uniqueConstraints) {
     try {
-      await exec(`ALTER TABLE public.${table} ADD CONSTRAINT ${name} UNIQUE (${columns})`);
+      await safeExec(`ALTER TABLE public.${table} ADD CONSTRAINT ${name} UNIQUE (${columns})`);
     } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
@@ -1591,7 +1599,7 @@ export async function initSchema() {
   ];
   for (const { table, column, name } of indexColumns) {
     try {
-      await exec(`CREATE INDEX IF NOT EXISTS ${name} ON public.${table} (${column})`);
+      await safeExec(`CREATE INDEX IF NOT EXISTS ${name} ON public.${table} (${column})`);
     } catch (e) { logError('schema', e instanceof Error ? e.message : String(e)); }
   }
 
@@ -1605,7 +1613,7 @@ export async function initSchema() {
   ];
   for (const tbl of allTables) {
     try {
-      await exec(`ALTER TABLE public.${tbl} ADD COLUMN IF NOT EXISTS tenant_id TEXT`);
+      await safeExec(`ALTER TABLE public.${tbl} ADD COLUMN IF NOT EXISTS tenant_id TEXT`);
     } catch (e) { logError('schema', 'table may not exist', { error: e }); }
   }
 }
