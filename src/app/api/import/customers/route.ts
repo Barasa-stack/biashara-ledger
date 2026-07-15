@@ -129,7 +129,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result, { status: result.errors > 0 ? 207 : 201 });
   } catch (err: any) {
-    console.error('[import/customers] Error:', err.message);
-    return NextResponse.json({ error: 'Import failed' }, { status: 500 });
+    console.error('[import/customers] Error:', err.message, err.stack);
+    const msg = err.message === 'Unauthorized' ? 'Unauthorized' : `Import failed: ${err.message}`;
+    return NextResponse.json({ error: msg }, { status: err.message === 'Unauthorized' ? 401 : 500 });
   }
 }
