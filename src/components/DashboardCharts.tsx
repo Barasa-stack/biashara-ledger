@@ -1,3 +1,5 @@
+'use client';
+
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Line, ComposedChart, CartesianGrid, Legend, Cell,

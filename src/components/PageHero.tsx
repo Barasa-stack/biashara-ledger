@@ -70,21 +70,27 @@ export default function PageHero({
 
   return (
     <section className={`relative ${height} flex items-center overflow-hidden`}>
-      {images.map((img, i) => (
-        <div
-          key={img.url}
-          className={`absolute inset-0 transition-opacity duration-[2000ms] ${i === current ? 'opacity-100' : 'opacity-0'}`}
-        >
-          <Image
-            src={img.url}
-            alt={img.label}
-            fill
-            className="object-cover"
-            priority={i === 0}
-            sizes="100vw"
-          />
-        </div>
-      ))}
+      {images.map((img, i) => {
+        const nextIdx = (current + 1) % images.length;
+        const shouldRender = i === 0 || i === current || i === nextIdx;
+        return (
+          <div
+            key={img.url}
+            className={`absolute inset-0 transition-opacity duration-[2000ms] ${i === current ? 'opacity-100' : 'opacity-0'}`}
+          >
+            {shouldRender && (
+              <Image
+                src={img.url}
+                alt={img.label}
+                fill
+                className="object-cover"
+                priority={i === 0}
+                sizes="100vw"
+              />
+            )}
+          </div>
+        );
+      })}
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
 
       <div className="absolute bottom-8 right-8 text-white/10 text-xs font-medium tracking-[0.3em] uppercase select-none">
