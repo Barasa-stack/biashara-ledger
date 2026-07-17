@@ -104,20 +104,22 @@ export async function POST(request: Request) {
         }
       }
 
+      const auditEntry = async (importedCount: number) => {
+        try {
+          await run(
+            `INSERT INTO audit_log (tenant_id, entity_type, imported_count, errors_count, error_details, file_name)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [session.tenant_id, 'customers', importedCount, errors.length,
+             JSON.stringify(errors), file_name || '']
+          );
+        } catch (logErr: any) {
+          console.error('[import/customers] audit_log error:', logErr.message);
+        }
+      };
       if (imported.length > 0) {
-        await run(
-          `INSERT INTO audit_log (tenant_id, user_id, entity_type, imported_count, errors_count, error_details, file_name)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [session.tenant_id, session.user_id || session.tenant_id!, 'customers', imported.length, errors.length,
-           JSON.stringify(errors), file_name || '']
-        );
+        await auditEntry(imported.length);
       } else {
-        await run(
-          `INSERT INTO audit_log (tenant_id, user_id, entity_type, imported_count, errors_count, error_details, file_name)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [session.tenant_id, session.user_id || session.tenant_id!, 'customers', 0, errors.length,
-           JSON.stringify(errors), file_name || '']
-        );
+        await auditEntry(0);
       }
 
       return {

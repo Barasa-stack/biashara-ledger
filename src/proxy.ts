@@ -81,6 +81,10 @@ export function proxy(request: NextRequest) {
     if (!sessionCookie) {
       return NextResponse.redirect(new URL(DASHBOARD_LOGIN_PATH, request.url));
     }
+    // Redirect /dashboard/inventory to its default sub-route
+    if (pathname === '/dashboard/inventory') {
+      return NextResponse.redirect(new URL('/dashboard/inventory/items', request.url));
+    }
     // Block dashboard page access to premium features based on plan
     const pageRequiredLevel = getRequiredLevel(pathname, PAGE_PLAN_GATES);
     if (pageRequiredLevel !== null && userPlanLevel < pageRequiredLevel) {

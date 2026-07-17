@@ -923,6 +923,31 @@ export function getCatalog(industry?: string): CatalogCategory[] {
   return CATALOG.general || [];
 }
 
+export function getMergedIndustryPreset(industries: string[]): IndustryPreset {
+  const seen = new Set<string>();
+  const merged: IndustryPreset = { categories: [], customFields: [], uoms: [] };
+  for (const ind of industries) {
+    const preset = PRESETS[ind];
+    if (!preset) continue;
+    for (const cat of preset.categories) {
+      const key = cat.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.categories.push(cat);
+      }
+    }
+    for (const f of preset.customFields) {
+      if (!merged.customFields.find(x => x.name === f.name)) {
+        merged.customFields.push(f);
+      }
+    }
+    for (const u of preset.uoms) {
+      if (!merged.uoms.includes(u)) merged.uoms.push(u);
+    }
+  }
+  return merged;
+}
+
 export function getMergedCatalog(industries: string[]): CatalogCategory[] {
   const seen = new Set<string>();
   const merged: CatalogCategory[] = [];

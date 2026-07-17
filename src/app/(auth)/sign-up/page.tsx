@@ -429,30 +429,11 @@ function SignUpForm() {
               <Check className="h-8 w-8 text-green-600" />
             </div>
             <h2 className="text-lg font-bold text-gray-800 mb-2">Account Created Successfully!</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Please check your email at <strong>{email}</strong> for your 3-day trial activation key.
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              Please check your email for your 3 day trial license.
+              <br />
+              Complete the signup steps in the email to start your trial.
             </p>
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <p className="text-xs text-gray-500 mb-1">Your Trial License Key</p>
-              <p className="text-lg font-bold tracking-widest font-mono text-brand">{trialKey}</p>
-            </div>
-            <p className="text-xs text-gray-500 mb-6">
-              Enter this key on the activation page to start your free trial.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowTrialPopup(false); router.push('/activate-license'); }}
-                className="flex-1 bg-brand hover:bg-brand-hover text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
-              >
-                Activate Now
-              </button>
-              <button
-                onClick={() => { setShowTrialPopup(false); router.push('/sign-in'); }}
-                className="flex-1 border border-gray-200 text-gray-600 text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Sign In Later
-              </button>
-            </div>
           </div>
         </div>
       )}

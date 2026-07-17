@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
         subscription_plan, subscription_status, subscription_expiry, license_key, license_status,
         trial_start_date, trial_end_date, trial_used)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'user', true, $10, 'trial', $11, $12, 'trial',
-        NOW(), $11, 1)`,
-      [userId, tenantUuid, normalizedEmail, password, hashedPassword, firstName || '', lastName || '', phone || '', country || 'KE', plan, trialExpiry, trialKey]
+        NOW(), $13, 1)`,
+      [userId, tenantUuid, normalizedEmail, password, hashedPassword, firstName || '', lastName || '', phone || '', country || 'KE', plan, trialExpiry, trialKey, trialExpiry]
     );
 
     // Mark OTP as used

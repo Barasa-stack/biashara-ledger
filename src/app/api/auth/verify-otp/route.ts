@@ -107,6 +107,12 @@ export async function POST(request: Request) {
         maxAge: 7 * 24 * 60 * 60,
       });
 
+      response.cookies.set('user_plan', subPlan, {
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+        sameSite: 'lax',
+      });
+
       return response;
     }
 

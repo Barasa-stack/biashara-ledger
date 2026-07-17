@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query, run, insertReturning, get, exec, withTenantContext, withoutTenantContext } from '@/lib/db';
 import { getSessionFromCookies } from '@/lib/auth-server';
-import { getIndustryPreset, getAllIndustryKeys } from '@/lib/industry-presets';
+import { getMergedIndustryPreset, getIndustryPreset, getAllIndustryKeys } from '@/lib/industry-presets';
 
 async function ensureCategoryUniqueConstraint() {
   try {
@@ -40,7 +40,13 @@ export async function GET() {
           } catch {}
           await ensureCategoryUniqueConstraint();
         });
-        const preset = getIndustryPreset('general');
+        let presetIndustries: string[];
+        try {
+          const settings = await get('SELECT industries FROM company_settings') as any;
+          presetIndustries = settings?.industries || ['general'];
+          if (typeof presetIndustries === 'string') presetIndustries = [presetIndustries];
+        } catch { presetIndustries = ['general']; }
+        const preset = getMergedIndustryPreset(presetIndustries);
         for (const cat of preset.categories) {
           const parentRes = await run(
             `INSERT INTO categories (tenant_id, name, sort_order) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
