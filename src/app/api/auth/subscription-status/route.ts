@@ -47,7 +47,7 @@ export async function GET() {
     const plan = normalizePlan(user.subscription_plan || 'trial');
     const daysRemaining = expiryDate
       ? Math.max(0, Math.ceil((new Date(expiryDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
-      : 0;
+      : null;
     return NextResponse.json({
       plan,
       status: effectiveStatus,

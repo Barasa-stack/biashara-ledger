@@ -94,14 +94,18 @@ export default function SubscriptionPage() {
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Expiry Date</p>
                 <p className="text-sm font-medium text-gray-800">
-                  {data.expiryDate ? new Date(data.expiryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+                  {data.daysRemaining === null ? 'Never' : data.expiryDate ? new Date(data.expiryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
                 </p>
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Days Remaining</p>
-                <p className={`text-lg font-semibold ${data.daysRemaining > 30 ? 'text-green-600' : data.daysRemaining > 7 ? 'text-yellow-600' : 'text-red-600'}`}>
-                  {data.daysRemaining > 0 ? `${data.daysRemaining} days` : 'Expired'}
-                </p>
+                {data.daysRemaining === null ? (
+                  <p className="text-lg font-semibold text-green-600">Lifetime</p>
+                ) : (
+                  <p className={`text-lg font-semibold ${data.daysRemaining > 30 ? 'text-green-600' : data.daysRemaining > 7 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {data.daysRemaining > 0 ? `${data.daysRemaining} days` : 'Expired'}
+                  </p>
+                )}
               </div>
             </div>
 
