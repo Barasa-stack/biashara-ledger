@@ -242,13 +242,13 @@ export default function OtherTransactionsPage() {
       })()}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-[#000000]">{editing ? 'Edit Transaction' : 'Add Transaction'}</h2>
-              <button onClick={() => setShowModal(false)}><X className="h-5 w-5 text-gray-400" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-lg border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-gray-800">{editing ? 'Edit Transaction' : 'Add Transaction'}</h2>
+              <button onClick={() => setShowModal(false)} className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X className="h-4 w-4" /></button>
             </div>
-            <div className="space-y-3">
+            <div className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-[#000000] mb-1">Type</label>
                 <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value, category: '' })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white">
@@ -266,7 +266,7 @@ export default function OtherTransactionsPage() {
                 <label className="block text-xs font-medium text-[#000000] mb-1">Description</label>
                 <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-[#000000] mb-1">Amount ($)</label>
                   <input type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
@@ -280,12 +280,16 @@ export default function OtherTransactionsPage() {
                 <label className="block text-xs font-medium text-[#000000] mb-1">Notes</label>
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
               </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
-                <button onClick={handleSubmit} disabled={saving || !form.amount} className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium hover:bg-brand/90 disabled:opacity-50 transition-colors">
-                  {saving ? 'Saving...' : editing ? 'Update' : 'Add Transaction'}
-                </button>
-              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
+              <button onClick={() => setShowModal(false)} className="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors">Cancel</button>
+              <button onClick={handleSubmit} disabled={saving || !form.amount} className="inline-flex items-center gap-1.5 bg-brand hover:bg-brand-hover disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                {saving ? (
+                  <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> Saving...</>
+                ) : (
+                  editing ? 'Update' : 'Add Transaction'
+                )}
+              </button>
             </div>
           </div>
         </div>
