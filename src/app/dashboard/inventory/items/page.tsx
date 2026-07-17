@@ -346,18 +346,18 @@ export default function InventoryItemsPage() {
       })()}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-[#000000]">{editing ? 'Edit Item' : 'Add Item'}</h2>
-              <button onClick={() => setShowModal(false)}><X className="h-5 w-5 text-gray-400" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-gray-800">{editing ? 'Edit Item' : 'Add Item'}</h2>
+              <button onClick={() => setShowModal(false)} className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X className="h-4 w-4" /></button>
             </div>
-            <div className="space-y-3">
+            <div className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-[#000000] mb-1">Item Name<FieldTooltip text="The name of the product you sell (e.g., Coca-Cola 500ml, Unga 2kg)" /></label>
                 <input value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-[#000000] mb-1">SKU<FieldTooltip text="Your internal product code. Leave blank to auto-generate one." /></label>
                   <input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
@@ -447,7 +447,7 @@ export default function InventoryItemsPage() {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-[#000000] mb-1">Purchase UOM<FieldTooltip text="The unit you buy from suppliers. Leave blank if same as base unit." /></label>
                   <select value={form.purchase_uom} onChange={e => setForm({ ...form, purchase_uom: e.target.value })}
@@ -465,7 +465,7 @@ export default function InventoryItemsPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-[#000000] mb-1">Unit of Measure<FieldTooltip text="How you count this item — pieces (pcs), kilograms (kg), litres (L), boxes." /></label>
                   <select value={form.unit_of_measure} onChange={e => setForm({ ...form, unit_of_measure: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white">
@@ -481,7 +481,7 @@ export default function InventoryItemsPage() {
               {customFieldTemplates.length > 0 && (
                 <div className="border-t border-border pt-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Custom Fields</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {customFieldTemplates.map((f, i) => (
                       <div key={i}>
                         <label className="block text-xs font-medium text-[#000000] mb-1">{f.name}</label>
@@ -501,20 +501,26 @@ export default function InventoryItemsPage() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-medium text-[#000000] mb-1">Opening Stock<FieldTooltip text="Current quantity available in your store. Updated automatically with sales &amp; purchases." /></label>
-                <input type="number" value={form.opening_stock} onChange={e => setForm({ ...form, opening_stock: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Opening Stock<FieldTooltip text="Current quantity available in your store. Updated automatically with sales &amp; purchases." /></label>
+                  <input type="number" value={form.opening_stock} onChange={e => setForm({ ...form, opening_stock: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Reorder Level <span className="text-gray-400 font-normal">(0 = no alert)</span><FieldTooltip text="Get a low stock warning when stock reaches this number. Set to 0 for no alert." /></label>
+                  <input type="number" value={form.reorder_level} onChange={e => setForm({ ...form, reorder_level: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-[#000000] mb-1">Reorder Level <span className="text-gray-400 font-normal">(0 = no alert)</span><FieldTooltip text="Get a low stock warning when stock reaches this number. Set to 0 for no alert." /></label>
-                <input type="number" value={form.reorder_level} onChange={e => setForm({ ...form, reorder_level: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
-                <button onClick={handleSubmit} disabled={saving || !form.item_name} className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium hover:bg-brand/90 disabled:opacity-50 transition-colors">
-                  {saving ? 'Saving...' : editing ? 'Update Item' : 'Add Item'}
-                </button>
-              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
+              <button onClick={() => setShowModal(false)} className="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors">Cancel</button>
+              <button onClick={handleSubmit} disabled={saving || !form.item_name} className="inline-flex items-center gap-1.5 bg-brand hover:bg-brand-hover disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                {saving ? (
+                  <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> Saving...</>
+                ) : (
+                  editing ? 'Update Item' : 'Add Item'
+                )}
+              </button>
             </div>
           </div>
         </div>
