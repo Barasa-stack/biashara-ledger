@@ -58,12 +58,27 @@ async function getTenantPool(tenantId: string): Promise<Pool> {
 }
 
 let _basePool: Pool | null = null;
+let _basePoolPromise: Promise<Pool> | null = null;
 
 async function getBasePool(): Promise<Pool> {
   if (_basePool) return _basePool;
-  const { getNileDb } = await import('./nile');
-  _basePool = await getNileDb();
-  return _basePool;
+  if (_basePoolPromise) return _basePoolPromise;
+
+  _basePoolPromise = (async () => {
+    const connectionString = getConnectionString();
+    const pool = new Pool({
+      connectionString,
+      max: 1,
+      idleTimeoutMillis: 60000,
+      connectionTimeoutMillis: 5000,
+    });
+    const client = await pool.connect();
+    client.release();
+    _basePool = pool;
+    return pool;
+  })();
+
+  return _basePoolPromise;
 }
 
 /**

@@ -24,8 +24,6 @@
     "postinstall": "node -e \"try{require('electron-rebuild')}catch(e){}\""
   },
   "dependencies": {
-    "@niledatabase/nextjs": "^5.3.1",
-    "@niledatabase/server": "^5.3.1",
     "@sparticuz/chromium-min": "^149.0.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
