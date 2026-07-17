@@ -1,7 +1,8 @@
 import { Pool, PoolClient, QueryResultRow } from 'pg';
 import { AsyncLocalStorage } from 'async_hooks';
 
-const tenantPools = new Map<string, Pool>();
+const MAX_TENANT_POOLS = 50;
+const tenantPools = new Map<string, { pool: Pool; lastUsed: number }>();
 const tenantContext = new AsyncLocalStorage<string | null>();
 
 function getConnectionString(): string {
@@ -23,14 +24,37 @@ function getConnectionString(): string {
 
 const pendingPoolPromises = new Map<string, Promise<Pool>>();
 
+function evictLruPool() {
+  if (tenantPools.size < MAX_TENANT_POOLS) return;
+  let lruKey: string | null = null;
+  let lruTime = Infinity;
+  for (const [key, entry] of tenantPools) {
+    if (entry.lastUsed < lruTime) {
+      lruTime = entry.lastUsed;
+      lruKey = key;
+    }
+  }
+  if (lruKey) {
+    const entry = tenantPools.get(lruKey);
+    if (entry) {
+      entry.pool.end().catch(() => {});
+      tenantPools.delete(lruKey);
+    }
+  }
+}
+
 async function getTenantPool(tenantId: string): Promise<Pool> {
   const cached = tenantPools.get(tenantId);
-  if (cached) return cached;
+  if (cached) {
+    cached.lastUsed = Date.now();
+    return cached.pool;
+  }
 
   const pending = pendingPoolPromises.get(tenantId);
   if (pending) return pending;
 
   const promise = (async () => {
+    evictLruPool();
     const pool = new Pool({
       connectionString: getConnectionString(),
       max: 5,
@@ -48,7 +72,7 @@ async function getTenantPool(tenantId: string): Promise<Pool> {
       console.error(`PostgreSQL pool error [tenant:${tenantId}]:`, err.message);
     });
 
-    tenantPools.set(tenantId, pool);
+    tenantPools.set(tenantId, { pool, lastUsed: Date.now() });
     pendingPoolPromises.delete(tenantId);
     return pool;
   })();
