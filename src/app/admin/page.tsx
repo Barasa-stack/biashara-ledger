@@ -7,7 +7,7 @@ import {
   Wifi, WifiOff, Clock, AlertTriangle, CheckCircle2, XCircle,
   BarChart3, RefreshCw, Target, Activity,
   Building2, UserPlus, Smartphone, Crown,
-  Loader2, Upload, Shield, X, Ban
+  Loader2, Upload, Shield, X, Ban, User
 } from 'lucide-react';
 
 interface KPICardData {
