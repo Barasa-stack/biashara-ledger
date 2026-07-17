@@ -25,10 +25,17 @@ export async function GET() {
     const inGracePeriod = user.grace_period_end ? new Date(user.grace_period_end) > now : false;
     const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
 
-    const billingHistory = await query(
+    const billingRows = await query(
       'SELECT * FROM billing_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10',
       [user.id]
     );
+    const billingHistory = (billingRows || []).map((r: any) => ({
+      id: r.id,
+      date: r.period_start || r.created_at,
+      description: r.plan_name || 'Subscription payment',
+      amount: r.amount,
+      status: r.status || 'completed',
+    }));
 
     const recentEvents = await query(
       'SELECT * FROM subscription_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10',
@@ -36,19 +43,17 @@ export async function GET() {
     );
 
     const effectiveStatus = user.license_status === 'active' ? 'active' : user.subscription_status || 'active';
+    const expiryDate = user.subscription_expiry || user.trial_end_date || null;
+    const plan = normalizePlan(user.subscription_plan || 'trial');
+    const daysRemaining = expiryDate
+      ? Math.max(0, Math.ceil((new Date(expiryDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+      : 0;
     return NextResponse.json({
-      id: user.id,
-      email: user.email,
-      subscription_plan: normalizePlan(user.subscription_plan || 'trial'),
-      subscription_status: effectiveStatus,
-      subscription_expiry: user.subscription_expiry,
-      role: user.role || 'admin',
-      grace_period_end: user.grace_period_end,
-      daysUntilExpiry,
-      inGracePeriod,
-      isExpiringSoon,
-      billingHistory,
-      recentEvents,
+      plan,
+      status: effectiveStatus,
+      expiryDate,
+      daysRemaining,
+      billingHistory: billingHistory || [],
     });
   } catch (error: any) {
     const msg = error instanceof Error ? error.message : String(error);
