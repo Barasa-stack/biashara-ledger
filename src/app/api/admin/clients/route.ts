@@ -37,7 +37,13 @@ export async function GET() {
     }
 
     const allClients = clients.map(c => ({ ...c, source: 'managed' }));
-    const allSelfRegistered = selfRegistered.map(u => ({ ...u, source: 'self_registered', license_key: null, max_users: null, is_active: false, is_trial: false }));
+    const allSelfRegistered = selfRegistered.map(u => ({
+      ...u, source: 'self_registered',
+      license_key: null, max_users: null, database_name: null,
+      is_active: u.subscription_status === 'active' || u.subscription_status === 'trial',
+      is_trial: u.subscription_plan === 'trial' || u.subscription_status === 'trial',
+      expires_at: u.subscription_expiry,
+    }));
 
     return NextResponse.json([...allClients, ...allSelfRegistered]);
   } catch (err) {

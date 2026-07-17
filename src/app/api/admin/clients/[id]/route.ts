@@ -45,12 +45,42 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const client = await adminGet(
+    let client = await adminGet(
       `SELECT id, company_name, email, database_name, license_key, max_users, plan,
               is_active, is_trial, trial_start_date, trial_end_date, expires_at, last_active, created_at
-       FROM admin_clients WHERE id = $1`,
+       FROM admin_clients WHERE CAST(id AS TEXT) = $1`,
       [id]
     );
+
+    if (!client) {
+      const user = await adminGet(
+        `SELECT id, email, first_name, last_name, subscription_plan, subscription_status,
+                subscription_expiry, license_status, trial_end_date, verified, created_at
+         FROM users WHERE CAST(id AS TEXT) = $1`,
+        [id]
+      );
+      if (user) {
+        client = {
+          id: (user as any).id,
+          company_name: `${(user as any).first_name || ''} ${(user as any).last_name || ''}`.trim() || (user as any).email,
+          email: (user as any).email,
+          database_name: null,
+          license_key: null,
+          max_users: null,
+          plan: (user as any).subscription_plan,
+          is_active: (user as any).subscription_status === 'active' || (user as any).subscription_status === 'trial',
+          is_trial: (user as any).subscription_plan === 'trial' || (user as any).subscription_status === 'trial',
+          trial_start_date: null,
+          trial_end_date: (user as any).trial_end_date,
+          expires_at: (user as any).subscription_expiry,
+          last_active: null,
+          created_at: (user as any).created_at,
+          source: 'self_registered',
+          subscription_status: (user as any).subscription_status,
+          license_status: (user as any).license_status,
+        };
+      }
+    }
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });

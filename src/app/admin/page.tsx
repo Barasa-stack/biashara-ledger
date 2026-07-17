@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, DollarSign, Monitor, Key,
   Wifi, WifiOff, Clock, AlertTriangle, CheckCircle2, XCircle,
   BarChart3, RefreshCw, Target, Activity,
-  Building2, UserPlus, Smartphone,
+  Building2, UserPlus, Smartphone, Crown,
   Loader2, Upload, Shield, X, Ban
 } from 'lucide-react';
 
@@ -280,6 +280,12 @@ function AdminDashboard() {
       { label: 'Revenue This Month', value: `$${revenueMonth.toLocaleString()}`, trend: { direction: 'up', value: '+12.5%' }, icon: <BarChart3 size={18} className="text-white" />, color: 'bg-brand' },
       { label: 'Revenue This Year', value: `$${revenueYear.toLocaleString()}`, icon: <Target size={18} className="text-white" />, color: 'bg-brand' },
       { label: 'Monthly Growth', value: `${monthlyGrowth}%`, trend: { direction: 'up', value: '+2.1pp' }, icon: <TrendingUp size={18} className="text-white" />, color: 'bg-brand' },
+    ],
+    [
+      { label: 'Premium Users', value: dashboardData?.realUsers?.premium || 0, icon: <Crown size={18} className="text-white" />, color: 'bg-violet-600' },
+      { label: 'Standard Users', value: dashboardData?.realUsers?.standard || 0, icon: <User size={18} className="text-white" />, color: 'bg-brand' },
+      { label: 'Basic Users', value: dashboardData?.realUsers?.basic || 0, icon: <User size={18} className="text-white" />, color: 'bg-blue-600' },
+      { label: 'Trial Users', value: dashboardData?.realUsers?.trial || 0, icon: <Clock size={18} className="text-white" />, color: 'bg-orange-600' },
     ],
     [
       { label: 'Total Clients', value: clients.length, trend: { direction: 'up', value: '+3' }, icon: <Building2 size={18} className="text-white" />, color: 'bg-blue-600' },

@@ -170,6 +170,11 @@ export default function ClientDetailPage() {
                   Trial
                 </span>
               )}
+              {client.source === 'self_registered' && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-purple-50 text-purple-700">
+                  Self Registered
+                </span>
+              )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
               <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -260,12 +265,41 @@ export default function ClientDetailPage() {
                 </div>
               </div>
               <div className="flex items-start gap-3">
+                <Shield size={14} className="text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-xs text-gray-400">Status</p>
+                  <p className="text-sm text-gray-700">
+                    {client.subscription_status === 'active' || client.license_status === 'active' ? (
+                      <span className="inline-flex items-center gap-1 text-green-600"><CheckCircle2 size={12} /> Active</span>
+                    ) : client.subscription_status === 'trial' || client.is_trial ? (
+                      <span className="inline-flex items-center gap-1 text-blue-600"><ClockIcon size={12} /> Trial</span>
+                    ) : client.subscription_status === 'expired' ? (
+                      <span className="inline-flex items-center gap-1 text-red-600"><XCircle size={12} /> Expired</span>
+                    ) : client.is_active ? (
+                      <span className="inline-flex items-center gap-1 text-brand"><CheckCircle2 size={12} /> Active</span>
+                    ) : (
+                      <span className="text-gray-400">Inactive</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <ClockIcon size={14} className="text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-xs text-gray-400">Expiry Date</p>
+                  <p className="text-sm text-gray-700">{client.expires_at ? new Date(client.expires_at).toLocaleDateString() : client.subscription_expiry ? new Date(client.subscription_expiry).toLocaleDateString() : '—'}</p>
+                </div>
+              </div>
+              {client.trial_start_date ? (
+              <div className="flex items-start gap-3">
                 <Calendar size={14} className="text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-xs text-gray-400">Trial Start</p>
-                  <p className="text-sm text-gray-700">{client.trial_start_date ? new Date(client.trial_start_date).toLocaleDateString() : '—'}</p>
+                  <p className="text-sm text-gray-700">{new Date(client.trial_start_date).toLocaleDateString()}</p>
                 </div>
               </div>
+              ) : null}
+              {(client.trial_end_date || client.trial_end_date !== client.expires_at) ? (
               <div className="flex items-start gap-3">
                 <Calendar size={14} className="text-gray-400 mt-0.5" />
                 <div>
@@ -273,20 +307,16 @@ export default function ClientDetailPage() {
                   <p className="text-sm text-gray-700">{client.trial_end_date ? new Date(client.trial_end_date).toLocaleDateString() : '—'}</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3">
-                <ClockIcon size={14} className="text-gray-400 mt-0.5" />
-                <div>
-                  <p className="text-xs text-gray-400">Expires</p>
-                  <p className="text-sm text-gray-700">{client.expires_at ? new Date(client.expires_at).toLocaleDateString() : '—'}</p>
-                </div>
-              </div>
+              ) : null}
+              {client.max_users ? (
               <div className="flex items-start gap-3">
                 <User size={14} className="text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-xs text-gray-400">Max Users</p>
-                  <p className="text-sm text-gray-700">{client.max_users || '—'}</p>
+                  <p className="text-sm text-gray-700">{client.max_users}</p>
                 </div>
               </div>
+              ) : null}
               <div className="pt-3 border-t border-gray-100">
                 <label className="block text-xs font-medium text-gray-500 mb-2">Change Plan</label>
                 <div className="flex flex-col gap-3">

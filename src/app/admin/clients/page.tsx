@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  Search, Plus, Eye, ToggleLeft, Trash2, X,
+  Search, Plus, Eye, ToggleLeft, Trash2, X, Clock,
   Building2, Mail, Key, CheckCircle2, XCircle,
   AlertTriangle, Loader2
 } from 'lucide-react';
@@ -194,7 +194,7 @@ function ClientsPageContent() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                {['Client', 'Email', 'Source', 'Plan', 'Status', 'Last Seen', 'Actions'].map(h => (
+                {['Client', 'Email', 'Source', 'Plan', 'Status', 'Expiry', 'Last Seen', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -202,7 +202,7 @@ function ClientsPageContent() {
             <tbody className="divide-y divide-gray-50">
               {filteredClients.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">No clients found</td>
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">No clients found</td>
                 </tr>
               ) : (
                 filteredClients.map((client: any) => (
@@ -242,19 +242,34 @@ function ClientsPageContent() {
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      {client.is_active ? (
-                        <span className="flex items-center gap-1.5 text-xs text-brand">
-                          <CheckCircle2 size={12} /> Active
-                        </span>
-                      ) : client.source === 'self_registered' ? (
-                        <span className="flex items-center gap-1.5 text-xs text-purple-600">
-                          <XCircle size={12} /> Pending
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                          <XCircle size={12} /> Inactive
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {client.subscription_status === 'active' || client.license_status === 'active' ? (
+                          <span className="flex items-center gap-1.5 text-xs text-green-600">
+                            <CheckCircle2 size={12} /> Active
+                          </span>
+                        ) : client.subscription_status === 'trial' || client.is_trial ? (
+                          <span className="flex items-center gap-1.5 text-xs text-blue-600">
+                            <Clock size={12} /> Trial
+                          </span>
+                        ) : client.subscription_status === 'expired' || (client.expires_at && new Date(client.expires_at) < new Date()) ? (
+                          <span className="flex items-center gap-1.5 text-xs text-red-600">
+                            <XCircle size={12} /> Expired
+                          </span>
+                        ) : client.is_active ? (
+                          <span className="flex items-center gap-1.5 text-xs text-brand">
+                            <CheckCircle2 size={12} /> Active
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <XCircle size={12} /> Inactive
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs text-gray-400">
+                        {client.expires_at ? new Date(client.expires_at).toLocaleDateString() : client.subscription_expiry ? new Date(client.subscription_expiry).toLocaleDateString() : '—'}
+                      </span>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="text-xs text-gray-400">
