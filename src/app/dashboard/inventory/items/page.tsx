@@ -6,6 +6,8 @@ import { Plus, Pencil, Trash2, X, Package, Search, Download, ChevronRight } from
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import FieldTooltip from '@/components/FieldTooltip';
+import InventoryOnboarding from '@/components/InventoryOnboarding';
 
 type InventoryItem = {
   id: string;
@@ -70,6 +72,10 @@ export default function InventoryItemsPage() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categoryNameError, setCategoryNameError] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !localStorage.getItem('inventory_onboarded');
+  });
   const { confirm, dialog } = useConfirm();
   const { toast } = useToast();
 
@@ -242,6 +248,18 @@ export default function InventoryItemsPage() {
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-gray-500"><div className="w-5 h-5 border-2 border-brand border-t-transparent rounded-full animate-spin" /> Loading...</div>
+      ) : filteredItems.length === 0 && items.length === 0 && showOnboarding ? (
+        <InventoryOnboarding
+          onAddItem={() => {
+            localStorage.setItem('inventory_onboarded', 'true');
+            setShowOnboarding(false);
+            setShowModal(true);
+          }}
+          onDismiss={() => {
+            localStorage.setItem('inventory_onboarded', 'true');
+            setShowOnboarding(false);
+          }}
+        />
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12 text-gray-500 bg-white rounded-xl border border-border">
           <Package className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -336,16 +354,16 @@ export default function InventoryItemsPage() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-[#000000] mb-1">Item Name</label>
+                <label className="block text-xs font-medium text-[#000000] mb-1">Item Name<FieldTooltip text="The name of the product you sell (e.g., Coca-Cola 500ml, Unga 2kg)" /></label>
                 <input value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#000000] mb-1">SKU</label>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">SKU<FieldTooltip text="Your internal product code. Leave blank to auto-generate one." /></label>
                   <input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#000000] mb-1">Category</label>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Category<FieldTooltip text="Group similar products (e.g., Beverages, Snacks, Cleaning). Used for reports." /></label>
                   <div className="flex gap-2">
                     <select value={form.category_id} onChange={e => {
                       const catId = e.target.value;
@@ -431,7 +449,7 @@ export default function InventoryItemsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#000000] mb-1">Purchase UOM</label>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Purchase UOM<FieldTooltip text="The unit you buy from suppliers. Leave blank if same as base unit." /></label>
                   <select value={form.purchase_uom} onChange={e => setForm({ ...form, purchase_uom: e.target.value })}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white">
                     <option value="">Same as base</option>
@@ -439,7 +457,7 @@ export default function InventoryItemsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#000000] mb-1">Sale UOM</label>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Sale UOM<FieldTooltip text="The unit you sell to customers. Leave blank if same as base unit." /></label>
                   <select value={form.sale_uom} onChange={e => setForm({ ...form, sale_uom: e.target.value })}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white">
                     <option value="">Same as base</option>
@@ -449,13 +467,13 @@ export default function InventoryItemsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#000000] mb-1">Unit of Measure</label>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Unit of Measure<FieldTooltip text="How you count this item — pieces (pcs), kilograms (kg), litres (L), boxes." /></label>
                   <select value={form.unit_of_measure} onChange={e => setForm({ ...form, unit_of_measure: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white">
                     {UOM.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#000000] mb-1">Unit Cost</label>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Unit Cost<FieldTooltip text="How much you paid per unit. Used to calculate profit and total inventory value." /></label>
                   <input type="number" step="0.01" value={form.unit_cost} onChange={e => setForm({ ...form, unit_cost: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
                 </div>
               </div>
@@ -484,11 +502,11 @@ export default function InventoryItemsPage() {
               )}
 
               <div>
-                <label className="block text-xs font-medium text-[#000000] mb-1">Opening Stock</label>
+                <label className="block text-xs font-medium text-[#000000] mb-1">Opening Stock<FieldTooltip text="Current quantity available in your store. Updated automatically with sales &amp; purchases." /></label>
                 <input type="number" value={form.opening_stock} onChange={e => setForm({ ...form, opening_stock: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#000000] mb-1">Reorder Level <span className="text-gray-400 font-normal">(0 = no alert)</span></label>
+                <label className="block text-xs font-medium text-[#000000] mb-1">Reorder Level <span className="text-gray-400 font-normal">(0 = no alert)</span><FieldTooltip text="Get a low stock warning when stock reaches this number. Set to 0 for no alert." /></label>
                 <input type="number" value={form.reorder_level} onChange={e => setForm({ ...form, reorder_level: Number(e.target.value) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
               </div>
               <div className="flex justify-end gap-3 pt-2">
