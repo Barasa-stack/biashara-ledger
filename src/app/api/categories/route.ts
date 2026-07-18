@@ -157,8 +157,13 @@ export async function DELETE(request: Request) {
   try {
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
-    const { id } = await request.json();
+    const { id, all } = await request.json();
     await withTenantContext(session.tenant_id!, async () => {
+      if (all) {
+        await run('UPDATE inventory_items SET category_id=NULL, category=\'\', categories=\'[]\' WHERE category_id IS NOT NULL', []);
+        await run('DELETE FROM categories WHERE tenant_id=$1', [session.tenant_id]);
+        return;
+      }
       const children = await query('SELECT id FROM categories WHERE parent_id=$1 LIMIT 1', [id]);
       if (children.length > 0) throw new Error('Cannot delete category with subcategories');
       await run('UPDATE inventory_items SET category_id=NULL, category=\'\' WHERE category_id=$1', [id]);

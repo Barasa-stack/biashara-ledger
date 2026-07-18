@@ -43,27 +43,6 @@ export default function InventorySettingsPage() {
     setTogglingCat(null);
   }
 
-  function renderCheckboxTree(parentId: string | null, depth: number): React.ReactNode {
-    return categories
-      .filter(c => (c.parent_id || null) === parentId)
-      .map(cat => (
-        <div key={cat.id}>
-          <label className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 text-sm ${!cat.active ? 'opacity-50' : ''}`}
-            style={{ paddingLeft: `${8 + depth * 20}px` }}>
-            <input type="checkbox" checked={cat.active !== false}
-              onChange={() => toggleActive(cat)}
-              disabled={togglingCat === cat.id}
-              className="rounded border-gray-300 text-brand focus:ring-brand" />
-            <span className="text-gray-700">{cat.name}</span>
-            {cat.industry && (
-              <span className="text-[10px] text-gray-400 ml-1">({cat.industry})</span>
-            )}
-          </label>
-          {renderCheckboxTree(cat.id, depth + 1)}
-        </div>
-      ));
-  }
-
   const fetchCompany = () => {
     setLoading(true);
     setError('');
@@ -227,8 +206,35 @@ export default function InventorySettingsPage() {
               ) : categories.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-4">No categories found. Change your industry selection above.</p>
               ) : (
-                <div className="max-h-64 overflow-y-auto border border-border rounded-lg p-2">
-                  {renderCheckboxTree(null, 0)}
+                <div className="max-h-96 overflow-y-auto border border-border rounded-lg p-2 space-y-3">
+                  {industries.map(ind => {
+                    const indCats = categories.filter(c => c.industry === ind);
+                    if (indCats.length === 0) return null;
+                    return (
+                      <div key={ind}>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{ind}</h4>
+                        {(() => {
+                          const renderIndTree = (parentId: string | null, depth: number) =>
+                            indCats
+                              .filter(c => (c.parent_id || null) === parentId)
+                              .map(cat => (
+                                <div key={cat.id}>
+                                  <label className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-gray-50 text-sm ${!cat.active ? 'opacity-50' : ''}`}
+                                    style={{ paddingLeft: `${8 + depth * 20}px` }}>
+                                    <input type="checkbox" checked={cat.active !== false}
+                                      onChange={() => toggleActive(cat)}
+                                      disabled={togglingCat === cat.id}
+                                      className="rounded border-gray-300 text-brand focus:ring-brand" />
+                                    <span className="text-gray-700">{cat.name}</span>
+                                  </label>
+                                  {renderIndTree(cat.id, depth + 1)}
+                                </div>
+                              ));
+                          return renderIndTree(null, 0);
+                        })()}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {categories.filter(c => c.active !== false).length > 0 && (
