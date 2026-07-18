@@ -5,30 +5,7 @@ import { Plus, X, ArrowUpDown, Search, Download, Package } from 'lucide-react';
 import { exportCSV, exportExcel, exportPDF, exportWord } from '@/lib/export-utils'
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
-
-type Transaction = {
-  id: string;
-  item_id: string;
-  transaction_type: string;
-  quantity: number;
-  unit_cost: number;
-  total_cost: number;
-  reference_type: string;
-  reference_id: string;
-  transaction_date: string;
-  notes: string;
-  created_at: string;
-  item_name: string;
-  sku: string;
-};
-
-type InventoryItem = {
-  id: string;
-  item_name: string;
-  sku: string;
-  current_stock: number;
-  unit_of_measure: string;
-};
+import type { Transaction, InventoryItemBrief } from '@/types/inventory';
 
 const emptyForm = {
   item_id: '',
@@ -46,7 +23,7 @@ const TXN_TYPES = ['PURCHASE', 'SALE', 'RETURN', 'ADJUSTMENT'];
 
 export default function InventoryTransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [items, setItems] = useState<InventoryItemBrief[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);

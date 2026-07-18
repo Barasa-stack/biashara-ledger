@@ -232,6 +232,7 @@ export async function initCoreTables() {
       po_number TEXT DEFAULT '',
       client_id UUID NOT NULL,
       client_name TEXT NOT NULL,
+      item_id UUID,
       description TEXT DEFAULT '',
       quantity REAL DEFAULT 1,
       unit_price REAL DEFAULT 0,
@@ -692,4 +693,5 @@ export async function initCoreTables() {
   await safeExec(`ALTER TABLE public.purchase_invoices ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
   await safeExec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
   await safeExec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
+  await safeExec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS item_id UUID`);
 }

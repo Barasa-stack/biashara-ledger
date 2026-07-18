@@ -114,6 +114,20 @@ export async function POST(request: Request) {
 
       await createInventoryJournal(session.tenant_id, body.item_id, body.transaction_type, qty, cost, total, txnDate);
 
+      try {
+        const item = await get(
+          'SELECT item_name, current_stock, reorder_level FROM inventory_items WHERE id=$1',
+          [body.item_id]
+        ) as { item_name: string; current_stock: number; reorder_level: number } | undefined;
+        if (item && Number(item.reorder_level) > 0 && Number(item.current_stock) <= Number(item.reorder_level)) {
+          const message = `${item.item_name} is running low (${item.current_stock} remaining, reorder at ${item.reorder_level})`;
+          await run(
+            'INSERT INTO notification_log (tenant_id, user_id, notification_type, title, message, channel) VALUES ($1, NULL, $2, $3, $4, $5)',
+            [session.tenant_id, 'low_stock', 'Low Stock Alert', message, 'in_app']
+          );
+        }
+      } catch (_) {}
+
       return txn;
     });
     return NextResponse.json({ id: result.id }, { status: 201 });

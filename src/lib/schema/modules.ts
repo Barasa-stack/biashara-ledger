@@ -10,6 +10,7 @@ export async function initInventoryModule() {
       sku TEXT DEFAULT '',
       category TEXT DEFAULT '',
       category_id UUID,
+      barcode TEXT DEFAULT '',
       unit_of_measure TEXT DEFAULT 'pcs',
       purchase_uom TEXT DEFAULT '',
       sale_uom TEXT DEFAULT '',
@@ -54,18 +55,7 @@ export async function initInventoryModule() {
     );
   `);
 
-  await safeExec(`
-    CREATE TABLE IF NOT EXISTS public.unit_conversions (
-      tenant_id UUID NOT NULL REFERENCES public.tenants(id),
-      id UUID DEFAULT gen_random_uuid(),
-      item_id UUID NOT NULL,
-      from_uom TEXT NOT NULL DEFAULT '',
-      to_uom TEXT NOT NULL DEFAULT '',
-      conversion_factor REAL NOT NULL DEFAULT 1,
-      created_at TIMESTAMP DEFAULT NOW(),
-      PRIMARY KEY (tenant_id, id)
-    );
-  `);
+  await safeExec(`DROP TABLE IF EXISTS public.unit_conversions`);
 }
 
 export async function initFinancialModule() {

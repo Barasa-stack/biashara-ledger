@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       const computedSubtotal = Number(body.subtotal) || (Number(body.quantity || 1) * Number(body.unit_price || 0));
       const computedTaxVat = body.tax_vat !== undefined ? Number(body.tax_vat) : (computedSubtotal * vatRate / 100);
       const computedAmount = computedSubtotal + computedTaxVat - (Number(body.discounts) || 0);
-      return await insertReturning<{ id: string }>(
+      const inserted = await insertReturning<{ id: string }>(
         `INSERT INTO sales_invoices (tenant_id, invoice_number, quotation_id, customer_id, customer_name, description, quantity, unit_price, subtotal, tax_vat, discounts, amount, payment_terms, status, issue_date, due_date, items, customer_country, vat_rate, idempotency_key)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
         [session.tenant_id, invNumber, body.quotation_id || null, body.customer_id,
@@ -150,6 +150,31 @@ export async function POST(request: Request) {
           body.status || 'unpaid', body.issue_date || new Date().toISOString().split('T')[0], body.due_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], itemsJson,
           countryCode, vatRate, idempotencyKey]
       );
+
+      // Auto-deduct inventory if status is not draft
+      const invoiceStatus = body.status || 'unpaid';
+      if (invoiceStatus !== 'draft') {
+        let lineItems: any[] = [];
+        try { lineItems = typeof body.items === 'string' ? JSON.parse(body.items) : (Array.isArray(body.items) ? body.items : []); } catch {}
+        const today = new Date().toISOString().split('T')[0];
+        for (const li of lineItems) {
+          if (!li.item_id) continue;
+          const invItem = await get('SELECT current_stock FROM inventory_items WHERE id=$1', [li.item_id]) as any;
+          if (!invItem) continue;
+          const qty = Number(li.quantity) || 0;
+          const cost = Number(li.unit_price) || 0;
+          const total = qty * cost;
+          const newQty = Math.max(0, Number(invItem.current_stock) - qty);
+          await run('UPDATE inventory_items SET current_stock=$1 WHERE id=$2', [newQty, li.item_id]);
+          await run(
+            `INSERT INTO inventory_transactions (tenant_id, item_id, transaction_type, quantity, unit_cost, total_cost, reference_type, reference_id, transaction_date, notes)
+             VALUES ($1, $2, 'SALE', $3, $4, $5, 'invoice', $6, $7, '')`,
+            [session.tenant_id, li.item_id, qty, cost, total, inserted.id, today]
+          );
+        }
+      }
+
+      return { id: inserted.id };
     });
     if (!result || result.duplicate) {
       return NextResponse.json({ id: result?.id, duplicate: true }, { status: result?.duplicate ? 200 : 201 });

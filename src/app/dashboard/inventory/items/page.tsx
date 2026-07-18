@@ -8,23 +8,7 @@ import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import FieldTooltip from '@/components/FieldTooltip';
 import InventoryOnboarding from '@/components/InventoryOnboarding';
-
-type InventoryItem = {
-  id: string;
-  item_name: string;
-  sku: string;
-  category: string;
-  category_id: string;
-  unit_of_measure: string;
-  purchase_uom: string;
-  sale_uom: string;
-  opening_stock: number;
-  current_stock: number;
-  unit_cost: number;
-  reorder_level: number;
-  custom_fields: Record<string, any>;
-  created_at: string;
-};
+import type { InventoryItem, Category } from '@/types/inventory';
 
 type Category = {
   id: string;

@@ -69,6 +69,29 @@ export async function POST(request: Request) {
         // Update invoice: only paid_amount and status — amount stays at original total
         await client.query('UPDATE sales_invoices SET paid_amount=$1, status=$2 WHERE id=$3', [totalPaid, newStatus, invoice.id]);
 
+        // Auto-deduct inventory for each line item with an item_id
+        let lineItems: any[] = [];
+        try { lineItems = typeof invoice.items === 'string' ? JSON.parse(invoice.items) : (Array.isArray(invoice.items) ? invoice.items : []); } catch {}
+        for (const li of lineItems) {
+          if (!li.item_id) continue;
+          const invRes = await client.query(
+            'SELECT current_stock, unit_cost FROM inventory_items WHERE id=$1 FOR UPDATE',
+            [li.item_id]
+          );
+          const invItem = invRes.rows[0] as any;
+          if (!invItem) continue;
+          const qty = Number(li.quantity) || 0;
+          const cost = Number(li.unit_price) || 0;
+          const total = qty * cost;
+          const newQty = Math.max(0, Number(invItem.current_stock) - qty);
+          await client.query('UPDATE inventory_items SET current_stock=$1 WHERE id=$2', [newQty, li.item_id]);
+          await client.query(
+            `INSERT INTO inventory_transactions (tenant_id, item_id, transaction_type, quantity, unit_cost, total_cost, reference_type, reference_id, transaction_date, notes)
+             VALUES ($1, $2, 'SALE', $3, $4, $5, 'invoice', $6, $7, '')`,
+            [session.tenant_id, li.item_id, qty, cost, total, invoice.id, today]
+          );
+        }
+
         return { invoice, customer, company, today, paidAmount, remaining: newRemaining, newStatus };
       });
     });

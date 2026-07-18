@@ -129,7 +129,6 @@ export async function initConstraints() {
     { table: 'approval_requests', column: 'approved_by', ref: 'users(id)', name: 'fk_ar_approver' },
     { table: 'categories', column: 'parent_id', ref: 'categories(id)', name: 'fk_cat_parent' },
     { table: 'inventory_items', column: 'category_id', ref: 'categories(id)', name: 'fk_item_category' },
-    { table: 'unit_conversions', column: 'item_id', ref: 'inventory_items(id)', name: 'fk_uc_item' },
   ];
   for (const { table, column, ref, name } of fkConstraints) {
     try {

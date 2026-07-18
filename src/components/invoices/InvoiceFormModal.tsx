@@ -23,9 +23,11 @@ export function InvoiceFormModal({ open, editing, customers, quotations, vatRate
   const [form, setForm] = useState<InvoiceForm>(emptyForm);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
 
   useEffect(() => {
     if (!open) return;
+    fetch('/api/inventory/items').then(r => r.ok && r.json()).then(d => setInventoryItems(Array.isArray(d) ? d : [])).catch(() => {});
     if (editing) {
       let items: LineItem[] = [];
       try {
@@ -204,8 +206,30 @@ export function InvoiceFormModal({ open, editing, customers, quotations, vatRate
               </div>
             ) : (
               <div className="space-y-2">
-                {lineItems.map((item, idx) => (
+                  {lineItems.map((item, idx) => (
                   <div key={idx} className="flex items-start gap-2 bg-surface/50 p-2 rounded-lg border border-border">
+                    <div className="w-40 shrink-0">
+                      <select
+                        value={item.item_id || ''}
+                        onChange={e => {
+                          const invItem = inventoryItems.find((i: any) => String(i.id) === e.target.value);
+                          const next = [...lineItems];
+                          if (invItem) {
+                            next[idx] = { ...next[idx], item_id: invItem.id, description: invItem.item_name || '', unit_price: Number(invItem.unit_cost) || 0 };
+                          } else {
+                            next[idx] = { ...next[idx], item_id: undefined };
+                          }
+                          setLineItems(next);
+                          setForm(prev => recalc(prev, next));
+                        }}
+                        className="w-full border border-border bg-white rounded-md px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand"
+                      >
+                        <option value="">-- Select item --</option>
+                        {inventoryItems.map((inv: any) => (
+                          <option key={inv.id} value={inv.id}>{inv.item_name} ({inv.sku || 'no SKU'})</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <input
                         type="text"

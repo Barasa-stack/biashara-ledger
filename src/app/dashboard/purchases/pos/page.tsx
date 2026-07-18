@@ -13,6 +13,7 @@ type PO = {
   po_number: string;
   client_id: string;
   client_name: string;
+  item_id: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -21,6 +22,12 @@ type PO = {
   status: string;
   issue_date: string;
   created_at: string;
+};
+
+type InventoryItem = {
+  id: string;
+  item_name: string;
+  sku: string;
 };
 
 type Client = {
@@ -32,6 +39,7 @@ const emptyForm = {
   po_number: '',
   client_id: '',
   client_name: '',
+  item_id: '',
   description: '',
   quantity: 1,
   unit_price: 0,
@@ -49,6 +57,7 @@ const STATUSES = ['Draft', 'Approved', 'Sent', 'Partial', 'Received', 'Cancelled
 export default function PurchaseOrdersPage() {
   const [pos, setPos] = useState<PO[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -79,7 +88,13 @@ export default function PurchaseOrdersPage() {
       .then(setClients)
       .catch(() => {});
 
-  useEffect(() => { fetchPOs(); fetchClients(); }, []);
+  const fetchInventoryItems = () =>
+    fetchWithAuth('/api/inventory/items')
+      .then(r => r.ok ? r.json() : [])
+      .then(setInventoryItems)
+      .catch(() => {});
+
+  useEffect(() => { fetchPOs(); fetchClients(); fetchInventoryItems(); }, []);
 
   const filteredPos = useMemo(() => {
     let list = [...pos];
@@ -118,6 +133,7 @@ export default function PurchaseOrdersPage() {
       po_number: po.po_number,
       client_id: po.client_id,
       client_name: po.client_name,
+      item_id: po.item_id || '',
       description: po.description,
       quantity: po.quantity,
       unit_price: po.unit_price,
@@ -340,6 +356,19 @@ export default function PurchaseOrdersPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Client Name" value={form.client_name} onChange={set('client_name')} />
                 <Field label="Item/Service Description" value={form.description} onChange={set('description')} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Inventory Item (optional)</label>
+                <select
+                  value={form.item_id}
+                  onChange={e => set('item_id')(e.target.value)}
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                >
+                  <option value="">Not an inventory item</option>
+                  {inventoryItems.map(item => (
+                    <option key={item.id} value={item.id}>{item.item_name} ({item.sku})</option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Field label="Quantity" value={String(form.quantity)} onChange={v => set('quantity')(Number(v) || 0)} type="number" />

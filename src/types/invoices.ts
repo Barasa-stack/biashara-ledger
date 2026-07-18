@@ -34,6 +34,7 @@ export type LineItem = {
   description: string;
   quantity: number;
   unit_price: number;
+  item_id?: string;
 };
 
 export type Quotation = {

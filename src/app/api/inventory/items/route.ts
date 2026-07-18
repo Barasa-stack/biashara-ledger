@@ -55,9 +55,9 @@ export async function POST(request: Request) {
       const sku = body.sku || await generateSku(session.tenant_id!, body.category || '');
 
       return await insertReturning<{ id: string }>(
-        `INSERT INTO inventory_items (tenant_id, item_name, sku, category, category_id, unit_of_measure, purchase_uom, sale_uom, opening_stock, current_stock, unit_cost, reorder_level, custom_fields) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-        [session.tenant_id, body.item_name || '', sku, body.category || '', body.category_id || null, body.unit_of_measure || 'pcs',
+        `INSERT INTO inventory_items (tenant_id, item_name, sku, barcode, category, category_id, unit_of_measure, purchase_uom, sale_uom, opening_stock, current_stock, unit_cost, reorder_level, custom_fields) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+        [session.tenant_id, body.item_name || '', sku, body.barcode || '', body.category || '', body.category_id || null, body.unit_of_measure || 'pcs',
          body.purchase_uom || '', body.sale_uom || '',
          openingStock, openingStock, unitCost, Number(body.reorder_level) || 0,
          JSON.stringify(body.custom_fields || {})]
@@ -83,6 +83,14 @@ export async function PUT(request: Request) {
         [body.id]
       ) as { opening_stock: number; current_stock: number } | undefined;
 
+      if (body.sku) {
+        const dup = await get(
+          'SELECT id FROM inventory_items WHERE tenant_id=$1 AND sku=$2 AND id!=$3',
+          [session.tenant_id, body.sku, body.id]
+        );
+        if (dup) throw new Error('DUPLICATE_SKU');
+      }
+
       let newCurrent = Number(body.current_stock) ?? Number(body.opening_stock) ?? 0;
       if (existing) {
         const diff = (Number(body.opening_stock) || 0) - (existing.opening_stock || 0);
@@ -92,8 +100,8 @@ export async function PUT(request: Request) {
       const sku = body.sku || await generateSku(session.tenant_id!, body.category || '');
 
       await run(
-        `UPDATE inventory_items SET item_name=$1, sku=$2, category=$3, category_id=$4, unit_of_measure=$5, purchase_uom=$6, sale_uom=$7, unit_cost=$8, opening_stock=$9, current_stock=$10, reorder_level=$11, custom_fields=$12 WHERE id=$13`,
-        [body.item_name || '', sku, body.category || '', body.category_id || null,
+        `UPDATE inventory_items SET item_name=$1, sku=$2, barcode=$3, category=$4, category_id=$5, unit_of_measure=$6, purchase_uom=$7, sale_uom=$8, unit_cost=$9, opening_stock=$10, current_stock=$11, reorder_level=$12, custom_fields=$13 WHERE id=$14`,
+        [body.item_name || '', sku, body.barcode || '', body.category || '', body.category_id || null,
          body.unit_of_measure || 'pcs', body.purchase_uom || '', body.sale_uom || '',
          Number(body.unit_cost) || 0, Number(body.opening_stock) || 0, newCurrent,
          Number(body.reorder_level) || 0, JSON.stringify(body.custom_fields || {}), body.id]
@@ -103,6 +111,7 @@ export async function PUT(request: Request) {
   } catch (e: any) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (msg === 'DUPLICATE_SKU') return NextResponse.json({ error: 'An item with this SKU already exists' }, { status: 409 });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
@@ -124,50 +133,6 @@ export async function DELETE(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
-  try {
-    const session = await getSessionFromCookies();
-    if (!session) throw new Error('Unauthorized');
-    const body = await request.json();
-    const url = new URL(request.url);
-    const isBulk = url.pathname.endsWith('/bulk');
-
-    if (isBulk) {
-      const items = body.items || [];
-      let added = 0, skipped = 0;
-      const errors: { item: string; error: string }[] = [];
-      for (const item of items) {
-        try {
-          await withTenantContext(session.tenant_id!, async () => {
-            const existing = await get(
-              'SELECT id FROM inventory_items WHERE tenant_id=$1 AND item_name=$2',
-              [session.tenant_id, item.item_name || '']
-            );
-            if (existing) { skipped++; return; }
-            const sku = item.sku || await generateSku(session.tenant_id!, item.category || '');
-            const unitCost = Number(item.unit_cost) || 0;
-            const openingStock = Number(item.opening_stock) || 0;
-            await insertReturning(
-              `INSERT INTO inventory_items (tenant_id, item_name, sku, category, category_id, unit_of_measure, purchase_uom, sale_uom, opening_stock, current_stock, unit_cost, reorder_level, custom_fields) 
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-              [session.tenant_id, item.item_name || '', sku, item.category || '', item.category_id || null, item.unit_of_measure || 'pcs',
-               item.purchase_uom || '', item.sale_uom || '',
-               openingStock, openingStock, unitCost, Number(item.reorder_level) || 0,
-               JSON.stringify(item.custom_fields || {})]
-            );
-            added++;
-          });
-        } catch (e: any) {
-          errors.push({ item: item.item_name || 'unknown', error: e.message });
-        }
-      }
-      return NextResponse.json({ added, skipped, errors });
-    }
-
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  } catch (e: any) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
+export async function PATCH() {
+  return NextResponse.json({ error: 'Not found' }, { status: 404 });
 }

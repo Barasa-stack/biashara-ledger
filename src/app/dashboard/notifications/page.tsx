@@ -24,6 +24,7 @@ type NotificationSettings = {
   expense_events: boolean;
   customer_events: boolean;
   approval_events: boolean;
+  low_stock_alerts: boolean;
 };
 
 type NotificationsResponse = {
@@ -40,6 +41,7 @@ const defaultSettings: NotificationSettings = {
   expense_events: true,
   customer_events: false,
   approval_events: true,
+  low_stock_alerts: true,
 };
 
 export default function NotificationsPage() {
@@ -216,6 +218,10 @@ export default function NotificationsPage() {
               <label className="flex items-center gap-2 p-2 border border-border rounded-lg cursor-pointer hover:bg-surface transition-colors">
                 <input type="checkbox" checked={settings.approval_events} onChange={() => toggleSetting('approval_events')} className="rounded border-border text-brand focus:ring-brand" />
                 <span className="text-sm text-gray-700">Approval Events</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 border border-border rounded-lg cursor-pointer hover:bg-surface transition-colors">
+                <input type="checkbox" checked={settings.low_stock_alerts} onChange={() => toggleSetting('low_stock_alerts')} className="rounded border-border text-brand focus:ring-brand" />
+                <span className="text-sm text-gray-700">Low Stock Alerts</span>
               </label>
             </div>
           </div>

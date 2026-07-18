@@ -78,6 +78,7 @@ const navItems: NavItem[] = [
     children: [
       { href: '/dashboard/inventory/items', label: 'Stock Items' },
       { href: '/dashboard/inventory/transactions', label: 'Stock Movements' },
+      { href: '/dashboard/inventory/settings', label: 'Inventory Settings' },
     ],
   },
   { href: '/dashboard/other-transactions', label: 'Other Income/Expenses', icon: ArrowRightLeft, moduleKey: 'core-accounting' },
