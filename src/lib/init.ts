@@ -316,6 +316,13 @@ export async function ensureDbInitialized() {
         },
       },
       {
+        name: '2024-10-category-columns',
+        run: async () => {
+          try { await exec(`ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS industry TEXT DEFAULT ''`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+          try { await exec(`ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+        },
+      },
+      {
         name: '2024-09-indexes',
         run: async () => {
           const allIndexNames = Object.keys(indexStatements);

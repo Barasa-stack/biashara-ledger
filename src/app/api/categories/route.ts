@@ -44,6 +44,8 @@ export async function GET(request: Request) {
               PRIMARY KEY (tenant_id, id)
             )
           `);
+          try { await exec(`ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS industry TEXT DEFAULT ''`); } catch {}
+          try { await exec(`ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true`); } catch {}
           try {
             await exec(`ALTER TABLE public.categories ADD CONSTRAINT fk_cat_parent FOREIGN KEY (parent_id) REFERENCES public.categories(id) ON DELETE SET NULL`);
           } catch {}
@@ -95,6 +97,8 @@ export async function POST(request: Request) {
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
     const body = await request.json();
+    try { await exec(`ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS industry TEXT DEFAULT ''`); } catch {}
+    try { await exec(`ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true`); } catch {}
     await ensureCategoryUniqueConstraint();
     const result = await withTenantContext(session.tenant_id!, async () => {
       const dup = await get(
@@ -142,6 +146,7 @@ export async function PATCH(request: Request) {
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
     const body = await request.json();
+    try { await exec(`ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true`); } catch {}
     await withTenantContext(session.tenant_id!, async () => {
       if (body.id && body.active !== undefined) {
         await run('UPDATE categories SET active=$1 WHERE id=$2', [body.active ? true : false, body.id]);
