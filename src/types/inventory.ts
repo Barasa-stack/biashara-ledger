@@ -3,7 +3,6 @@ export type InventoryItem = {
   item_name: string;
   sku: string;
   barcode: string;
-  industry: string;
   category: string;
   category_id: string;
   categories: { id: string; name: string }[];
@@ -22,6 +21,8 @@ export type Category = {
   id: string;
   name: string;
   parent_id: string | null;
+  active?: boolean;
+  industry?: string;
 };
 
 export type Transaction = {

@@ -38,9 +38,9 @@ export async function PATCH(request: Request) {
           const catArr = item.categories || (item.category_id ? [{ id: item.category_id, name: item.category }] : []);
           const firstCat = catArr[0] || {};
           await insertReturning(
-            `INSERT INTO inventory_items (tenant_id, item_name, sku, barcode, industry, category, category_id, categories, unit_of_measure, purchase_uom, sale_uom, opening_stock, current_stock, unit_cost, reorder_level, custom_fields) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
-            [session.tenant_id, item.item_name || '', sku, item.barcode || '', item.industry || '', firstCat.name || '', firstCat.id || null, JSON.stringify(catArr), item.unit_of_measure || 'pcs',
+            `INSERT INTO inventory_items (tenant_id, item_name, sku, barcode, category, category_id, categories, unit_of_measure, purchase_uom, sale_uom, opening_stock, current_stock, unit_cost, reorder_level, custom_fields) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+            [session.tenant_id, item.item_name || '', sku, item.barcode || '', firstCat.name || '', firstCat.id || null, JSON.stringify(catArr), item.unit_of_measure || 'pcs',
              item.purchase_uom || '', item.sale_uom || '',
              openingStock, openingStock, unitCost, Number(item.reorder_level) || 0,
              JSON.stringify(item.custom_fields || {})]

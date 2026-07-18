@@ -11,7 +11,6 @@ export async function initInventoryModule() {
       category TEXT DEFAULT '',
       category_id UUID,
       barcode TEXT DEFAULT '',
-      industry TEXT DEFAULT '',
       unit_of_measure TEXT DEFAULT 'pcs',
       purchase_uom TEXT DEFAULT '',
       sale_uom TEXT DEFAULT '',
@@ -32,8 +31,8 @@ export async function initInventoryModule() {
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
       name TEXT NOT NULL DEFAULT '',
-      industry TEXT DEFAULT '',
-      parent_id UUID,
+      parent_id UUID DEFAULT NULL,
+      active BOOLEAN DEFAULT true,
       sort_order INT DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (tenant_id, id)

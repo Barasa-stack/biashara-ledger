@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Tags, Trash2, Pencil } from 'lucide-react';
-import { useConfirm } from '@/components/ConfirmDialog';
+import { Tags, CheckCircle, XCircle } from 'lucide-react';
 import { getIndustryPreset, getAllIndustryKeys } from '@/lib/industry-presets';
 
 function Section({ icon: Icon, title, desc, children }: { icon: any; title: string; desc?: string; children: React.ReactNode }) {
@@ -29,16 +28,40 @@ export default function InventorySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [fetched, setFetched] = useState(false);
-  const [editingCatId, setEditingCatId] = useState<string | null>(null);
-  const [editingCatName, setEditingCatName] = useState('');
-  const [addingUnder, setAddingUnder] = useState<string | null>(null);
-  const [newCatName, setNewCatName] = useState('');
-  const { confirm, dialog } = useConfirm();
+  const [togglingCat, setTogglingCat] = useState<string | null>(null);
 
-  function buildTree(parentId: string | null = null): any[] {
+  async function toggleActive(cat: any) {
+    setTogglingCat(cat.id);
+    try {
+      await fetch('/api/categories', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: cat.id, active: !cat.active }),
+      });
+      setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, active: !c.active } : c));
+    } catch {}
+    setTogglingCat(null);
+  }
+
+  function renderCheckboxTree(parentId: string | null, depth: number): React.ReactNode {
     return categories
       .filter(c => (c.parent_id || null) === parentId)
-      .map(c => ({ ...c, children: buildTree(c.id) }));
+      .map(cat => (
+        <div key={cat.id}>
+          <label className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 text-sm ${!cat.active ? 'opacity-50' : ''}`}
+            style={{ paddingLeft: `${8 + depth * 20}px` }}>
+            <input type="checkbox" checked={cat.active !== false}
+              onChange={() => toggleActive(cat)}
+              disabled={togglingCat === cat.id}
+              className="rounded border-gray-300 text-brand focus:ring-brand" />
+            <span className="text-gray-700">{cat.name}</span>
+            {cat.industry && (
+              <span className="text-[10px] text-gray-400 ml-1">({cat.industry})</span>
+            )}
+          </label>
+          {renderCheckboxTree(cat.id, depth + 1)}
+        </div>
+      ));
   }
 
   const fetchCompany = () => {
@@ -197,91 +220,34 @@ export default function InventorySettingsPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Categories</label>
-                <button onClick={() => { setAddingUnder('__root__'); setNewCatName(''); }} className="text-xs text-brand font-medium hover:underline">+ Add Category</button>
+                <p className="text-xs text-gray-400">Tick the categories you stock. Unticked categories won't appear when adding items.</p>
               </div>
-
-              {(() => {
-                const tree = buildTree(null);
-                if (tree.length === 0 && addingUnder !== '__root__') {
-                  return <p className="text-xs text-gray-400 text-center py-4">No categories. Select an industry above or add one manually.</p>;
-                }
-
-                const renderNode = (node: any, depth: number) => {
-                  const isEditing = editingCatId === node.id;
-                  const isAdding = addingUnder === node.id;
-                  return (
-                    <div key={node.id}>
-                      <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-50 group" style={{ paddingLeft: `${8 + depth * 20}px` }}>
-                        {isEditing ? (
-                          <div className="flex items-center gap-2 flex-1">
-                            <input value={editingCatName} onChange={e => setEditingCatName(e.target.value)}
-                              className="flex-1 border border-border rounded px-2 py-1 text-sm bg-white" autoFocus />
-                            <button onClick={async () => {
-                              if (!editingCatName.trim()) return;
-                              await fetch('/api/categories', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: node.id, name: editingCatName, parent_id: node.parent_id }) });
-                              setEditingCatId(null);
-                              fetchCategories();
-                            }} className="px-2 py-1 bg-brand text-white text-xs rounded-lg font-medium">Save</button>
-                            <button onClick={() => setEditingCatId(null)} className="text-xs text-gray-500">Cancel</button>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="text-sm text-gray-700">{node.name}</span>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                              <button onClick={() => { setEditingCatId(node.id); setEditingCatName(node.name); }} className="p-0.5 hover:text-brand"><Pencil className="h-3 w-3" /></button>
-                              <button onClick={async () => {
-                                if (!await confirm(`Delete "${node.name}"?`)) return;
-                                await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: node.id }) });
-                                fetchCategories();
-                              }} className="p-0.5 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
-                              <button onClick={() => { setAddingUnder(node.id); setNewCatName(''); }} className="p-0.5 hover:text-brand text-xs font-medium">+sub</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      {isAdding && (
-                        <div className="flex items-center gap-2 py-1 px-2" style={{ paddingLeft: `${8 + (depth + 1) * 20}px` }}>
-                          <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
-                            placeholder="Subcategory name" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-white" autoFocus />
-                          <button onClick={async () => {
-                            if (!newCatName.trim()) return;
-                            await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCatName, parent_id: node.id }) });
-                            setAddingUnder(null);
-                            fetchCategories();
-                          }} className="px-2 py-1 bg-brand text-white text-xs rounded-lg font-medium">Add</button>
-                          <button onClick={() => setAddingUnder(null)} className="text-xs text-gray-500">Cancel</button>
-                        </div>
-                      )}
-                      {node.children.map((child: any) => renderNode(child, depth + 1))}
-                    </div>
-                  );
-                };
-
-                return (
-                  <div className="max-h-64 overflow-y-auto border border-border rounded-lg p-2">
-                    {addingUnder === '__root__' && (
-                      <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: '8px' }}>
-                        <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
-                          placeholder="Category name" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-white" autoFocus />
-                        <button onClick={async () => {
-                          if (!newCatName.trim()) return;
-                          await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCatName }) });
-                          setAddingUnder(null);
-                          fetchCategories();
-                        }} className="px-2 py-1 bg-brand text-white text-xs rounded-lg font-medium">Add</button>
-                        <button onClick={() => setAddingUnder(null)} className="text-xs text-gray-500">Cancel</button>
-                      </div>
-                    )}
-                    {tree.map((node: any) => renderNode(node, 0))}
-                  </div>
-                );
-              })()}
+              {industries.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">Select industries above to see their preset categories.</p>
+              ) : categories.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No categories found. Change your industry selection above.</p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto border border-border rounded-lg p-2">
+                  {renderCheckboxTree(null, 0)}
+                </div>
+              )}
+              {categories.filter(c => c.active !== false).length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  {categories.filter(c => c.active !== false).length} active categories — visible when adding items
+                </div>
+              )}
+              {categories.filter(c => c.active === false).length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <XCircle className="h-3 w-3 text-gray-300" />
+                  {categories.filter(c => c.active === false).length} inactive — hidden from item forms
+                </div>
+              )}
             </div>
           </Section>
         </div>
       )}
 
-      {dialog}
     </div>
   );
 }

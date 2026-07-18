@@ -26,7 +26,7 @@ export async function GET() {
           COALESCE(SUM(CASE WHEN t.transaction_type = 'SALE' THEN t.quantity ELSE 0 END), 0) as total_sold
         FROM inventory_items i
         LEFT JOIN inventory_transactions t ON t.item_id = i.id
-        GROUP BY i.tenant_id, i.id, i.item_name, i.sku, i.industry, i.category, i.category_id, i.categories, i.unit_of_measure, i.purchase_uom, i.sale_uom, i.opening_stock, i.current_stock, i.unit_cost, i.reorder_level, i.custom_fields, i.created_at
+        GROUP BY i.tenant_id, i.id, i.item_name, i.sku, i.category, i.category_id, i.categories, i.unit_of_measure, i.purchase_uom, i.sale_uom, i.opening_stock, i.current_stock, i.unit_cost, i.reorder_level, i.custom_fields, i.created_at
         ORDER BY i.item_name
       `);
     });
@@ -57,9 +57,9 @@ export async function POST(request: Request) {
       const catArr = body.categories || (body.category_id ? [{ id: body.category_id, name: body.category }] : []);
       const firstCat = catArr[0] || {};
       return await insertReturning<{ id: string }>(
-        `INSERT INTO inventory_items (tenant_id, item_name, sku, barcode, industry, category, category_id, categories, unit_of_measure, purchase_uom, sale_uom, opening_stock, current_stock, unit_cost, reorder_level, custom_fields) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
-        [session.tenant_id, body.item_name || '', sku, body.barcode || '', body.industry || '', firstCat.name || '', firstCat.id || null, JSON.stringify(catArr), body.unit_of_measure || 'pcs',
+        `INSERT INTO inventory_items (tenant_id, item_name, sku, barcode, category, category_id, categories, unit_of_measure, purchase_uom, sale_uom, opening_stock, current_stock, unit_cost, reorder_level, custom_fields) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+        [session.tenant_id, body.item_name || '', sku, body.barcode || '', firstCat.name || '', firstCat.id || null, JSON.stringify(catArr), body.unit_of_measure || 'pcs',
          body.purchase_uom || '', body.sale_uom || '',
          openingStock, openingStock, unitCost, Number(body.reorder_level) || 0,
          JSON.stringify(body.custom_fields || {})]
@@ -104,8 +104,8 @@ export async function PUT(request: Request) {
       const catArr = body.categories || (body.category_id ? [{ id: body.category_id, name: body.category }] : []);
       const firstCat = catArr[0] || {};
       await run(
-        `UPDATE inventory_items SET item_name=$1, sku=$2, barcode=$3, industry=$4, category=$5, category_id=$6, categories=$7, unit_of_measure=$8, purchase_uom=$9, sale_uom=$10, unit_cost=$11, opening_stock=$12, current_stock=$13, reorder_level=$14, custom_fields=$15 WHERE id=$16`,
-        [body.item_name || '', sku, body.barcode || '', body.industry || '', firstCat.name || '', firstCat.id || null, JSON.stringify(catArr),
+        `UPDATE inventory_items SET item_name=$1, sku=$2, barcode=$3, category=$4, category_id=$5, categories=$6, unit_of_measure=$7, purchase_uom=$8, sale_uom=$9, unit_cost=$10, opening_stock=$11, current_stock=$12, reorder_level=$13, custom_fields=$14 WHERE id=$15`,
+        [body.item_name || '', sku, body.barcode || '', firstCat.name || '', firstCat.id || null, JSON.stringify(catArr),
          body.unit_of_measure || 'pcs', body.purchase_uom || '', body.sale_uom || '',
          Number(body.unit_cost) || 0, Number(body.opening_stock) || 0, newCurrent,
          Number(body.reorder_level) || 0, JSON.stringify(body.custom_fields || {}), body.id]
