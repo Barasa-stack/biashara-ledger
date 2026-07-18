@@ -140,6 +140,13 @@ export async function DELETE(request: Request) {
       const children = await query('SELECT id FROM categories WHERE parent_id=$1 LIMIT 1', [id]);
       if (children.length > 0) throw new Error('Cannot delete category with subcategories');
       await run('UPDATE inventory_items SET category_id=NULL, category=\'\' WHERE category_id=$1', [id]);
+      await run(`
+        UPDATE inventory_items SET categories = (
+          SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+          FROM jsonb_array_elements(categories) AS elem
+          WHERE elem->>'id' <> $1
+        ) WHERE categories @> jsonb_build_array(jsonb_build_object('id', $1::text))
+      `, [id]);
       await run('DELETE FROM categories WHERE id=$1', [id]);
     });
     return NextResponse.json({ success: true });

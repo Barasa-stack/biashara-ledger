@@ -19,6 +19,7 @@ export async function initInventoryModule() {
       current_stock REAL DEFAULT 0,
       unit_cost REAL DEFAULT 0,
       reorder_level REAL DEFAULT 0,
+      categories JSONB DEFAULT '[]',
       custom_fields JSONB DEFAULT '{}',
       created_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (tenant_id, id),

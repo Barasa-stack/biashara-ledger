@@ -6,6 +6,7 @@ export type InventoryItem = {
   industry: string;
   category: string;
   category_id: string;
+  categories: { id: string; name: string }[];
   unit_of_measure: string;
   purchase_uom: string;
   sale_uom: string;

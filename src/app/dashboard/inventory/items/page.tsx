@@ -16,6 +16,7 @@ const emptyForm = {
   industry: '',
   category: '',
   category_id: '',
+  categories: [] as { id: string; name: string }[],
   unit_of_measure: 'pcs',
   purchase_uom: '',
   sale_uom: '',
@@ -129,6 +130,7 @@ export default function InventoryItemsPage() {
       industry: i.industry || '',
       category: i.category,
       category_id: i.category_id || '',
+      categories: i.categories || [],
       unit_of_measure: i.unit_of_measure,
       purchase_uom: i.purchase_uom || '',
       sale_uom: i.sale_uom || '',
@@ -282,7 +284,14 @@ export default function InventoryItemsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{item.sku || '—'}</td>
-                      <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-xs bg-brand/10 text-brand">{item.category || 'Uncategorized'}</span></td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {(item.categories && item.categories.length > 0 ? item.categories : (item.category ? [{ id: item.category_id, name: item.category }] : [])).map(c => (
+                            <span key={c.id} className="px-1.5 py-0.5 rounded text-[11px] bg-brand/10 text-brand">{c.name}</span>
+                          ))}
+                          {(!item.category && (!item.categories || item.categories.length === 0)) && <span className="text-xs text-gray-300">Uncategorized</span>}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-right font-medium">{item.current_stock} {item.unit_of_measure}</td>
                       <td className="px-4 py-3 text-right">{fmtKES(item.unit_cost)}</td>
                       <td className="px-4 py-3 text-right font-medium">{fmtKES((item.current_stock || 0) * (item.unit_cost || 0))}</td>
@@ -351,7 +360,7 @@ export default function InventoryItemsPage() {
                 <div>
                   <label className="block text-xs font-medium text-[#000000] mb-1">Industry<FieldTooltip text="Select which industry this product belongs to. Determines available categories." /></label>
                   <select value={form.industry} onChange={e => {
-                    setForm({ ...form, industry: e.target.value, category_id: '', category: '' });
+                    setForm({ ...form, industry: e.target.value, categories: [], category_id: '', category: '' });
                   }} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white">
                     <option value="">Select industry</option>
                     {tenantIndustries.map(ind => (
@@ -360,39 +369,53 @@ export default function InventoryItemsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#000000] mb-1">Category<FieldTooltip text="Group similar products (e.g., Beverages, Snacks, Cleaning). Used for reports." /></label>
-                  <div className="flex gap-2">
-                    <select value={form.category_id} onChange={e => {
-                      const catId = e.target.value;
-                      const cat = filteredCategories.find(c => c.id === catId);
-                      setForm({ ...form, category_id: catId, category: cat?.name || '' });
-                    }} className="flex-1 border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" disabled={!form.industry}>
-                      <option value="">{form.industry ? 'Select category' : 'Select an industry first'}</option>
-                      {filteredCategories.filter(c => !c.parent_id).length > 0 ? (
-                        filteredCategories.filter(c => !c.parent_id).map(parent => (
-                          <optgroup key={parent.id} label={parent.name}>
-                            {filteredCategories.filter(ch => ch.parent_id === parent.id).map(child => (
-                              <option key={child.id} value={child.id}>— {child.name}</option>
-                            ))}
-                            <option value={parent.id}>{parent.name} (root)</option>
-                          </optgroup>
-                        ))
-                      ) : (
-                        filteredCategories.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))
-                      )}
-                    </select>
-                    {form.industry && !showCategoryInput ? (
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Categories<FieldTooltip text="Tick all categories that apply to this product. Used for reports and filtering." /></label>
+                  <div className="flex items-center gap-2 mb-2">
+                    {form.industry && (
                       <button type="button" onClick={() => { setShowCategoryInput(true); setNewCategoryName(''); setCategoryNameError(''); }}
-                        className="px-2.5 py-2 border border-border rounded-lg text-sm text-brand hover:bg-brand/5 transition-colors" title="Add new category">+</button>
-                    ) : null}
+                        className="text-xs text-brand font-medium hover:underline">+ New Category</button>
+                    )}
+                    {form.categories.length > 0 && (
+                      <button type="button" onClick={() => setForm({ ...form, categories: [], category_id: '', category: '' })}
+                        className="text-xs text-gray-400 hover:text-red-500">Clear all</button>
+                    )}
                   </div>
-                  {form.industry && !showCategoryInput && filteredCategories.length > 0 && (
-                    <p className="text-xs text-gray-400 mt-1">Choose an existing category or click + to create a new one.</p>
-                  )}
-                  {form.industry && !showCategoryInput && filteredCategories.length === 0 && (
-                    <p className="text-xs text-gray-400 mt-1">No categories found for this industry. Click + to add one.</p>
+                  {form.industry ? (
+                    filteredCategories.length > 0 ? (
+                      <div className="max-h-48 overflow-y-auto border border-border rounded-lg p-2 space-y-0.5">
+                        {(() => {
+                          const selectedIds = new Set(form.categories.map(c => c.id));
+                          const toggleCat = (cat: { id: string; name: string }) => {
+                            const next = selectedIds.has(cat.id)
+                              ? form.categories.filter(c => c.id !== cat.id)
+                              : [...form.categories, { id: cat.id, name: cat.name }];
+                            const first = next[0] || {};
+                            setForm({ ...form, categories: next, category_id: first.id || '', category: first.name || '' });
+                          };
+                          const renderCheckbox = (node: any, depth: number) => (
+                            <label key={node.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-gray-50 text-sm`}
+                              style={{ paddingLeft: `${8 + depth * 20}px` }}>
+                              <input type="checkbox" checked={selectedIds.has(node.id)} onChange={() => toggleCat(node)}
+                                className="rounded border-gray-300 text-brand focus:ring-brand" />
+                              <span className="text-gray-700">{node.name}</span>
+                            </label>
+                          );
+                          const tree: any[] = [];
+                          const addChildren = (parentId: string | null, depth: number) => {
+                            filteredCategories.filter(c => (c.parent_id || null) === parentId).forEach(c => {
+                              tree.push(renderCheckbox(c, depth));
+                              addChildren(c.id, depth + 1);
+                            });
+                          };
+                          addChildren(null, 0);
+                          return tree;
+                        })()}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400">No categories found for this industry. Click "+ New Category" to add one.</p>
+                    )
+                  ) : (
+                    <p className="text-xs text-gray-400">Select an industry first to see available categories.</p>
                   )}
                   {showCategoryInput && (
                     <div className="mt-2 p-3 border border-border rounded-lg bg-gray-50 space-y-2">
@@ -437,9 +460,7 @@ export default function InventoryItemsPage() {
                         <button type="button" onClick={() => { setShowCategoryInput(false); setNewCategoryName(''); setCategoryNameError(''); }}
                           className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
                       </div>
-                      {categoryNameError && (
-                        <p className="text-xs text-red-600">{categoryNameError}</p>
-                      )}
+                      {categoryNameError && <p className="text-xs text-red-600">{categoryNameError}</p>}
                       {!categoryNameError && newCategoryName.trim() && !existingCategoryNames.has(newCategoryName.trim().toLowerCase()) && (
                         <p className="text-xs text-green-600">New category — will be created.</p>
                       )}
@@ -588,6 +609,7 @@ export default function InventoryItemsPage() {
                         industry: '',
                         category: product.category,
                         category_id: (product as any)._matchedCatId || '',
+                        categories: (product as any)._matchedCatId ? [{ id: (product as any)._matchedCatId, name: product.category }] : [],
                         unit_of_measure: product.default_uom,
                         purchase_uom: '',
                         sale_uom: '',
