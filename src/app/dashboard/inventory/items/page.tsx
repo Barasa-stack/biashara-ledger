@@ -10,15 +10,10 @@ import FieldTooltip from '@/components/FieldTooltip';
 import InventoryOnboarding from '@/components/InventoryOnboarding';
 import type { InventoryItem, Category } from '@/types/inventory';
 
-type Category = {
-  id: string;
-  name: string;
-  parent_id: string | null;
-};
-
 const emptyForm = {
   item_name: '',
   sku: '',
+  industry: '',
   category: '',
   category_id: '',
   unit_of_measure: 'pcs',
@@ -39,6 +34,7 @@ export default function InventoryItemsPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [customFieldTemplates, setCustomFieldTemplates] = useState<{ name: string; type: string; options?: string[] }[]>([]);
+  const [tenantIndustries, setTenantIndustries] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -64,6 +60,10 @@ export default function InventoryItemsPage() {
   const { toast } = useToast();
 
   const existingCategoryNames = useMemo(() => new Set(categories.map(c => c.name.toLowerCase())), [categories]);
+  const filteredCategories = useMemo(() => {
+    if (!form.industry) return [];
+    return categories.filter(c => !c.industry || c.industry === form.industry);
+  }, [categories, form.industry]);
 
   const fetchItems = () => {
     setLoading(true);
@@ -93,6 +93,7 @@ export default function InventoryItemsPage() {
         if (data.custom_field_templates) {
           setCustomFieldTemplates(data.custom_field_templates);
         }
+        setTenantIndustries(data.industries || []);
       }
     } catch {}
   };
@@ -125,6 +126,7 @@ export default function InventoryItemsPage() {
     setForm({
       item_name: i.item_name,
       sku: i.sku,
+      industry: i.industry || '',
       category: i.category,
       category_id: i.category_id || '',
       unit_of_measure: i.unit_of_measure,
@@ -347,36 +349,50 @@ export default function InventoryItemsPage() {
                   <input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" />
                 </div>
                 <div>
+                  <label className="block text-xs font-medium text-[#000000] mb-1">Industry<FieldTooltip text="Select which industry this product belongs to. Determines available categories." /></label>
+                  <select value={form.industry} onChange={e => {
+                    setForm({ ...form, industry: e.target.value, category_id: '', category: '' });
+                  }} className="w-full border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white">
+                    <option value="">Select industry</option>
+                    {tenantIndustries.map(ind => (
+                      <option key={ind} value={ind}>{ind.charAt(0).toUpperCase() + ind.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-xs font-medium text-[#000000] mb-1">Category<FieldTooltip text="Group similar products (e.g., Beverages, Snacks, Cleaning). Used for reports." /></label>
                   <div className="flex gap-2">
                     <select value={form.category_id} onChange={e => {
                       const catId = e.target.value;
-                      const cat = categories.find(c => c.id === catId);
+                      const cat = filteredCategories.find(c => c.id === catId);
                       setForm({ ...form, category_id: catId, category: cat?.name || '' });
-                    }} className="flex-1 border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white">
-                      <option value="">Select category</option>
-                      {categories.filter(c => !c.parent_id).length > 0 ? (
-                        categories.filter(c => !c.parent_id).map(parent => (
+                    }} className="flex-1 border border-border rounded-lg px-3 py-2 text-sm text-[#000000] bg-white" disabled={!form.industry}>
+                      <option value="">{form.industry ? 'Select category' : 'Select an industry first'}</option>
+                      {filteredCategories.filter(c => !c.parent_id).length > 0 ? (
+                        filteredCategories.filter(c => !c.parent_id).map(parent => (
                           <optgroup key={parent.id} label={parent.name}>
-                            {categories.filter(ch => ch.parent_id === parent.id).map(child => (
+                            {filteredCategories.filter(ch => ch.parent_id === parent.id).map(child => (
                               <option key={child.id} value={child.id}>— {child.name}</option>
                             ))}
                             <option value={parent.id}>{parent.name} (root)</option>
                           </optgroup>
                         ))
                       ) : (
-                        categories.map(c => (
+                        filteredCategories.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))
                       )}
                     </select>
-                    {!showCategoryInput ? (
+                    {form.industry && !showCategoryInput ? (
                       <button type="button" onClick={() => { setShowCategoryInput(true); setNewCategoryName(''); setCategoryNameError(''); }}
                         className="px-2.5 py-2 border border-border rounded-lg text-sm text-brand hover:bg-brand/5 transition-colors" title="Add new category">+</button>
                     ) : null}
                   </div>
-                  {!showCategoryInput && categories.length > 0 && (
+                  {form.industry && !showCategoryInput && filteredCategories.length > 0 && (
                     <p className="text-xs text-gray-400 mt-1">Choose an existing category or click + to create a new one.</p>
+                  )}
+                  {form.industry && !showCategoryInput && filteredCategories.length === 0 && (
+                    <p className="text-xs text-gray-400 mt-1">No categories found for this industry. Click + to add one.</p>
                   )}
                   {showCategoryInput && (
                     <div className="mt-2 p-3 border border-border rounded-lg bg-gray-50 space-y-2">
@@ -400,7 +416,7 @@ export default function InventoryItemsPage() {
                               const res = await fetch('/api/categories', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name: newCategoryName.trim() }),
+                                body: JSON.stringify({ name: newCategoryName.trim(), industry: form.industry }),
                               });
                               if (res.ok) {
                                 await fetchCategories();
@@ -569,6 +585,7 @@ export default function InventoryItemsPage() {
                       payload.push({
                         item_name: product.name,
                         sku: '',
+                        industry: '',
                         category: product.category,
                         category_id: (product as any)._matchedCatId || '',
                         unit_of_measure: product.default_uom,

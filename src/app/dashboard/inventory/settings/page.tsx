@@ -105,7 +105,7 @@ export default function InventorySettingsPage() {
             const res = await fetch('/api/categories', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: cat.name }),
+              body: JSON.stringify({ name: cat.name, industry: ind }),
             });
             if (res.ok) {
               const parent = await res.json();
@@ -113,7 +113,7 @@ export default function InventorySettingsPage() {
                 await fetch('/api/categories', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ name: child.name, parent_id: parent.id }),
+                  body: JSON.stringify({ name: child.name, parent_id: parent.id, industry: ind }),
                 });
               }
             }

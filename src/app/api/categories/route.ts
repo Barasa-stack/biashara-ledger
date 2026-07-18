@@ -13,14 +13,20 @@ async function ensureCategoryUniqueConstraint() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSessionFromCookies();
     if (!session) throw new Error('Unauthorized');
+    const { searchParams } = new URL(request.url);
+    const industryFilter = searchParams.get('industry');
     const data = await withTenantContext(session.tenant_id!, async () => {
       let categories: any[] = [];
       try {
-        categories = await query('SELECT * FROM categories ORDER BY sort_order, name');
+        const sql = industryFilter
+          ? 'SELECT * FROM categories WHERE industry=$1 ORDER BY sort_order, name'
+          : 'SELECT * FROM categories ORDER BY sort_order, name';
+        const params = industryFilter ? [industryFilter] : [];
+        categories = await query(sql, params);
         await ensureCategoryUniqueConstraint();
       } catch {
         await withoutTenantContext(async () => {
@@ -91,8 +97,8 @@ export async function POST(request: Request) {
       );
       if (dup) throw new Error('DUPLICATE_CATEGORY');
       return await insertReturning<{ id: string }>(
-        `INSERT INTO categories (tenant_id, name, parent_id, sort_order) VALUES ($1,$2,$3,$4) RETURNING id`,
-        [session.tenant_id, body.name, body.parent_id || null, body.sort_order || 0]
+        `INSERT INTO categories (tenant_id, name, industry, parent_id, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+        [session.tenant_id, body.name, body.industry || '', body.parent_id || null, body.sort_order || 0]
       );
     });
     return NextResponse.json({ id: result.id }, { status: 201 });
@@ -112,8 +118,8 @@ export async function PUT(request: Request) {
     const body = await request.json();
     await withTenantContext(session.tenant_id!, async () => {
       await run(
-        'UPDATE categories SET name=$1, parent_id=$2, sort_order=$3 WHERE id=$4',
-        [body.name, body.parent_id || null, body.sort_order || 0, body.id]
+        'UPDATE categories SET name=$1, industry=$2, parent_id=$3, sort_order=$4 WHERE id=$5',
+        [body.name, body.industry || '', body.parent_id || null, body.sort_order || 0, body.id]
       );
     });
     return NextResponse.json({ success: true });
