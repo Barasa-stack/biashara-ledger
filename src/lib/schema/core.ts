@@ -538,6 +538,8 @@ export async function initCoreTables() {
     );
 
     ALTER TABLE public.admin_clients ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'basic';
+    ALTER TABLE public.admin_users ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT '';
+    ALTER TABLE public.admin_users ADD COLUMN IF NOT EXISTS two_factor_enabled INTEGER DEFAULT 0;
 
     CREATE TABLE IF NOT EXISTS public.admin_users (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -545,6 +547,8 @@ export async function initCoreTables() {
       password_hash TEXT NOT NULL,
       email VARCHAR(255) NOT NULL,
       role VARCHAR(50) DEFAULT 'admin',
+      tenant_id TEXT DEFAULT '',
+      two_factor_enabled INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 

@@ -71,10 +71,13 @@ export async function POST(req: NextRequest) {
     );
 
     if (!adminUser) {
-      adminUser = await adminGet(
-        'SELECT id, tenant_id, email, password_hash, role, two_factor_enabled FROM admin_users WHERE email = $1 LIMIT 1',
+      const fallback = await adminGet(
+        'SELECT id, email, password_hash, role FROM admin_users WHERE email = $1 LIMIT 1',
         [normalizedEmail]
-      );
+      ) as any;
+      if (fallback) {
+        adminUser = { ...fallback, tenant_id: fallback.id || '', two_factor_enabled: 0 };
+      }
     }
 
     if (!adminUser) {

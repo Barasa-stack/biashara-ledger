@@ -316,6 +316,13 @@ export async function ensureDbInitialized() {
         },
       },
       {
+        name: '2024-09b-admin-user-columns',
+        run: async () => {
+          try { await exec(`ALTER TABLE public.admin_users ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT ''`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+          try { await exec(`ALTER TABLE public.admin_users ADD COLUMN IF NOT EXISTS two_factor_enabled INTEGER DEFAULT 0`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+        },
+      },
+      {
         name: '2024-10-category-columns',
         run: async () => {
           try { await exec(`ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS industry TEXT DEFAULT ''`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
