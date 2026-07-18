@@ -113,6 +113,15 @@ export async function POST(request: Request) {
         sameSite: 'lax',
       });
 
+      // Remember this browser for 3 days to skip OTP on next login
+      response.cookies.set('bl_device_token', crypto.randomUUID(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 3 * 24 * 60 * 60,
+      });
+
       return response;
     }
 

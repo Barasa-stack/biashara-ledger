@@ -6,6 +6,7 @@ import { adminRun as dbAdminRun, adminGet, run, withTenantContext } from '@/lib/
 import { ensureDbInitialized } from '@/lib/init';
 import { normalizePlan } from '@/lib/feature-gate';
 import { sendOTPEmail } from '@/lib/email';
+import { cookies } from 'next/headers';
 
 export async function POST(req: NextRequest) {
   try {
@@ -111,6 +112,61 @@ export async function POST(req: NextRequest) {
       });
     } catch (settingsError) {
       console.warn('Could not ensure company_settings:', settingsError);
+    }
+
+    // Check for trusted device token (cookie set after previous OTP verification)
+    const cookieStore = await cookies();
+    const deviceToken = cookieStore.get('bl_device_token')?.value;
+    if (deviceToken) {
+      // Trusted device — skip OTP, create session directly
+      const ip = req.headers.get('x-forwarded-for') || 'unknown';
+      await withTenantContext(tenantId, async () => {
+        await run(`DELETE FROM sessions WHERE user_id = $1`, [user.id]);
+        await run(`UPDATE users SET last_login = NOW(), last_ip = $1 WHERE id = $2`, [ip, user.id]);
+      });
+
+      const sessionToken = crypto.randomUUID();
+      const sessionId = Math.floor(Math.random() * 2147483647) + 1;
+      const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      await withTenantContext(tenantId, async () => {
+        await run(
+          'INSERT INTO sessions (id, tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4, $5)',
+          [sessionId, tenantId, user.id, sessionToken, sessionExpiresAt]
+        );
+      });
+
+      const displayName = user.first_name || user.last_name || '';
+      const subPlan = normalizePlan(user.subscription_plan || 'trial');
+      const subStatus = user.license_status === 'active' ? 'active' : user.subscription_status || 'active';
+      const country = user.country || 'KE';
+
+      const response = NextResponse.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: displayName,
+          tenantId,
+          subscriptionPlan: subPlan,
+          subscriptionStatus: subStatus,
+          country,
+        },
+      });
+
+      response.cookies.set('bl_session', sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+      });
+
+      response.cookies.set('user_plan', subPlan, {
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+        sameSite: 'lax',
+      });
+
+      return response;
     }
 
     // Generate and send OTP for mandatory 2FA
