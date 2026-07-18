@@ -29,8 +29,6 @@ export async function GET(request: Request) {
         if (activeFilter === 'true') { conditions.push('active=true'); }
         const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
         categories = await query(`SELECT * FROM categories ${where} ORDER BY sort_order, name`, params);
-        categories = await query(sql, params);
-        await ensureCategoryUniqueConstraint();
       } catch {
         await withoutTenantContext(async () => {
           await exec(`
@@ -39,6 +37,8 @@ export async function GET(request: Request) {
               id UUID DEFAULT gen_random_uuid(),
               name TEXT NOT NULL DEFAULT '',
               parent_id UUID,
+              industry TEXT DEFAULT '',
+              active BOOLEAN DEFAULT true,
               sort_order INT DEFAULT 0,
               created_at TIMESTAMP DEFAULT NOW(),
               PRIMARY KEY (tenant_id, id)
@@ -55,26 +55,29 @@ export async function GET(request: Request) {
           presetIndustries = settings?.industries || ['general'];
           if (typeof presetIndustries === 'string') presetIndustries = [presetIndustries];
         } catch { presetIndustries = ['general']; }
-        const preset = getMergedIndustryPreset(presetIndustries);
-        for (const cat of preset.categories) {
-          const parentRes = await run(
-            `INSERT INTO categories (tenant_id, name, sort_order) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
-            [session.tenant_id, cat.name, 0]
-          );
-          if (cat.children) {
-            for (let i = 0; i < cat.children.length; i++) {
-              const child = cat.children[i];
-              const parentRow = await query(`SELECT id FROM categories WHERE tenant_id=$1 AND name=$2 LIMIT 1`, [session.tenant_id, cat.name]);
-              if (parentRow.length > 0) {
-                await run(
-                  `INSERT INTO categories (tenant_id, name, parent_id, sort_order) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
-                  [session.tenant_id, child.name, parentRow[0].id, i + 1]
-                );
+        categories = await query('SELECT * FROM categories ORDER BY sort_order, name');
+        if (categories.length === 0) {
+          const preset = getMergedIndustryPreset(presetIndustries);
+          for (const cat of preset.categories) {
+            await run(
+              `INSERT INTO categories (tenant_id, name, industry, sort_order) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+              [session.tenant_id, cat.name, 'general', 0]
+            );
+            if (cat.children) {
+              for (let i = 0; i < cat.children.length; i++) {
+                const child = cat.children[i];
+                const parentRow = await query(`SELECT id FROM categories WHERE tenant_id=$1 AND name=$2 LIMIT 1`, [session.tenant_id, cat.name]);
+                if (parentRow.length > 0) {
+                  await run(
+                    `INSERT INTO categories (tenant_id, name, parent_id, industry, sort_order) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+                    [session.tenant_id, child.name, parentRow[0].id, 'general', i + 1]
+                  );
+                }
               }
             }
           }
+          categories = await query('SELECT * FROM categories ORDER BY sort_order, name');
         }
-        categories = await query('SELECT * FROM categories ORDER BY sort_order, name');
       }
       return { categories, presets: Object.fromEntries(getAllIndustryKeys().map(k => [k, getIndustryPreset(k)])) };
     });
