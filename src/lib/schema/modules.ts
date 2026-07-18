@@ -458,6 +458,8 @@ export async function initSystemModule() {
   await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'`);
   await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS purchase_uom TEXT DEFAULT ''`);
   await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS sale_uom TEXT DEFAULT ''`);
+  await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS categories JSONB DEFAULT '[]'`);
+  await safeExec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS barcode TEXT DEFAULT ''`);
 
   await safeExec(`
     CREATE TABLE IF NOT EXISTS public.recurring_templates (

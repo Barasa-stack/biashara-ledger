@@ -323,6 +323,48 @@ export async function ensureDbInitialized() {
         },
       },
       {
+        name: '2024-10b-inventory-item-columns',
+        run: async () => {
+          try { await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS categories JSONB DEFAULT '[]'`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+          try { await exec(`ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS barcode TEXT DEFAULT ''`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+        },
+      },
+      {
+        name: '2024-11-inventory-settings-schema',
+        run: async () => {
+          try { await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS industries TEXT[] DEFAULT '{}'`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+          try { await exec(`ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS custom_field_templates JSONB DEFAULT '[]'`); } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+          try {
+            await exec(`
+              DO $$
+              BEGIN
+                IF NOT EXISTS (
+                  SELECT 1 FROM pg_constraint
+                  WHERE conname = 'categories_tenant_name_unique'
+                  AND conrelid = 'categories'::regclass
+                ) THEN
+                  ALTER TABLE public.categories ADD CONSTRAINT categories_tenant_name_unique UNIQUE (tenant_id, name);
+                END IF;
+              END $$;
+            `);
+          } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+          try {
+            await exec(`
+              DO $$
+              BEGIN
+                IF NOT EXISTS (
+                  SELECT 1 FROM pg_constraint
+                  WHERE conname = 'fk_cat_parent'
+                  AND conrelid = 'categories'::regclass
+                ) THEN
+                  ALTER TABLE public.categories ADD CONSTRAINT fk_cat_parent FOREIGN KEY (parent_id) REFERENCES public.categories(id) ON DELETE SET NULL;
+                END IF;
+              END $$;
+            `);
+          } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+        },
+      },
+      {
         name: '2024-09-indexes',
         run: async () => {
           const allIndexNames = Object.keys(indexStatements);
