@@ -29,9 +29,17 @@ export default function InventorySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [fetched, setFetched] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<any>(null);
-  const [catForm, setCatForm] = useState({ name: '', parent_id: '' });
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingCatName, setEditingCatName] = useState('');
+  const [addingUnder, setAddingUnder] = useState<string | null>(null);
+  const [newCatName, setNewCatName] = useState('');
   const { confirm, dialog } = useConfirm();
+
+  function buildTree(parentId: string | null = null): any[] {
+    return categories
+      .filter(c => (c.parent_id || null) === parentId)
+      .map(c => ({ ...c, children: buildTree(c.id) }));
+  }
 
   const fetchCompany = () => {
     setLoading(true);
@@ -189,105 +197,85 @@ export default function InventorySettingsPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Categories</label>
-                <button onClick={() => { setEditingCategory(null); setCatForm({ name: '', parent_id: '' }); }} className="text-xs text-brand font-medium hover:underline">+ Add Category</button>
+                <button onClick={() => { setAddingUnder('__root__'); setNewCatName(''); }} className="text-xs text-brand font-medium hover:underline">+ Add Category</button>
               </div>
 
-              {editingCategory !== undefined && (
-                <div className="flex items-center gap-2 mb-3 p-2 bg-gray-50 rounded-lg border border-border">
-                  {!editingCategory && industries.length > 0 && getIndustryPreset(industries[0]) ? (
-                    <select value={catForm.name} onChange={e => {
-                      const name = e.target.value;
-                      const p = getIndustryPreset(industries[0]);
-                      let parentId = '';
-                      if (p) {
-                        for (const parent of p.categories) {
-                          if (parent.children) {
-                            const child = parent.children.find(ch => ch.name === name);
-                            if (child) {
-                              const existingParent = categories.find(c => c.name === parent.name && !c.parent_id);
-                              if (existingParent) parentId = existingParent.id;
-                              break;
-                            }
-                          }
-                          if (parent.name === name) break;
-                        }
-                      }
-                      setCatForm({ name, parent_id: parentId });
-                    }} className="flex-1 border border-border rounded px-2 py-1.5 text-sm bg-white">
-                      <option value="">Select category...</option>
-                      {(() => {
-                        const p = getIndustryPreset(industries[0]);
-                        if (!p) return null;
-                        const opts: { name: string; parent: string }[] = [];
-                        for (const parent of p.categories) {
-                          opts.push({ name: parent.name, parent: '' });
-                          for (const child of parent.children || []) {
-                            opts.push({ name: child.name, parent: parent.name });
-                          }
-                        }
-                        return opts.map(o => (
-                          <option key={o.name} value={o.name}>{o.parent ? `— ${o.name}` : o.name}</option>
-                        ));
-                      })()}
-                    </select>
-                  ) : (
-                    <input value={catForm.name} onChange={e => setCatForm({ ...catForm, name: e.target.value })}
-                      placeholder="Category name" className="flex-1 border border-border rounded px-2 py-1.5 text-sm bg-white" />
-                  )}
-                  {categories.filter(c => !c.parent_id).length > 0 && (
-                    <select value={catForm.parent_id} onChange={e => setCatForm({ ...catForm, parent_id: e.target.value })}
-                      className="border border-border rounded px-2 py-1.5 text-sm bg-white">
-                      <option value="">Root (no parent)</option>
-                      {categories.filter(c => !c.parent_id).map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  <button onClick={async () => {
-                    if (!catForm.name) return;
-                    const method = editingCategory ? 'PUT' : 'POST';
-                    const body = editingCategory ? { ...catForm, id: editingCategory.id } : catForm;
-                    await fetch('/api/categories', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-                    setEditingCategory(undefined);
-                    fetchCategories();
-                  }} className="px-3 py-1.5 bg-brand text-white text-xs rounded-lg font-medium">Save</button>
-                  <button onClick={() => setEditingCategory(undefined)} className="px-3 py-1.5 text-xs text-gray-500">Cancel</button>
-                </div>
-              )}
+              {(() => {
+                const tree = buildTree(null);
+                if (tree.length === 0 && addingUnder !== '__root__') {
+                  return <p className="text-xs text-gray-400 text-center py-4">No categories. Select an industry above or add one manually.</p>;
+                }
 
-              <div className="space-y-1 max-h-48 overflow-y-auto border border-border rounded-lg p-2">
-                {categories.filter(c => !c.parent_id).length === 0 && (
-                  <p className="text-xs text-gray-400 text-center py-4">No categories. Select an industry above or add one manually.</p>
-                )}
-                {categories.filter(c => !c.parent_id).map(parent => (
-                  <div key={parent.id}>
-                    <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-50 group">
-                      <span className="text-sm font-medium text-gray-700">{parent.name}</span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                        <button onClick={() => { setEditingCategory(parent); setCatForm({ name: parent.name, parent_id: parent.parent_id || '' }); }} className="p-0.5 hover:text-brand"><Pencil className="h-3 w-3" /></button>
-                        <button onClick={async () => {
-                          if (!await confirm(`Delete "${parent.name}"?`)) return;
-                          await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: parent.id }) });
-                          fetchCategories();
-                        }} className="p-0.5 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                const renderNode = (node: any, depth: number) => {
+                  const isEditing = editingCatId === node.id;
+                  const isAdding = addingUnder === node.id;
+                  return (
+                    <div key={node.id}>
+                      <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-50 group" style={{ paddingLeft: `${8 + depth * 20}px` }}>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input value={editingCatName} onChange={e => setEditingCatName(e.target.value)}
+                              className="flex-1 border border-border rounded px-2 py-1 text-sm bg-white" autoFocus />
+                            <button onClick={async () => {
+                              if (!editingCatName.trim()) return;
+                              await fetch('/api/categories', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: node.id, name: editingCatName, parent_id: node.parent_id }) });
+                              setEditingCatId(null);
+                              fetchCategories();
+                            }} className="px-2 py-1 bg-brand text-white text-xs rounded-lg font-medium">Save</button>
+                            <button onClick={() => setEditingCatId(null)} className="text-xs text-gray-500">Cancel</button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-sm text-gray-700">{node.name}</span>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                              <button onClick={() => { setEditingCatId(node.id); setEditingCatName(node.name); }} className="p-0.5 hover:text-brand"><Pencil className="h-3 w-3" /></button>
+                              <button onClick={async () => {
+                                if (!await confirm(`Delete "${node.name}"?`)) return;
+                                await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: node.id }) });
+                                fetchCategories();
+                              }} className="p-0.5 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                              <button onClick={() => { setAddingUnder(node.id); setNewCatName(''); }} className="p-0.5 hover:text-brand text-xs font-medium">+sub</button>
+                            </div>
+                          </>
+                        )}
                       </div>
-                    </div>
-                    {categories.filter(c => c.parent_id === parent.id).map(child => (
-                      <div key={child.id} className="flex items-center justify-between py-1 pl-6 pr-2 rounded hover:bg-gray-50 group">
-                        <span className="text-sm text-gray-600">— {child.name}</span>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                          <button onClick={() => { setEditingCategory(child); setCatForm({ name: child.name, parent_id: child.parent_id || '' }); }} className="p-0.5 hover:text-brand"><Pencil className="h-3 w-3" /></button>
+                      {isAdding && (
+                        <div className="flex items-center gap-2 py-1 px-2" style={{ paddingLeft: `${8 + (depth + 1) * 20}px` }}>
+                          <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
+                            placeholder="Subcategory name" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-white" autoFocus />
                           <button onClick={async () => {
-                            if (!await confirm(`Delete "${child.name}"?`)) return;
-                            await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: child.id }) });
+                            if (!newCatName.trim()) return;
+                            await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCatName, parent_id: node.id }) });
+                            setAddingUnder(null);
                             fetchCategories();
-                          }} className="p-0.5 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                          }} className="px-2 py-1 bg-brand text-white text-xs rounded-lg font-medium">Add</button>
+                          <button onClick={() => setAddingUnder(null)} className="text-xs text-gray-500">Cancel</button>
                         </div>
+                      )}
+                      {node.children.map((child: any) => renderNode(child, depth + 1))}
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="max-h-64 overflow-y-auto border border-border rounded-lg p-2">
+                    {addingUnder === '__root__' && (
+                      <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: '8px' }}>
+                        <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
+                          placeholder="Category name" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-white" autoFocus />
+                        <button onClick={async () => {
+                          if (!newCatName.trim()) return;
+                          await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCatName }) });
+                          setAddingUnder(null);
+                          fetchCategories();
+                        }} className="px-2 py-1 bg-brand text-white text-xs rounded-lg font-medium">Add</button>
+                        <button onClick={() => setAddingUnder(null)} className="text-xs text-gray-500">Cancel</button>
                       </div>
-                    ))}
+                    )}
+                    {tree.map((node: any) => renderNode(node, 0))}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           </Section>
         </div>
