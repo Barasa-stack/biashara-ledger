@@ -91,9 +91,9 @@ export async function POST(req: NextRequest) {
         [sentinelTenant, 'Admin']
       );
       await adminRun(
-        `INSERT INTO users (id, tenant_id, email, password_hash, password, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
-         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [adminId, sentinelTenant, normalizedEmail, hashedPw, 'Admin', true, 'Premium', 'active', 'active', 'Admin-License', 'KE', 'super_admin']
+        `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        [adminId, sentinelTenant, normalizedEmail, hashedPw, hashedPw, 'Admin', true, 'Premium', 'active', 'active', 'Admin-License', 'KE', 'super_admin']
       );
       adminUser = { id: adminId, email: normalizedEmail, password_hash: hashedPw, role: 'super_admin', tenant_id: sentinelTenant, two_factor_enabled: 0 };
     }
