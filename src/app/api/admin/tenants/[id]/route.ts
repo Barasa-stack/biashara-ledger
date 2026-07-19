@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { adminQuery, adminRun, adminGet } from '@/lib/db';
@@ -48,32 +47,11 @@ export async function POST(
     const hashedPw = await bcrypt.hash(tempPassword, 10);
     const userId = Math.floor(Math.random() * 2147483647) + 1;
 
-    // Use Nile tenant pool to insert user within tenant context
-    const tenantPool = new Pool({
-      connectionString: process.env.DATABASE_URL || '',
-      max: 1,
-      idleTimeoutMillis: 10000,
-      onConnect: async (client: any) => {
-        await client.query(`SET nile.tenant_id = '${id}'`);
-      },
-    });
-
-    try {
-      await tenantPool.query(
-        `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [userId, id, targetEmail, hashedPw, hashedPw, 'Admin', true, 'Premium', 'active', 'active', `Premium-${targetEmail}`, 'KE', 'admin']
-      );
-    } catch {
-      // Fallback
-      await adminRun(
-        `INSERT INTO users (id, tenant_id, email, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [userId, id, targetEmail, hashedPw, 'Admin', true, 'Premium', 'active', 'active', `Premium-${targetEmail}`, 'KE', 'admin']
-      );
-    }
-
-    await tenantPool.end();
+    await adminRun(
+      `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [userId, id, targetEmail, hashedPw, hashedPw, 'Admin', true, 'Premium', 'active', 'active', `Premium-${targetEmail}`, 'KE', 'admin']
+    );
 
     // Re-create company_settings if missing
     try {
