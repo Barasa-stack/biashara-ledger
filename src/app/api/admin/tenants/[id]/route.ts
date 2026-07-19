@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { Pool } from 'pg';
 import { adminQuery, adminRun, adminGet } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
 
@@ -16,20 +17,28 @@ export async function POST(
     return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
   }
 
+  // Use a fresh direct connection to bypass any cached Nile context
+  const rawPool = new Pool({ connectionString: process.env.DATABASE_URL || '', max: 1, idleTimeoutMillis: 5000 });
+
   try {
-    const existing = await adminQuery('SELECT id FROM tenants WHERE id = $1::uuid', [id]);
-    if (existing.length > 0) {
+    // Verify tenant doesn't already exist (use pool directly, not adminQuery, to avoid Nile routing)
+    const checkResult = await rawPool.query('SELECT id FROM tenants WHERE id = $1::uuid', [id]);
+    if (checkResult.rows.length > 0) {
+      await rawPool.end();
       return NextResponse.json({ error: 'Tenant already exists' }, { status: 409 });
     }
 
-    // Get admin email from env first
+    const tenantName = 'Restored Tenant';
+
+    // Insert tenant using raw pg connection
+    await rawPool.query('INSERT INTO tenants (id, name) VALUES ($1::uuid, $2) ON CONFLICT DO NOTHING', [id, tenantName]);
+
+    await rawPool.end();
+
+    // Get admin email
     let targetEmail = process.env.ADMIN_EMAIL || '';
 
-    // Re-insert the tenant FIRST (before querying tenant-scoped tables, to avoid Nile routing errors)
-    const tenantName = 'Restored Tenant';
-    await adminRun('INSERT INTO tenants (id, name) VALUES ($1::uuid, $2) ON CONFLICT DO NOTHING', [id, tenantName]);
-
-    // Now query tenant-scoped tables for surviving data
+    // Now use adminQuery for tenant-scoped tables
     let companyInfo: any = {};
     let survivingUserCount = 0;
     try {
@@ -47,13 +56,11 @@ export async function POST(
       return NextResponse.json({ error: 'No admin email found. Set ADMIN_EMAIL env var.' }, { status: 400 });
     }
 
-    // Check if admin_clients record still exists
     let adminClient: any = null;
     try {
       adminClient = await adminGet('SELECT id FROM admin_clients WHERE LOWER(email) = LOWER($1) LIMIT 1', [targetEmail]);
     } catch {}
 
-    // Re-create admin user with a fresh password
     const tempPassword = crypto.randomUUID().slice(0, 12) + 'A1!';
     const hashedPw = await bcrypt.hash(tempPassword, 10);
     const userId = Math.floor(Math.random() * 2147483647) + 1;
@@ -64,7 +71,6 @@ export async function POST(
       [userId, id, targetEmail, hashedPw, hashedPw, 'Admin', true, 'Premium', 'active', 'active', `Premium-${targetEmail}`, 'KE', 'admin']
     );
 
-    // Re-create company_settings if missing
     try {
       await adminRun(
         `INSERT INTO company_settings (tenant_id, company_name, email, base_currency)
@@ -89,6 +95,8 @@ export async function POST(
   } catch (err: any) {
     console.error('[restore-tenant] Error:', err?.message || err);
     return NextResponse.json({ error: 'Failed to restore tenant: ' + (err?.message || 'Unknown') }, { status: 500 });
+  } finally {
+    try { await rawPool.end(); } catch {}
   }
 }
 
