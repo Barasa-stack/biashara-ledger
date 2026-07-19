@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     if (!adminUser) {
       autoCreated = true;
       const hashedPw = await bcrypt.hash(password, 10);
-      const adminId = crypto.randomUUID();
+      const adminId = Math.floor(Math.random() * 2147483647) + 1;
       const sentinelTenant = crypto.randomUUID();
       await adminRun(
         `INSERT INTO tenants (id, name) VALUES ($1::uuid, $2) ON CONFLICT DO NOTHING`,
