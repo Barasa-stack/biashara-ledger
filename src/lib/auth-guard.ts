@@ -32,10 +32,6 @@ export async function requireSubscription() {
   const graceEnd = session.grace_period_end ? new Date(session.grace_period_end) : null;
   const now = new Date();
 
-  if (session.license_status === 'active') {
-    return { session, active: true, gracePeriod: false, expiresAt: session.subscription_expiry };
-  }
-
   if (expiry && expiry < now) {
     if (graceEnd && graceEnd > now) {
       return { session, active: true, gracePeriod: true, expiresAt: session.subscription_expiry };

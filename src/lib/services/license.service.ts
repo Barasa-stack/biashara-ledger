@@ -85,6 +85,7 @@ export class LicenseService {
           `UPDATE users
            SET subscription_status = 'active',
                license_status = 'active',
+               subscription_expiry = NOW() + interval '3 days',
                trial_used = 1
            WHERE id = $1`,
           [trialUser.id]
