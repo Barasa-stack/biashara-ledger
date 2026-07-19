@@ -22,25 +22,36 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant already exists' }, { status: 409 });
     }
 
-    // Check if business data still references this tenant
-    const companySettings = await adminQuery('SELECT company_name, email FROM company_settings WHERE tenant_id = $1::uuid LIMIT 1', [id]);
-    const tenantName = (companySettings[0] as any)?.company_name || 'Restored Tenant';
-    const adminEmail = (companySettings[0] as any)?.email || '';
+    // Get admin email from env first
+    let targetEmail = process.env.ADMIN_EMAIL || '';
 
-    // Check for any surviving user emails
-    const survivingUsers = await adminQuery('SELECT email FROM users WHERE tenant_id = $1::uuid', [id]);
+    // Re-insert the tenant FIRST (before querying tenant-scoped tables, to avoid Nile routing errors)
+    const tenantName = 'Restored Tenant';
+    await adminRun('INSERT INTO tenants (id, name) VALUES ($1::uuid, $2) ON CONFLICT DO NOTHING', [id, tenantName]);
 
-    // Get admin email from env or fallback
-    const targetEmail = adminEmail || process.env.ADMIN_EMAIL || '';
+    // Now query tenant-scoped tables for surviving data
+    let companyInfo: any = {};
+    let survivingUserCount = 0;
+    try {
+      const rows = await adminQuery('SELECT company_name, email FROM company_settings WHERE tenant_id = $1::uuid LIMIT 1', [id]);
+      companyInfo = (rows[0] as any) || {};
+    } catch {}
+    try {
+      const rows = await adminQuery('SELECT email FROM users WHERE tenant_id = $1::uuid', [id]);
+      survivingUserCount = rows.length;
+    } catch {}
+    const resolvedName = companyInfo.company_name || tenantName;
+    targetEmail = companyInfo.email || targetEmail;
+
     if (!targetEmail) {
       return NextResponse.json({ error: 'No admin email found. Set ADMIN_EMAIL env var.' }, { status: 400 });
     }
 
-    // Check if admin_clients record still exists for this email
-    const adminClient = await adminGet('SELECT id FROM admin_clients WHERE LOWER(email) = LOWER($1) LIMIT 1', [targetEmail]);
-
-    // Re-insert the tenant
-    await adminRun('INSERT INTO tenants (id, name) VALUES ($1::uuid, $2)', [id, tenantName]);
+    // Check if admin_clients record still exists
+    let adminClient: any = null;
+    try {
+      adminClient = await adminGet('SELECT id FROM admin_clients WHERE LOWER(email) = LOWER($1) LIMIT 1', [targetEmail]);
+    } catch {}
 
     // Re-create admin user with a fresh password
     const tempPassword = crypto.randomUUID().slice(0, 12) + 'A1!';
@@ -58,21 +69,21 @@ export async function POST(
       await adminRun(
         `INSERT INTO company_settings (tenant_id, company_name, email, base_currency)
          VALUES ($1, $2, $3, 'KES') ON CONFLICT (tenant_id) DO NOTHING`,
-        [id, tenantName, targetEmail]
+        [id, resolvedName, targetEmail]
       );
     } catch {}
 
-    console.log(`[restore-tenant] Restored "${tenantName}" (${id}) by ${session?.email}. Admin: ${targetEmail}`);
+    console.log(`[restore-tenant] Restored "${resolvedName}" (${id}) by ${session?.email}. Admin: ${targetEmail}`);
 
     return NextResponse.json({
       success: true,
-      message: `Tenant "${tenantName}" restored.`,
+      message: `Tenant "${resolvedName}" restored.`,
       temp_password: tempPassword,
       admin_email: targetEmail,
       data_found: {
-        company_settings: companySettings.length > 0,
+        company_settings: !!companyInfo.company_name,
         admin_client: !!adminClient,
-        surviving_users: survivingUsers.length,
+        surviving_users: survivingUserCount,
       },
     });
   } catch (err: any) {
