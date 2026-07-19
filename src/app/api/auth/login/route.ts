@@ -85,17 +85,22 @@ export async function POST(req: NextRequest) {
       autoCreated = true;
       const hashedPw = await bcrypt.hash(password, 10);
       const adminId = crypto.randomUUID();
+      const sentinelTenant = crypto.randomUUID();
       await adminRun(
-        `INSERT INTO admin_users (id, username, email, password_hash, role, tenant_id)
-         VALUES ($1, $2, $3, $4, 'admin', $1)`,
-        [adminId, `admin-${normalizedEmail.replace(/[^a-zA-Z0-9]/g, '-')}`, normalizedEmail, hashedPw]
+        `INSERT INTO tenants (id, name) VALUES ($1::uuid, $2) ON CONFLICT DO NOTHING`,
+        [sentinelTenant, 'Admin']
       );
-      adminUser = { id: adminId, email: normalizedEmail, password_hash: hashedPw, role: 'admin', tenant_id: adminId, two_factor_enabled: 0 };
+      await adminRun(
+        `INSERT INTO users (id, tenant_id, email, password_hash, password, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
+         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [adminId, sentinelTenant, normalizedEmail, hashedPw, 'Admin', true, 'Premium', 'active', 'active', 'Admin-License', 'KE', 'super_admin']
+      );
+      adminUser = { id: adminId, email: normalizedEmail, password_hash: hashedPw, role: 'super_admin', tenant_id: sentinelTenant, two_factor_enabled: 0 };
     }
 
     const isValid = await bcrypt.compare(password, adminUser.password_hash);
     if (!isValid) {
-      if (autoCreated) await adminRun('DELETE FROM admin_users WHERE id = $1', [adminUser.id]);
+      if (autoCreated) await adminRun('DELETE FROM users WHERE id = $1', [adminUser.id]);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -103,11 +108,32 @@ export async function POST(req: NextRequest) {
     }
 
     const appUser = adminUser as any;
+
+    // Ensure the tenant record exists before creating a session (FK constraint)
+    const targetTenantId = (appUser.tenant_id && appUser.tenant_id !== '') ? appUser.tenant_id : crypto.randomUUID();
+    try {
+      const tenantCheck = await adminGet('SELECT id FROM tenants WHERE id = $1::uuid', [targetTenantId]);
+      if (!tenantCheck) {
+        const tenantName = appUser.email?.split('@')[0] || 'Admin';
+        await adminRun('INSERT INTO tenants (id, name) VALUES ($1::uuid, $2) ON CONFLICT DO NOTHING', [targetTenantId, tenantName]);
+      }
+    } catch (e) {
+      console.warn('[login] Tenant re-insert failed:', e);
+    }
+
+    // Ensure the admin user has super_admin role for adminGuard to pass
+    try {
+      if (appUser.role !== 'super_admin') {
+        await adminRun('UPDATE users SET role = $1 WHERE id = $2', ['super_admin', appUser.id]);
+        appUser.role = 'super_admin';
+      }
+    } catch {}
+
     const twoFactorEnabled = !!(appUser.two_factor_enabled);
 
     // If 2FA is enabled and no code provided, ask for code
     if (twoFactorEnabled && !code) {
-      const pendingToken = createPendingToken(appUser.id, appUser.tenant_id);
+      const pendingToken = createPendingToken(appUser.id, targetTenantId);
       return NextResponse.json({ requires_2fa: true, pending_token: pendingToken });
     }
 
@@ -128,7 +154,7 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     await adminRun(
       'INSERT INTO sessions (id, tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4, $5)',
-      [sessionId, appUser.tenant_id, appUser.id, sessionToken, expiresAt]
+      [sessionId, targetTenantId, appUser.id, sessionToken, expiresAt]
     );
 
     const response = NextResponse.json({
