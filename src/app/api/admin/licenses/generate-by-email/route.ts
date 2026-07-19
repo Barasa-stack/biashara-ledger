@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { adminRun, adminGet } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
 import { createTransporter } from '@/lib/email';
@@ -22,6 +23,10 @@ export async function POST(req: Request) {
     const licenseKey = `BL-${hash.substring(0, 8).toUpperCase()}-${hash.substring(8, 16).toUpperCase()}-${hash.substring(16, 24).toUpperCase()}`;
     const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
     const planLower = plan.toLowerCase();
+
+    // Generate temp password for first login
+    const tempPassword = crypto.randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 12) + '1A!';
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     // 1. Create/Update client in admin_clients
     let clientId = null;
@@ -54,7 +59,7 @@ export async function POST(req: Request) {
       [licenseKey, clientId, planLower, expiresAt]
     );
 
-    // 3. Create/Update user with license (no password — user sets via reset link)
+    // 3. Create/Update user with hashed password and license
     const existingUser = await adminGet(
       `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
       [normalizedEmail]
@@ -62,49 +67,54 @@ export async function POST(req: Request) {
 
     if (existingUser) {
       await adminRun(
-        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active' WHERE LOWER(email) = LOWER($4)`,
-        [licenseKey, plan, expiresAt, normalizedEmail]
+        `UPDATE users SET license_key = $1, license_status = 'active', subscription_plan = $2, subscription_expiry = $3, subscription_status = 'active', password_hash = $4 WHERE LOWER(email) = LOWER($5)`,
+        [licenseKey, plan, expiresAt, hashedPassword, normalizedEmail]
       );
     } else {
       await adminRun(
-        `INSERT INTO users (email, license_key, license_status, subscription_plan, subscription_expiry, subscription_status, role, verified)
-         VALUES ($1, $2, 'active', $3, $4, 'active', 'user', 1)`,
-        [normalizedEmail, licenseKey, plan, expiresAt]
+        `INSERT INTO users (email, password_hash, license_key, license_status, subscription_plan, subscription_expiry, subscription_status, role, verified)
+         VALUES ($1, $2, $3, 'active', $4, $5, 'active', 'user', 1)`,
+        [normalizedEmail, hashedPassword, licenseKey, plan, expiresAt]
       );
     }
 
-    // 4. Send activation email with set-password link
+    // 4. Send activation email with credentials
     let emailSent = false;
     let emailError = '';
     try {
       const transporter = await createTransporter();
       if (transporter) {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.qzz.io';
+        const activateUrl = `${appUrl}/activate-license`;
         const signInUrl = `${appUrl}/sign-in`;
         const companyName = company_name || 'BiasharaLedger';
 
         await transporter.sendMail({
           from: `"${companyName}" <${(transporter as any).options?.auth?.user || 'noreply@biasharaledger.com'}>`,
           to: normalizedEmail,
-          subject: `Welcome to ${companyName} — Set Your Password`,
+          subject: `Welcome to ${companyName} — Your Account Credentials`,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
               <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:28px;text-align:center;border-radius:8px 8px 0 0;">
                 <h1 style="color:#fff;margin:0;font-size:20px;">${companyName}</h1>
               </div>
               <div style="padding:28px;background:#fff;border:1px solid #e5e7eb;">
-                <h2 style="font-size:16px;color:#111;margin:0 0 12px;">Your Account Has Been Created</h2>
-                <p style="font-size:13px;color:#444;line-height:1.6;">Your account is ready. Sign in below to get started.</p>
+                <h2 style="font-size:16px;color:#111;margin:0 0 12px;">Welcome to ${companyName}!</h2>
+                <p style="font-size:13px;color:#444;line-height:1.6;">Your account has been created. Use the credentials below to sign in.</p>
                 <div style="background:#f9fafb;border-radius:8px;padding:16px;margin:16px 0;">
                   <p style="margin:4px 0;font-size:13px;color:#444;"><strong>Email:</strong> ${normalizedEmail}</p>
                   <p style="margin:4px 0;font-size:13px;color:#444;"><strong>License Key:</strong> <code style="background:#fff;padding:2px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;">${licenseKey}</code></p>
                   <p style="margin:4px 0;font-size:13px;color:#444;"><strong>Plan:</strong> ${plan}</p>
                 </div>
                 <p style="font-size:13px;color:#444;line-height:1.6;">
-                  Sign in at:<br/>
+                  <strong>Step 1:</strong> Activate your license by visiting:<br/>
+                  <a href="${activateUrl}" style="color:#dc2626;">${activateUrl}</a>
+                </p>
+                <p style="font-size:13px;color:#444;line-height:1.6;">
+                  <strong>Step 2:</strong> Sign in at:<br/>
                   <a href="${signInUrl}" style="color:#dc2626;">${signInUrl}</a>
                 </p>
-                <p style="font-size:13px;color:#888;margin-top:16px;">Use the "Forgot Password" link on the sign-in page to set your password for the first time.</p>
+                <p style="font-size:13px;color:#888;margin-top:16px;">Use the "Forgot Password" link on the sign-in page if you need to reset your password.</p>
               </div>
               <div style="padding:16px;text-align:center;background:#f9fafb;border:1px solid #e5e7eb;border-top:0;border-radius:0 0 8px 8px;">
                 <p style="margin:0;font-size:11px;color:#999;">${companyName} &mdash; Business Management Software</p>
@@ -132,7 +142,7 @@ export async function POST(req: Request) {
       client_id: clientId,
       email_sent: emailSent,
       email_error: emailError || undefined,
-      message: `License generated. Sign-in instructions sent to ${normalizedEmail}.`,
+      message: `License generated. Credentials sent to ${normalizedEmail}.`,
     });
   } catch (err: any) {
     console.error('[generate-by-email] Error:', err?.message || err);

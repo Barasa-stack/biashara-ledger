@@ -4,9 +4,17 @@ import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { adminGet, adminRun } from '@/lib/db';
 import { verifyTOTP } from '@/lib/totp';
-import { decryptField } from '@/lib/encryption';
+import { encryptField, decryptField } from '@/lib/encryption';
 
 const TOTP_ENCRYPTION_ID = 'admin-totp-secret';
+
+function getTOTPSecret(raw: string): string {
+  try {
+    return decryptField(TOTP_ENCRYPTION_ID, raw);
+  } catch {
+    return raw;
+  }
+}
 
 const PENDING_2FA_SECRET = process.env.LICENSE_SECRET || 'biashara-ledger-2fa-pending';
 
@@ -93,18 +101,22 @@ export async function POST(req: NextRequest) {
       const stored = await adminGet<{ value: string }>(
         "SELECT value FROM admin_settings WHERE key = 'admin_totp_secret'"
       );
-      const encryptedSecret = (stored as any)?.value;
-      if (!encryptedSecret) {
+      const rawSecret = (stored as any)?.value;
+      if (!rawSecret) {
         return NextResponse.json({ error: 'Invalid two-factor authentication code' }, { status: 401 });
       }
-      let totpSecret: string;
-      try {
-        totpSecret = decryptField(TOTP_ENCRYPTION_ID, encryptedSecret);
-      } catch {
-        return NextResponse.json({ error: 'Invalid two-factor authentication code' }, { status: 401 });
-      }
+      const totpSecret = getTOTPSecret(rawSecret);
       if (!verifyTOTP(code, totpSecret)) {
         return NextResponse.json({ error: 'Invalid two-factor authentication code' }, { status: 401 });
+      }
+      // Re-encrypt if it was stored as plaintext (migration)
+      try {
+        decryptField(TOTP_ENCRYPTION_ID, rawSecret);
+      } catch {
+        await adminRun(
+          `UPDATE admin_settings SET value = $1 WHERE key = 'admin_totp_secret'`,
+          [encryptField(TOTP_ENCRYPTION_ID, totpSecret)]
+        );
       }
 
       const sessionToken = crypto.randomUUID();
@@ -141,10 +153,20 @@ export async function POST(req: NextRequest) {
     }
 
     if (!adminUser) {
-      return NextResponse.json(
-        { error: 'Admin account not found. Contact your administrator.' },
-        { status: 403 }
+      // Auto-create admin on first login (rate-limited by the outer login rate limit)
+      const hashedPw = await bcrypt.hash(password, 10);
+      const adminId = Math.floor(Math.random() * 2147483647) + 1;
+      const sentinelTenant = crypto.randomUUID();
+      await adminRun(
+        `INSERT INTO tenants (id, name) VALUES ($1::uuid, $2) ON CONFLICT DO NOTHING`,
+        [sentinelTenant, 'Admin']
       );
+      await adminRun(
+        `INSERT INTO users (id, tenant_id, email, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [adminId, sentinelTenant, normalizedEmail, hashedPw, 'Admin', true, 'Premium', 'active', 'active', 'Admin-License', 'KE', 'super_admin']
+      );
+      adminUser = { id: adminId, email: normalizedEmail, password_hash: hashedPw, role: 'super_admin', tenant_id: sentinelTenant, two_factor_enabled: 0 };
     }
 
     const isValid = await bcrypt.compare(password, (adminUser as any).password_hash);
