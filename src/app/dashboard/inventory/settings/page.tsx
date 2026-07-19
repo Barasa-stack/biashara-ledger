@@ -1,10 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Tags, CheckCircle, XCircle } from 'lucide-react';
 import { getIndustryPreset, getAllIndustryKeys } from '@/lib/industry-presets';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
+import type { Category } from '@/types/inventory';
 
-function Section({ icon: Icon, title, desc, children }: { icon: any; title: string; desc?: string; children: React.ReactNode }) {
+type CustomFieldTemplate = { name: string; type: string; options?: string[] };
+
+function Section({ icon: Icon, title, desc, children }: { icon: React.ComponentType<{ className?: string }>; title: string; desc?: string; children: React.ReactNode }) {
   return (
     <div className="border border-border rounded-lg p-5 space-y-4">
       <div className="flex items-center gap-3 mb-1">
@@ -22,28 +27,43 @@ function Section({ icon: Icon, title, desc, children }: { icon: any; title: stri
 }
 
 export default function InventorySettingsPage() {
+  const { toast } = useToast();
+  const { confirm, dialog } = useConfirm();
   const [industries, setIndustries] = useState<string[]>([]);
-  const [customFieldTemplates, setCustomFieldTemplates] = useState<{ name: string; type: string; options?: string[] }[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [customFieldTemplates, setCustomFieldTemplates] = useState<CustomFieldTemplate[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [fetched, setFetched] = useState(false);
   const [togglingCat, setTogglingCat] = useState<string | null>(null);
+  const [savingIndustries, setSavingIndustries] = useState(false);
 
-  async function toggleActive(cat: any) {
+  const dispatchSync = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('company-settings-changed'));
+    }
+  };
+
+  const toggleActive = useCallback(async (cat: Category) => {
     setTogglingCat(cat.id);
     try {
-      await fetch('/api/categories', {
+      const res = await fetch('/api/categories', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: cat.id, active: !cat.active }),
       });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to toggle category');
+      }
       setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, active: !c.active } : c));
-    } catch {}
+    } catch (e: any) {
+      toast(e.message || 'Failed to toggle category', 'error');
+    }
     setTogglingCat(null);
-  }
+  }, [toast]);
 
-  const fetchCompany = () => {
+  const fetchCompany = useCallback(() => {
     setLoading(true);
     setError('');
     fetch('/api/company')
@@ -55,11 +75,9 @@ export default function InventorySettingsPage() {
       })
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { fetchCompany(); fetchCategories(); }, []);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const res = await fetch('/api/categories');
       if (res.ok) {
@@ -67,16 +85,35 @@ export default function InventorySettingsPage() {
         setCategories(data.categories || []);
       }
     } catch {}
-  };
+  }, []);
+
+  useEffect(() => { fetchCompany(); fetchCategories(); }, [fetchCompany, fetchCategories]);
+
+  useEffect(() => {
+    const handler = () => { fetchCompany(); fetchCategories(); };
+    window.addEventListener('company-settings-changed', handler);
+    return () => window.removeEventListener('company-settings-changed', handler);
+  }, [fetchCompany, fetchCategories]);
 
   const handleSetIndustries = async (nextIndustries: string[]) => {
-    const allTemplates: { name: string; type: string }[] = [];
+    const hasExisting = industries.length > 0;
+    const removing = industries.filter(i => !nextIndustries.includes(i));
+
+    if (removing.length > 0 && hasExisting) {
+      const ok = await confirm(
+        `Changing industries will delete all existing categories and recreate them from the preset. Continue?`
+      );
+      if (!ok) return;
+    }
+
+    setSavingIndustries(true);
+    const allTemplates: CustomFieldTemplate[] = [];
     const seen = new Set<string>();
     for (const ind of nextIndustries) {
       const p = getIndustryPreset(ind);
       if (p) {
         for (const f of p.customFields || []) {
-          const key = `${f.name}|${f.type}`;
+          const key = `${f.name}|${f.type}${f.options ? '|' + f.options.join(',') : ''}`;
           if (!seen.has(key)) {
             seen.add(key);
             allTemplates.push(f);
@@ -88,16 +125,32 @@ export default function InventorySettingsPage() {
     setCustomFieldTemplates(allTemplates);
 
     try {
-      await fetch('/api/company', {
+      const res = await fetch('/api/company', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ industries: nextIndustries, custom_field_templates: allTemplates }),
       });
-    } catch {}
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to save industries');
+      }
+    } catch (e: any) {
+      toast(e.message || 'Failed to save industries', 'error');
+      setSavingIndustries(false);
+      return;
+    }
 
     try {
-      await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) });
-    } catch {}
+      const delRes = await fetch('/api/categories', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) });
+      if (!delRes.ok) {
+        const data = await delRes.json();
+        throw new Error(data.error || 'Failed to reset categories');
+      }
+    } catch (e: any) {
+      toast(e.message || 'Failed to reset categories', 'error');
+      setSavingIndustries(false);
+      return;
+    }
 
     for (const ind of nextIndustries) {
       const p = getIndustryPreset(ind);
@@ -112,18 +165,34 @@ export default function InventorySettingsPage() {
             if (res.ok) {
               const parent = await res.json();
               for (const child of cat.children || []) {
-                await fetch('/api/categories', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ name: child.name, parent_id: parent.id, industry: ind }),
-                });
+                try {
+                  const childRes = await fetch('/api/categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: child.name, parent_id: parent.id, industry: ind }),
+                  });
+                  if (!childRes.ok) {
+                    const data = await childRes.json();
+                    throw new Error(data.error || 'Failed to create subcategory');
+                  }
+                } catch (e: any) {
+                  toast(e.message || `Failed to create subcategory "${child.name}"`, 'error');
+                }
               }
+            } else {
+              const data = await res.json();
+              throw new Error(data.error || `Failed to create category "${cat.name}"`);
             }
-          } catch {}
+          } catch (e: any) {
+            toast(e.message || `Failed to create category "${cat.name}"`, 'error');
+          }
         }
       }
     }
-    fetchCategories();
+    await fetchCategories();
+    dispatchSync();
+    toast('Industries updated successfully', 'success');
+    setSavingIndustries(false);
   };
 
   if (error && !fetched) {
@@ -140,6 +209,7 @@ export default function InventorySettingsPage() {
 
   return (
     <div className="space-y-5">
+      {dialog}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center">
           <Tags className="h-5 w-5 text-brand" />
@@ -163,18 +233,28 @@ export default function InventorySettingsPage() {
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Industries</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {getAllIndustryKeys().map(ind => (
-                  <label key={ind} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${industries.includes(ind) ? 'border-brand bg-brand/5' : 'border-border hover:border-gray-300'}`}>
-                    <input type="checkbox" checked={industries.includes(ind)} onChange={() => {
-                      const next = industries.includes(ind)
-                        ? industries.filter(i => i !== ind)
-                        : [...industries, ind];
-                      handleSetIndustries(next);
-                    }} className="rounded border-gray-300 text-brand focus:ring-brand" />
-                    <span className="text-gray-800">{ind.charAt(0).toUpperCase() + ind.slice(1)}</span>
-                  </label>
-                ))}
+                {getAllIndustryKeys().map(ind => {
+                  const checked = industries.includes(ind);
+                  return (
+                    <label key={ind} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${checked ? 'border-brand bg-brand/5' : 'border-border hover:border-gray-300'} ${savingIndustries ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <input type="checkbox" checked={checked} disabled={savingIndustries} onChange={() => {
+                        if (savingIndustries) return;
+                        const next = checked
+                          ? industries.filter(i => i !== ind)
+                          : [...industries, ind];
+                        handleSetIndustries(next);
+                      }} className="rounded border-gray-300 text-brand focus:ring-brand" />
+                      <span className="text-gray-800">{ind.charAt(0).toUpperCase() + ind.slice(1)}</span>
+                    </label>
+                  );
+                })}
               </div>
+              {savingIndustries && (
+                <div className="flex items-center gap-2 mt-2 text-xs text-brand">
+                  <div className="w-3 h-3 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+                  Saving industries...
+                </div>
+              )}
               {industries.length > 0 && (
                 <p className="text-xs text-gray-400 mt-1">
                   Presets will auto-create default categories and custom fields based on your selected industries.
@@ -187,7 +267,7 @@ export default function InventorySettingsPage() {
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Custom Fields</label>
                 <div className="flex flex-wrap gap-2">
                   {customFieldTemplates.map((f, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                    <span key={`${f.name}-${f.type}-${i}`} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
                       {f.name} <span className="text-blue-400">({f.type})</span>
                     </span>
                   ))}
@@ -253,7 +333,6 @@ export default function InventorySettingsPage() {
           </Section>
         </div>
       )}
-
     </div>
   );
 }

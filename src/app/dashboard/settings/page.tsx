@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Settings, Building2, Landmark, Mail, FileText, Upload, Key, Palette } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
@@ -103,7 +103,7 @@ export default function SettingsPage() {
   const set = (field: keyof Company) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(prev => ({ ...prev, [field]: e.target.value }));
 
-  const fetchCompany = () => {
+  const fetchCompany = useCallback(() => {
     setLoading(true);
     setError('');
     fetch('/api/company')
@@ -114,9 +114,15 @@ export default function SettingsPage() {
       })
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { fetchCompany(); }, []);
+  useEffect(() => { fetchCompany(); }, [fetchCompany]);
+
+  useEffect(() => {
+    const handler = () => { fetchCompany(); };
+    window.addEventListener('company-settings-changed', handler);
+    return () => window.removeEventListener('company-settings-changed', handler);
+  }, [fetchCompany]);
 
   const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -139,6 +145,9 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save settings');
       setSuccess('Settings saved successfully');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('company-settings-changed'));
+      }
     } catch (e: any) {
       setError(e.message || 'Failed to save settings');
     } finally {

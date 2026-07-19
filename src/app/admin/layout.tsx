@@ -166,8 +166,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/admin/clients?search=${encodeURIComponent(searchQuery.trim())}`);
+    const q = searchQuery.trim();
+    if (q) {
+      const sanitized = q.replace(/[<>"']/g, '');
+      router.push(`/admin/clients?search=${encodeURIComponent(sanitized)}`);
       setSearchQuery('');
       setShowSearch(false);
     }

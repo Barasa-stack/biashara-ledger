@@ -45,8 +45,7 @@ export async function createClientDatabase(email: string, companyName: string, m
          subscription_plan = EXCLUDED.subscription_plan,
          subscription_status = EXCLUDED.subscription_status,
          subscription_expiry = EXCLUDED.subscription_expiry,
-         license_status = EXCLUDED.license_status,
-         password_hash = EXCLUDED.password_hash`,
+         license_status = EXCLUDED.license_status`,
       [client.id, email, passwordHash, normalizePlan(plan), expiresAt]
     );
 

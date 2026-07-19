@@ -5,7 +5,7 @@ import { getSessionFromCookies } from '@/lib/auth-server';
 export async function POST(req: Request) {
   try {
     const session = await getSessionFromCookies();
-    if (!session || session.role !== 'admin') {
+    if (!session || session.role !== 'super_admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

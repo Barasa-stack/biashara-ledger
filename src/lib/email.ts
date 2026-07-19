@@ -269,7 +269,6 @@ async function logEmail(to: string, type: string, success: boolean, detail?: str
 export async function sendWelcomeEmailNewClient(params: {
   to: string;
   name: string;
-  tempPassword: string;
   licenseKey: string;
   plan: string;
   expiresAt: string;
@@ -277,7 +276,7 @@ export async function sendWelcomeEmailNewClient(params: {
 }) {
   const transporter = await createTransporter();
   if (!transporter) {
-    logInfo('email', `Dev: Welcome email for ${params.to}`, { tempPassword: params.tempPassword });
+    logInfo('email', `Dev: Welcome email for ${params.to}`);
     return { sent: true, dev: true };
   }
 
@@ -308,14 +307,10 @@ export async function sendWelcomeEmailNewClient(params: {
               <td style="padding: 4px 0; font-weight: 600;">${params.to}</td>
             </tr>
             <tr>
-              <td style="color: #6b7280; padding: 4px 0;">Temporary Password:</td>
-              <td style="padding: 4px 0; font-weight: 600; font-family: monospace; background: #fff; padding: 4px 8px; border-radius: 4px;">${params.tempPassword}</td>
+              <td style="color: #6b7280; padding: 4px 0;">Status:</td>
+              <td style="padding: 4px 0; font-weight: 600; color: #059669;">Active</td>
             </tr>
           </table>
-        </div>
-
-        <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin: 20px 0;">
-          <p style="font-size: 13px; color: #92400e; margin: 0;"><strong>Important:</strong> Please log in using the temporary password above. You will be required to change your password on first login.</p>
         </div>
 
         <div style="background: #fef2f2; border: 2px dashed #ef4444; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">

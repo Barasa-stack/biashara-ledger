@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { adminRun, adminGet, adminQuery, withTenantContext, run } from '@/lib/db';
+import { adminRun, adminGet, withTenantContext, run } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
 import { generateTOTPSecret, generateOTPAuthURL, verifyTOTP } from '@/lib/totp';
+import { encryptField, decryptField } from '@/lib/encryption';
+
+const TOTP_ENCRYPTION_ID = 'admin-totp-secret';
 
 export async function GET() {
   const { error, session } = await adminGuard();
@@ -20,11 +23,11 @@ export async function GET() {
     if (!enabled) {
       secret = generateTOTPSecret();
       setupUrl = generateOTPAuthURL(secret, session.email, 'BiasharaLedger Admin');
-      // Store pending secret for verification step
+      const encrypted = encryptField(TOTP_ENCRYPTION_ID, secret);
       await adminRun(
         `INSERT INTO admin_settings (key, value) VALUES ('pending_totp_secret', $1)
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-        [secret]
+        [encrypted]
       );
     }
 
@@ -46,24 +49,30 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'A valid 6-digit verification code is required' }, { status: 400 });
       }
 
-      // Get the secret that was generated during GET
       const stored = await adminGet<{ value: string }>(
         "SELECT value FROM admin_settings WHERE key = 'pending_totp_secret'"
       );
-      const secret = (stored as any)?.value;
-      if (!secret) {
+      const encryptedSecret = (stored as any)?.value;
+      if (!encryptedSecret) {
         return NextResponse.json({ error: '2FA setup expired. Please refresh the page and try again.' }, { status: 400 });
+      }
+
+      let secret: string;
+      try {
+        secret = decryptField(TOTP_ENCRYPTION_ID, encryptedSecret);
+      } catch {
+        return NextResponse.json({ error: 'Failed to decrypt secret. Please refresh the page.' }, { status: 500 });
       }
 
       if (!verifyTOTP(code, secret)) {
         return NextResponse.json({ error: 'Invalid verification code. Please try again.' }, { status: 400 });
       }
 
-      // Store the TOTP secret and enable 2FA
+      const encryptedStored = encryptField(TOTP_ENCRYPTION_ID, secret);
       await adminRun(
         `INSERT INTO admin_settings (key, value) VALUES ('admin_totp_secret', $1)
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-        [secret]
+        [encryptedStored]
       );
       await withTenantContext(session.tenant_id, async () => {
         await run(

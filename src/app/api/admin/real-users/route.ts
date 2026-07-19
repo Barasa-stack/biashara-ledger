@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminQuery, adminRun, run, withTenantContext } from '@/lib/db';
 import { adminGuard } from '@/lib/admin';
+import { logAdminAction } from '@/lib/admin-audit';
 
 export async function GET() {
   const { error } = await adminGuard();
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
         `UPDATE users SET license_status = 'revoked', license_key = NULL WHERE id = $1`,
         [userId]
       );
+      await logAdminAction({ action: 'Revoke License', entityType: 'user', entityId: String(userId), details: `License revoked for user ${userId}` });
       return NextResponse.json({ success: true, message: 'License revoked' });
     }
 
@@ -38,6 +40,7 @@ export async function POST(req: Request) {
         `UPDATE users SET license_status = 'active', subscription_status = 'active' WHERE id = $1`,
         [userId]
       );
+      await logAdminAction({ action: 'Reactivate User', entityType: 'user', entityId: String(userId), details: `User ${userId} reactivated` });
       return NextResponse.json({ success: true, message: 'User reactivated' });
     }
 
@@ -53,6 +56,7 @@ export async function POST(req: Request) {
         await adminRun(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
         await adminRun(`DELETE FROM users WHERE id = $1`, [userId]);
       }
+      await logAdminAction({ action: 'Delete User', entityType: 'user', entityId: String(userId), details: `User ${userId} deleted` });
       return NextResponse.json({ success: true, message: 'User deleted' });
     }
 
@@ -73,6 +77,7 @@ export async function POST(req: Request) {
           [days || 7, userId]
         );
       }
+      await logAdminAction({ action: 'Extend Trial', entityType: 'user', entityId: String(userId), details: `Trial extended by ${days || 7} days for user ${userId}` });
       return NextResponse.json({ success: true, message: `Trial extended by ${days || 7} days` });
     }
 
@@ -82,6 +87,7 @@ export async function POST(req: Request) {
         `UPDATE users SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name), role = COALESCE($3, role), subscription_plan = COALESCE($4, subscription_plan) WHERE id = $5`,
         [first_name || null, last_name || null, role || null, subscription_plan || null, userId]
       );
+      await logAdminAction({ action: 'Update User', entityType: 'user', entityId: String(userId), details: `User ${userId} updated` });
       return NextResponse.json({ success: true, message: 'User updated' });
     }
 

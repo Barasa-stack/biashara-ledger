@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { adminGet, adminRun, adminQuery } from '@/lib/db';
+import { adminGet, adminRun } from '@/lib/db';
 import { verifyTOTP } from '@/lib/totp';
+import { decryptField } from '@/lib/encryption';
+
+const TOTP_ENCRYPTION_ID = 'admin-totp-secret';
 
 const PENDING_2FA_SECRET = process.env.LICENSE_SECRET || 'biashara-ledger-2fa-pending';
 
@@ -31,15 +34,30 @@ function verifyPendingToken(token: string): { uid: number; tid: string } | null 
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, code } = await req.json();
+    const { email, password, code, pending_token } = await req.json();
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    const rl = await checkRateLimit(`admin-login:${email ?? 'unknown'}:${ip}`, 5, 60 * 1000);
-    if (!rl.allowed) {
-      return NextResponse.json(
-        { error: 'Too many login attempts. Try again later.' },
-        { status: 429 }
-      );
+
+    // If this is a 2FA verification step, rate-limit by user
+    if (code && pending_token) {
+      const rl = await checkRateLimit(`admin-2fa:${pending_token.substring(0, 16)}:${ip}`, 5, 60 * 1000);
+      if (!rl.allowed) {
+        return NextResponse.json(
+          { error: 'Too many 2FA attempts. Try again later.' },
+          { status: 429 }
+        );
+      }
+    }
+
+    // Rate limit initial login attempts
+    if (!code) {
+      const rl = await checkRateLimit(`admin-login:${email ?? 'unknown'}:${ip}`, 5, 60 * 1000);
+      if (!rl.allowed) {
+        return NextResponse.json(
+          { error: 'Too many login attempts. Try again later.' },
+          { status: 429 }
+        );
+      }
     }
 
     if (!email || !password) {
@@ -65,6 +83,48 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Handle 2FA verification step (code provided with pending token)
+    if (code && pending_token) {
+      const tokenData = verifyPendingToken(pending_token);
+      if (!tokenData) {
+        return NextResponse.json({ error: 'Session expired. Please log in again.' }, { status: 401 });
+      }
+
+      const stored = await adminGet<{ value: string }>(
+        "SELECT value FROM admin_settings WHERE key = 'admin_totp_secret'"
+      );
+      const encryptedSecret = (stored as any)?.value;
+      if (!encryptedSecret) {
+        return NextResponse.json({ error: 'Invalid two-factor authentication code' }, { status: 401 });
+      }
+      let totpSecret: string;
+      try {
+        totpSecret = decryptField(TOTP_ENCRYPTION_ID, encryptedSecret);
+      } catch {
+        return NextResponse.json({ error: 'Invalid two-factor authentication code' }, { status: 401 });
+      }
+      if (!verifyTOTP(code, totpSecret)) {
+        return NextResponse.json({ error: 'Invalid two-factor authentication code' }, { status: 401 });
+      }
+
+      const sessionToken = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      await adminRun(
+        'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+        [tokenData.tid, tokenData.uid, sessionToken, expiresAt]
+      );
+
+      const response = NextResponse.json({ success: true });
+      response.cookies.set('bl_session', sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+      });
+      return response;
+    }
+
     let adminUser = await adminGet(
       'SELECT id, tenant_id, email, password_hash, role, two_factor_enabled FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
       [normalizedEmail]
@@ -80,27 +140,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    let autoCreated = false;
     if (!adminUser) {
-      autoCreated = true;
-      const hashedPw = await bcrypt.hash(password, 10);
-      const adminId = Math.floor(Math.random() * 2147483647) + 1;
-      const sentinelTenant = crypto.randomUUID();
-      await adminRun(
-        `INSERT INTO tenants (id, name) VALUES ($1::uuid, $2) ON CONFLICT DO NOTHING`,
-        [sentinelTenant, 'Admin']
+      return NextResponse.json(
+        { error: 'Admin account not found. Contact your administrator.' },
+        { status: 403 }
       );
-      await adminRun(
-        `INSERT INTO users (id, tenant_id, email, password, password_hash, first_name, verified, subscription_plan, subscription_status, license_status, license_key, country, role)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [adminId, sentinelTenant, normalizedEmail, hashedPw, hashedPw, 'Admin', true, 'Premium', 'active', 'active', 'Admin-License', 'KE', 'super_admin']
-      );
-      adminUser = { id: adminId, email: normalizedEmail, password_hash: hashedPw, role: 'super_admin', tenant_id: sentinelTenant, two_factor_enabled: 0 };
     }
 
-    const isValid = await bcrypt.compare(password, adminUser.password_hash);
+    const isValid = await bcrypt.compare(password, (adminUser as any).password_hash);
     if (!isValid) {
-      if (autoCreated) await adminRun('DELETE FROM users WHERE id = $1', [adminUser.id]);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -109,7 +157,7 @@ export async function POST(req: NextRequest) {
 
     const appUser = adminUser as any;
 
-    // Ensure the tenant record exists before creating a session (FK constraint)
+    // Ensure the tenant record exists
     const targetTenantId = (appUser.tenant_id && appUser.tenant_id !== '') ? appUser.tenant_id : crypto.randomUUID();
     try {
       const tenantCheck = await adminGet('SELECT id FROM tenants WHERE id = $1::uuid', [targetTenantId]);
@@ -121,7 +169,7 @@ export async function POST(req: NextRequest) {
       console.warn('[login] Tenant re-insert failed:', e);
     }
 
-    // Ensure the admin user has super_admin role for adminGuard to pass
+    // Ensure super_admin role
     try {
       if (appUser.role !== 'super_admin') {
         await adminRun('UPDATE users SET role = $1 WHERE id = $2', ['super_admin', appUser.id]);
@@ -131,30 +179,17 @@ export async function POST(req: NextRequest) {
 
     const twoFactorEnabled = !!(appUser.two_factor_enabled);
 
-    // If 2FA is enabled and no code provided, ask for code
-    if (twoFactorEnabled && !code) {
+    if (twoFactorEnabled) {
       const pendingToken = createPendingToken(appUser.id, targetTenantId);
       return NextResponse.json({ requires_2fa: true, pending_token: pendingToken });
     }
 
-    // If 2FA is enabled and code is provided, verify it
-    if (twoFactorEnabled && code) {
-      const stored = await adminGet<{ value: string }>(
-        "SELECT value FROM admin_settings WHERE key = 'admin_totp_secret'"
-      );
-      const totpSecret = (stored as any)?.value;
-      if (!totpSecret || !verifyTOTP(code, totpSecret)) {
-        return NextResponse.json({ error: 'Invalid two-factor authentication code' }, { status: 401 });
-      }
-    }
-
-    // Create session
+    // Create session with UUID token
     const sessionToken = crypto.randomUUID();
-    const sessionId = Math.floor(Math.random() * 2147483647) + 1;
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     await adminRun(
-      'INSERT INTO sessions (id, tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4, $5)',
-      [sessionId, targetTenantId, appUser.id, sessionToken, expiresAt]
+      'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+      [targetTenantId, appUser.id, sessionToken, expiresAt]
     );
 
     const response = NextResponse.json({
