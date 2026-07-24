@@ -85,10 +85,10 @@ export class LicenseService {
           `UPDATE users
            SET subscription_status = 'active',
                license_status = 'active',
-               subscription_expiry = NOW() + interval '3 days',
+               subscription_expiry = $2::timestamptz,
                trial_used = 1
            WHERE id = $1`,
-          [trialUser.id]
+          [trialUser.id, trialUser.trial_end_date]
         );
 
         await logLicenseActivation({
