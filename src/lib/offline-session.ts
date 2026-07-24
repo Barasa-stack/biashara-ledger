@@ -3,15 +3,15 @@ import { adminGet, adminRun, adminQuery } from './db';
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const RENEWAL_THRESHOLD_MS = 24 * 60 * 60 * 1000;
-const SESSION_SECRET = (() => {
+function getSessionSecret() {
   const s = process.env.ENCRYPTION_KEY;
   if (!s) throw new Error('ENCRYPTION_KEY environment variable is required for session tokens');
   return s;
-})();
+}
 
 export function generateSessionToken(): string {
   const raw = crypto.randomBytes(32);
-  const hmac = crypto.createHmac('sha256', SESSION_SECRET);
+  const hmac = crypto.createHmac('sha256', getSessionSecret());
   hmac.update(raw);
   return hmac.digest('hex') + raw.toString('hex');
 }
