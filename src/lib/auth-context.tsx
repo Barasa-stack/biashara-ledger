@@ -35,6 +35,73 @@ type AuthContextType = {
   resetPassword: (email: string, newPassword: string, otp: string) => Promise<{ success: boolean; error?: string }>;
 };
 
+async function getDeviceFingerprint(): Promise<string> {
+  if (typeof window === 'undefined') return '';
+  if ((window as any).electronAPI?.getHardwareFingerprint) {
+    return (window as any).electronAPI.getHardwareFingerprint();
+  }
+  const components = [
+    navigator.userAgent, navigator.language,
+    screen.width, screen.height,
+    navigator.hardwareConcurrency,
+  ];
+  const str = components.join('|');
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function getDeviceInfo(): string {
+  if (typeof window === 'undefined') return '';
+  const parts: string[] = [];
+  parts.push(`platform=${navigator.platform}`);
+  parts.push(`lang=${navigator.language}`);
+  parts.push(`cookies=${navigator.cookieEnabled}`);
+  if ((navigator as any).deviceMemory) parts.push(`ram=${(navigator as any).deviceMemory}GB`);
+  if ((navigator as any).connection?.effectiveType) parts.push(`net=${(navigator as any).connection.effectiveType}`);
+  return parts.join('; ');
+}
+
+let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+async function startTracking() {
+  try {
+    const fp = await getDeviceFingerprint();
+    await fetch('/api/track/session-start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ deviceFingerprint: fp, deviceInfo: getDeviceInfo() }),
+    });
+  } catch { /* best-effort */ }
+
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(async () => {
+    try {
+      await fetch('/api/track/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ activeSeconds: 60 }),
+      });
+    } catch { /* best-effort */ }
+  }, 60000);
+}
+
+async function stopTracking() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  try {
+    await fetch('/api/track/session-end', {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch { /* best-effort */ }
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -78,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (data.user) {
             setUser(data.user);
             setLoading(false);
+            startTracking();
           } else if (retries < maxRetries) {
             retries++;
             retryTimeoutId = setTimeout(check, 1000);
@@ -135,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user || null);
         setLoading(false);
         router.refresh();
+        startTracking();
         return { success: true };
       }
       setLoading(false);
@@ -157,6 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user || null);
         setLoading(false);
         router.refresh();
+        startTracking();
         return { success: true };
       }
       setLoading(false);
@@ -202,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    await stopTracking();
     try {
       await fetch('/api/auth/signout', { method: 'POST' });
     } catch {}

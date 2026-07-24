@@ -126,7 +126,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: 'Upgrade required to access this feature' }, { status: 403 });
     }
     // Block business API calls if subscription is expired (based on cookie)
-    if (!pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/license/') && !pathname.startsWith('/api/webhook') && !pathname.startsWith('/api/cron/')) {
+    if (!pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/license/') && !pathname.startsWith('/api/webhook') && !pathname.startsWith('/api/cron/') && !pathname.startsWith('/api/track/')) {
       const expiryCookie = request.cookies.get('user_subscription_expiry');
       if (expiryCookie?.value) {
         const expiryDate = new Date(expiryCookie.value);

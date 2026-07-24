@@ -107,6 +107,39 @@ export async function initCoreTables() {
       PRIMARY KEY (tenant_id, id)
     );
 
+    CREATE TABLE IF NOT EXISTS public.login_history (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id UUID NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      ip_address VARCHAR(45) DEFAULT '',
+      user_agent TEXT DEFAULT '',
+      device_fingerprint TEXT DEFAULT '',
+      device_info TEXT DEFAULT '',
+      login_method VARCHAR(50) DEFAULT 'web',
+      session_token TEXT DEFAULT '',
+      login_at TIMESTAMPTZ DEFAULT NOW(),
+      logout_at TIMESTAMPTZ
+    );
+
+    CREATE TABLE IF NOT EXISTS public.session_activity (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id UUID NOT NULL,
+      email VARCHAR(255) DEFAULT '',
+      session_token TEXT DEFAULT '',
+      ip_address VARCHAR(45) DEFAULT '',
+      last_active_at TIMESTAMPTZ DEFAULT NOW(),
+      active_seconds INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS public.storage_usage (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      tenant_id UUID REFERENCES public.tenants(id),
+      email VARCHAR(255) DEFAULT '',
+      database_size_bytes BIGINT DEFAULT 0,
+      tables_size_bytes BIGINT DEFAULT 0,
+      measured_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS public.customers (
       tenant_id UUID NOT NULL REFERENCES public.tenants(id),
       id UUID DEFAULT gen_random_uuid(),
@@ -698,4 +731,35 @@ export async function initCoreTables() {
   await safeExec(`ALTER TABLE public.credit_notes ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
   await safeExec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 0`);
   await safeExec(`ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS item_id UUID`);
+
+  await safeExec(`CREATE TABLE IF NOT EXISTS public.login_history (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    device_fingerprint TEXT DEFAULT '',
+    device_info TEXT DEFAULT '',
+    login_method VARCHAR(50) DEFAULT 'web',
+    session_token TEXT DEFAULT '',
+    login_at TIMESTAMPTZ DEFAULT NOW(),
+    logout_at TIMESTAMPTZ
+  )`);
+  await safeExec(`CREATE TABLE IF NOT EXISTS public.session_activity (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL,
+    email VARCHAR(255) DEFAULT '',
+    session_token TEXT DEFAULT '',
+    ip_address VARCHAR(45) DEFAULT '',
+    last_active_at TIMESTAMPTZ DEFAULT NOW(),
+    active_seconds INTEGER DEFAULT 0
+  )`);
+  await safeExec(`CREATE TABLE IF NOT EXISTS public.storage_usage (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    tenant_id UUID,
+    email VARCHAR(255) DEFAULT '',
+    database_size_bytes BIGINT DEFAULT 0,
+    tables_size_bytes BIGINT DEFAULT 0,
+    measured_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
 }
