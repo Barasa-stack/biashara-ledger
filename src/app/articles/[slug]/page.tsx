@@ -110,6 +110,9 @@ export default async function ArticlePage({ params }: Props) {
             if (line.startsWith('**') && line.endsWith('**')) {
               return <strong key={i} className="font-semibold text-gray-900">{line.replace(/\*\*/g, '')}</strong>;
             }
+            if (line.startsWith('*') && line.endsWith('*') && !line.startsWith('**')) {
+              return <em key={i} className="text-gray-500">{line.replace(/\*/g, '')}</em>;
+            }
             if (line.startsWith('- **')) {
               const match = line.match(/- \*\*(.+?)\*\*(.*)/);
               if (match) {
