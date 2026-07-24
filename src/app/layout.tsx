@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   keywords: ['business management software', 'accounting software', 'inventory management', 'POS system', 'payroll software', 'compliance', 'global business software', 'BiasharaLedger'],
   authors: [{ name: 'BiasharaLedger' }],
   robots: { index: true, follow: true },
-  verification: { google: 'VCdOLPOo04llA0b6y-hNo3TQFbgpHoVSUG6Zw5pVxyo' },
+  verification: { google: ['VCdOLPOo04llA0b6y-hNo3TQFbgpHoVSUG6Zw5pVxyo', 'e_hzzabvVG6bKnqb0kjhPdM3UjgRoFIb5nB8-5-LhI4'] },
   openGraph: {
     type: 'website',
     locale: 'en_US',
