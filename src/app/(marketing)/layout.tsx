@@ -47,9 +47,9 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
               <div className="space-y-2.5">
-                <span className="block text-sm text-white/50">Privacy Policy</span>
-                <span className="block text-sm text-white/50">Terms of Service</span>
-                <span className="block text-sm text-white/50">Cookie Policy</span>
+                <Link href="/privacy-policy" className="block text-sm text-white/50 hover:text-white transition-colors">Privacy Policy</Link>
+                <Link href="/terms-of-service" className="block text-sm text-white/50 hover:text-white transition-colors">Terms of Service</Link>
+                <Link href="/cookie-policy" className="block text-sm text-white/50 hover:text-white transition-colors">Cookie Policy</Link>
               </div>
             </div>
           </div>
