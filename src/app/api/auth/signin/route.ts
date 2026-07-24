@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
     // Use let instead of const so we can reassign
     let user = await adminGet(
       `SELECT id, tenant_id, email, password_hash, first_name, last_name, verified,
-               subscription_plan, subscription_status, license_status, license_key, country
+               subscription_plan, subscription_status, subscription_expiry,
+               license_status, license_key, country, trial_end_date
        FROM users
        WHERE LOWER(email) = LOWER($1)
        ORDER BY
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest) {
       });
       user = await adminGet(
         `SELECT id, tenant_id, email, password_hash, first_name, last_name, verified,
-                subscription_plan, subscription_status, license_status, license_key, country
+                subscription_plan, subscription_status, subscription_expiry,
+                license_status, license_key, country, trial_end_date
          FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
         [email.toLowerCase().trim()]
       ) as any;
@@ -84,6 +86,8 @@ export async function POST(req: NextRequest) {
       const licenseKey = user.license_key;
       const licenseStatus = user.license_status;
       const expiry = user.subscription_expiry ? new Date(user.subscription_expiry) : null;
+      const trialEndDate = user.trial_end_date ? new Date(user.trial_end_date) : null;
+      const now = new Date();
 
       if (!licenseKey || !licenseStatus || (licenseStatus !== 'active' && licenseStatus !== 'trial')) {
         return NextResponse.json({
@@ -91,7 +95,18 @@ export async function POST(req: NextRequest) {
         }, { status: 403 });
       }
 
-      if (expiry && expiry < new Date() && licenseStatus !== 'active') {
+      // Check if trial or subscription has expired
+      const isExpired = (expiry && expiry < now && licenseStatus !== 'active')
+        || (trialEndDate && trialEndDate < now && licenseStatus === 'trial');
+
+      if (isExpired) {
+        // Auto-deactivate in DB so subsequent checks see 'expired' status
+        await withTenantContext(user.tenant_id, async () => {
+          await run(
+            `UPDATE users SET license_status = 'expired', subscription_status = 'expired' WHERE id = $1`,
+            [user.id]
+          );
+        });
         return NextResponse.json({
           error: 'Your trial has expired. Please select a plan to continue using BiasharaLedger.',
         }, { status: 403 });
@@ -161,6 +176,12 @@ export async function POST(req: NextRequest) {
       });
 
       response.cookies.set('user_plan', subPlan, {
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+        sameSite: 'lax',
+      });
+
+      response.cookies.set('user_subscription_expiry', user.subscription_expiry || user.trial_end_date || '', {
         path: '/',
         maxAge: 7 * 24 * 60 * 60,
         sameSite: 'lax',

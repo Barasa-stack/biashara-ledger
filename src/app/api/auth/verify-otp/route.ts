@@ -47,7 +47,8 @@ export async function POST(request: Request) {
     if (otpPurpose === 'signin_2fa') {
       const user = await adminGet(
         `SELECT id, tenant_id, email, first_name, last_name, 
-                subscription_plan, subscription_status, license_status, license_key, country
+                subscription_plan, subscription_status, subscription_expiry,
+                license_status, license_key, country, trial_end_date
          FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
         [email.toLowerCase().trim()]
       ) as any;
@@ -108,6 +109,12 @@ export async function POST(request: Request) {
       });
 
       response.cookies.set('user_plan', subPlan, {
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+        sameSite: 'lax',
+      });
+
+      response.cookies.set('user_subscription_expiry', user.subscription_expiry || user.trial_end_date || '', {
         path: '/',
         maxAge: 7 * 24 * 60 * 60,
         sameSite: 'lax',

@@ -96,6 +96,14 @@ export async function proxy(request: NextRequest) {
     if (!sessionCookie) {
       return NextResponse.redirect(new URL(DASHBOARD_LOGIN_PATH, request.url));
     }
+    // Check subscription expiry cookie — redirect expired users to /renew
+    const expiryCookie = request.cookies.get('user_subscription_expiry');
+    if (expiryCookie?.value) {
+      const expiryDate = new Date(expiryCookie.value);
+      if (expiryDate < new Date() && request.nextUrl.pathname !== RENEW_PATH) {
+        return NextResponse.redirect(new URL(RENEW_PATH, request.url));
+      }
+    }
     // Redirect /dashboard/inventory to its default sub-route
     if (pathname === '/dashboard/inventory') {
       return NextResponse.redirect(new URL('/dashboard/inventory/items', request.url));
@@ -111,11 +119,21 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(DASHBOARD_LOGIN_PATH, request.url));
   }
 
-  // Block API requests to features above user's plan level
+  // Block API requests to features above user's plan level or with expired subscription
   if (pathname.startsWith('/api/') && !pathname.startsWith(ADMIN_API_PREFIX)) {
     const apiRequiredLevel = getRequiredLevel(pathname, API_PLAN_GATES);
     if (apiRequiredLevel !== null && userPlanLevel < apiRequiredLevel) {
       return NextResponse.json({ error: 'Upgrade required to access this feature' }, { status: 403 });
+    }
+    // Block business API calls if subscription is expired (based on cookie)
+    if (!pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/license/') && !pathname.startsWith('/api/webhook') && !pathname.startsWith('/api/cron/')) {
+      const expiryCookie = request.cookies.get('user_subscription_expiry');
+      if (expiryCookie?.value) {
+        const expiryDate = new Date(expiryCookie.value);
+        if (expiryDate < new Date()) {
+          return NextResponse.json({ error: 'Your subscription has expired. Please renew to continue.' }, { status: 403 });
+        }
+      }
     }
   }
 

@@ -11,6 +11,8 @@ export async function POST(request: Request) {
   const response = NextResponse.json({ success: true });
   response.cookies.set('bl_session', '', { maxAge: 0 });
   response.cookies.set('bl_device_token', '', { maxAge: 0 });
+  response.cookies.set('user_plan', '', { maxAge: 0 });
+  response.cookies.set('user_subscription_expiry', '', { maxAge: 0 });
 
   return response;
 }

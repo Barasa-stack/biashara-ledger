@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionFromCookies } from '@/lib/auth-server';
 import { activateSubscription } from '@/lib/auth-guard';
+import { normalizePlan } from '@/lib/feature-gate';
 
 const planDurations: Record<string, { days: number; planName: string }> = {
   Monthly: { days: 30, planName: 'Basic' },
@@ -26,7 +27,24 @@ export async function POST(request: Request) {
 
     await activateSubscription(session.user_id, planConfig.planName, planConfig.days, 'manual', `renew-${Date.now()}`, session.tenant_id);
 
-    return NextResponse.json({ success: true });
+    const newExpiry = new Date(Date.now() + planConfig.days * 24 * 60 * 60 * 1000).toISOString();
+    const normalizedPlan = normalizePlan(planConfig.planName);
+
+    const response = NextResponse.json({ success: true });
+
+    response.cookies.set('user_plan', normalizedPlan, {
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: 'lax',
+    });
+
+    response.cookies.set('user_subscription_expiry', newExpiry, {
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: 'lax',
+    });
+
+    return response;
   } catch (err: any) {
     return NextResponse.json({ error: 'Renewal failed' }, { status: 500 });
   }
