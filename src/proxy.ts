@@ -141,7 +141,7 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_APP_URL || `http://localhost:3000`,
     'https://biashara-ledger.vercel.app',
     'https://biasharaledger.com',
-    'https://biasharaledger.qzz.io',
+    'https://www.biasharaledger.com',
   ].filter(Boolean);
 
   const getCorsHeaders = (origin: string | null) => ({

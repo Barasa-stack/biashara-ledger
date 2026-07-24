@@ -50,9 +50,9 @@ export default async function ArticlePage({ params }: Props) {
     publisher: {
       '@type': 'Organization',
       name: 'BiasharaLedger',
-      url: 'https://biasharaledger.qzz.io',
+      url: 'https://www.biasharaledger.com',
     },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://biasharaledger.qzz.io/articles/${article.slug}` },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.biasharaledger.com/articles/${article.slug}` },
   };
 
   return (

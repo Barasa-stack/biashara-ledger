@@ -274,7 +274,7 @@ export default function UsersPage() {
                       )}
                       {user.is_trial && !user.license_active && (
                         <a
-                          href={`https://biasharaledger.qzz.io/payment?email=${encodeURIComponent(user.email)}`}
+                          href={`https://www.biasharaledger.com/payment?email=${encodeURIComponent(user.email)}`}
                           target="_blank"
                           className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 px-2.5 py-1.5 rounded-lg transition-colors"
                           title="Send Payment Link"

@@ -3,7 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import ChatWidget from '@/components/ChatWidget';
 
-const baseUrl = 'https://biasharaledger.qzz.io';
+const baseUrl = 'https://www.biasharaledger.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),

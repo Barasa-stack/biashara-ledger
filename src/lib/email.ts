@@ -283,7 +283,7 @@ export async function sendWelcomeEmailNewClient(params: {
   const config = await getSmtpConfig();
   const fromName = config?.fromName || 'BiasharaLedger';
   const fromAddr = config?.fromAddr || '';
-  const loginUrl = params.loginUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.qzz.io'}/login`;
+  const loginUrl = params.loginUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.biasharaledger.com'}/login`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -425,7 +425,7 @@ export async function sendExpiryReminderEmail(params: {
   const config = await getSmtpConfig();
   const fromName = config?.fromName || 'BiasharaLedger';
   const fromAddr = config?.fromAddr || '';
-  const pricingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.qzz.io'}/pricing`;
+  const pricingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.biasharaledger.com'}/pricing`;
 
   if (params.paymentNotice) {
     const html = `
@@ -465,7 +465,7 @@ export async function sendExpiryReminderEmail(params: {
     }
   }
 
-  const renewalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.qzz.io'}/subscription/renew`;
+  const renewalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.biasharaledger.com'}/subscription/renew`;
 
   const urgent = params.urgent || params.daysRemaining <= 7;
   const bgColor = urgent ? '#dc2626' : '#f59e0b';

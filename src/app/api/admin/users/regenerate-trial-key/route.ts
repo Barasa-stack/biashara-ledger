@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     try {
       const transporter = await createTransporter();
       if (transporter) {
-        const activateUrl = 'https://biasharaledger.qzz.io/activate-license';
+        const activateUrl = 'https://www.biasharaledger.com/activate-license';
         await transporter.sendMail({
           from: `"BiasharaLedger" <${(transporter as any).options?.auth?.user || 'noreply@biasharaledger.com'}>`,
           to: normalizedEmail,

@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     try {
       const transporter = await createTransporter();
       if (transporter) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://biasharaledger.qzz.io';
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.biasharaledger.com';
         const activateUrl = `${appUrl}/activate-license`;
         const signInUrl = `${appUrl}/sign-in`;
         const companyName = company_name || 'BiasharaLedger';
