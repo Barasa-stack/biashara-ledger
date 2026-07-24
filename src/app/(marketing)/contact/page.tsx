@@ -134,7 +134,7 @@ export default function ContactPage() {
                   <Phone className="h-6 w-6 text-brand" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">Phone</h3>
-                <p className="text-sm text-gray-600">+254 715 434 805</p>
+                <p className="text-sm text-gray-600">+254 115 804 761</p>
               </div>
 
               <div className="contact-card bg-white rounded-xl p-6 border border-gray-100">

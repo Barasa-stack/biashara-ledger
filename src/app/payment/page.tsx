@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Smartphone, Check, Loader, ArrowLeft, Sparkles, Copy } from 'lucide-react';
 
-const MPESA_NUMBER = '+254 715 434 805';
+const MPESA_NUMBER = '+254 115 804 761';
 
 const plans: Record<string, { price: number; label: string; features: string[] }> = {
   Basic: { price: 1500, label: 'Basic', features: ['Invoicing & Quotations', 'Expense Tracking', 'Customer Management'] },
