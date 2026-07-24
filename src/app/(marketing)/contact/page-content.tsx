@@ -148,7 +148,7 @@ export default function ContactPage() {
               <Mail className="h-8 w-8 text-brand mb-4" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Email Us</h3>
               <p className="text-sm text-gray-600 mb-4">Our support team typically responds within 24 hours.</p>
-              <a href="mailto:hello@biasharaledger.com" className="text-brand font-semibold text-sm hover:underline">hello@biasharaledger.com</a>
+              <a href="mailto:support@biasharaledger.com" className="text-brand font-semibold text-sm hover:underline">support@biasharaledger.com</a>
             </div>
 
             <div className="bg-white rounded-xl p-8 border border-gray-100 contact-card">
@@ -162,7 +162,7 @@ export default function ContactPage() {
               <Phone className="h-8 w-8 text-brand mb-4" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Call Us</h3>
               <p className="text-sm text-gray-600 mb-4">Mon-Fri 8:00 AM - 6:00 PM EAT</p>
-              <a href="tel:+254700123456" className="text-brand font-semibold text-sm hover:underline">+254 700 123 456</a>
+              <a href="tel:+254115804761" className="text-brand font-semibold text-sm hover:underline">+254 115 804 761</a>
             </div>
           </div>
         </div>
