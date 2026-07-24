@@ -32,14 +32,24 @@ export async function GET() {
       console.error('selfRegistered query error:', e.message);
     }
 
-    const allClients = clients.map(c => ({ ...c, source: 'managed' }));
-    const allSelfRegistered = selfRegistered.map(u => ({
-      ...u, source: 'self_registered',
-      license_key: null, max_users: null, database_name: null,
-      is_active: u.subscription_status === 'active' || u.subscription_status === 'trial',
-      is_trial: u.subscription_plan === 'trial' || u.subscription_status === 'trial',
-      expires_at: u.subscription_expiry,
+    const now = new Date();
+    const allClients = clients.map(c => ({
+      ...c, source: 'managed',
+      real_status: c.expires_at && new Date(c.expires_at) < now ? 'expired' : c.is_active ? 'active' : 'inactive',
     }));
+    const allSelfRegistered = selfRegistered.map(u => {
+      const status = u.subscription_status || 'inactive';
+      const expiry = u.subscription_expiry ? new Date(u.subscription_expiry) : null;
+      const realStatus = expiry && expiry < now ? 'expired' : status === 'active' || status === 'trial' ? status : 'inactive';
+      return {
+        ...u, source: 'self_registered',
+        license_key: null, max_users: null, database_name: null,
+        is_active: realStatus === 'active' || realStatus === 'trial',
+        is_trial: u.subscription_plan === 'trial' || status === 'trial',
+        expires_at: u.subscription_expiry,
+        real_status: realStatus,
+      };
+    });
 
     return NextResponse.json([...allClients, ...allSelfRegistered]);
   } catch (err) {

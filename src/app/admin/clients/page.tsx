@@ -57,18 +57,18 @@ function ClientsPageContent() {
         (c.license_key || '').toLowerCase().includes(q)
       );
     }
-    if (statusFilter === 'active') return list.filter(c => c.is_active);
-    if (statusFilter === 'inactive') return list.filter(c => !c.is_active);
-    if (statusFilter === 'pending') return list.filter(c => c.source === 'self_registered' && (!c.subscription_status || c.subscription_status !== 'active'));
+    if (statusFilter === 'active') return list.filter(c => c.real_status === 'active');
+    if (statusFilter === 'inactive') return list.filter(c => c.real_status === 'inactive' || c.real_status === 'expired');
+    if (statusFilter === 'pending') return list.filter(c => c.source === 'self_registered' && c.real_status !== 'active');
     if (statusFilter === 'self_registered') return list.filter(c => c.source === 'self_registered');
     return list;
   }, [clients, search, statusFilter]);
 
   const stats = useMemo(() => ({
     total: clients.length,
-    active: clients.filter(c => c.is_active).length,
-    trial: clients.filter(c => c.is_trial).length,
-    expired: clients.filter(c => c.expires_at && new Date(c.expires_at) < new Date()).length,
+    active: clients.filter(c => c.real_status === 'active').length,
+    trial: clients.filter(c => c.real_status === 'trial').length,
+    expired: clients.filter(c => c.real_status === 'expired').length,
     selfRegistered: clients.filter(c => c.source === 'self_registered').length,
   }), [clients]);
 
@@ -233,30 +233,31 @@ function ClientsPageContent() {
                     </td>
                     <td className="px-4 py-3.5">
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                        client.is_trial ? 'bg-blue-50 text-blue-700' :
+                        client.real_status === 'expired' ? 'bg-red-50 text-red-700' :
+                        client.real_status === 'trial' ? 'bg-blue-50 text-blue-700' :
                         client.subscription_plan === 'premium' || client.plan === 'premium' ? 'bg-violet-50 text-violet-700' :
                         client.subscription_plan === 'standard' || client.plan === 'standard' ? 'bg-brand-light text-brand' :
                         'bg-gray-50 text-gray-700'
                       }`}>
-                        {client.subscription_plan || client.plan ? (client.subscription_plan || client.plan).charAt(0).toUpperCase() + (client.subscription_plan || client.plan).slice(1) : client.is_trial ? 'Trial' : 'Active'}
+                        {client.subscription_plan || client.plan ? (client.subscription_plan || client.plan).charAt(0).toUpperCase() + (client.subscription_plan || client.plan).slice(1) : client.real_status === 'trial' ? 'Trial' : client.real_status === 'expired' ? 'Expired' : 'Active'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5">
-                        {client.subscription_status === 'active' || client.license_status === 'active' ? (
+                        {client.real_status === 'active' ? (
                           <span className="flex items-center gap-1.5 text-xs text-green-600">
                             <CheckCircle2 size={12} /> Active
                           </span>
-                        ) : client.subscription_status === 'trial' || client.is_trial ? (
+                        ) : client.real_status === 'trial' ? (
                           <span className="flex items-center gap-1.5 text-xs text-blue-600">
                             <Clock size={12} /> Trial
                           </span>
-                        ) : client.subscription_status === 'expired' || (client.expires_at && new Date(client.expires_at) < new Date()) ? (
+                        ) : client.real_status === 'expired' ? (
                           <span className="flex items-center gap-1.5 text-xs text-red-600">
                             <XCircle size={12} /> Expired
                           </span>
-                        ) : client.is_active ? (
-                          <span className="flex items-center gap-1.5 text-xs text-brand">
+                        ) : client.is_active && client.source === 'managed' ? (
+                          <span className="flex items-center gap-1.5 text-xs text-green-600">
                             <CheckCircle2 size={12} /> Active
                           </span>
                         ) : (
@@ -278,7 +279,7 @@ function ClientsPageContent() {
                     </td>
                     <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
-                        {client.source === 'self_registered' && (!client.subscription_status || client.subscription_status !== 'active') && (
+                        {client.source === 'self_registered' && client.real_status !== 'active' && (
                           <button onClick={() => setConfirmAction({ type: 'activate', client })}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
                             <Key size={12} /> Activate
