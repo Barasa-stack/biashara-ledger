@@ -6,11 +6,11 @@ import { normalizePlan } from '@/lib/feature-gate';
 import { NextResponse } from 'next/server';
 import * as crypto from 'crypto';
 
-const SECRET = (() => {
+function getSecret() {
   const s = process.env.LICENSE_SECRET;
   if (!s) throw new Error('LICENSE_SECRET environment variable is required');
   return s;
-})();
+}
 
 export class LicenseService {
   // ─── ONLINE ACTIVATION (license key) ───
@@ -191,7 +191,7 @@ export class LicenseService {
     const payload = { ...licenseFile };
     delete payload.signature;
     const expectedSignature = crypto
-      .createHmac('sha256', SECRET)
+      .createHmac('sha256', getSecret())
       .update(JSON.stringify(payload))
       .digest('hex');
 
@@ -291,7 +291,7 @@ export class LicenseService {
     };
 
     const signature = crypto
-      .createHmac('sha256', SECRET)
+      .createHmac('sha256', getSecret())
       .update(JSON.stringify(payload))
       .digest('hex');
 
