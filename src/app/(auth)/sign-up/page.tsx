@@ -49,8 +49,7 @@ function SignUpForm() {
   const [message, setMessage] = useState('');
   const [devOtp, setDevOtp] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [showTrialPopup, setShowTrialPopup] = useState(false);
-  const [trialKey, setTrialKey] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
 
   const countryRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -191,8 +190,8 @@ function SignUpForm() {
     );
     setBusy(false);
     if (result.success) {
-      setShowTrialPopup(true);
-      setTrialKey((result as any).trial_key || '');
+      setRedirecting(true);
+      router.push('/dashboard');
     } else {
       setError(result.error || 'Verification failed.');
     }
@@ -422,18 +421,11 @@ function SignUpForm() {
         </p>
       </div>
 
-      {showTrialPopup && (
+      {redirecting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <Check className="h-8 w-8 text-green-600" />
-            </div>
-            <h2 className="text-lg font-bold text-gray-800 mb-2">Account Created Successfully!</h2>
-            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-              Please check your email for your 3 day trial license.
-              <br />
-              Complete the signup steps in the email to start your trial.
-            </p>
+            <Loader className="h-8 w-8 text-brand animate-spin mx-auto mb-4" />
+            <p className="text-sm text-gray-600">Setting up your account...</p>
           </div>
         </div>
       )}

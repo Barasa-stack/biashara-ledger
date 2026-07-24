@@ -105,12 +105,52 @@ export async function POST(req: NextRequest) {
 
     createNotification('info', 'New User Registration', `${normalizedEmail} registered for a 3-day trial (${selectedPackage || 'No plan'}).`, '/admin/clients');
 
-    return NextResponse.json({
+    // ─── AUTO-CREATE SESSION ───
+    const sessionToken = crypto.randomUUID();
+    const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await adminRun(
+      'INSERT INTO sessions (tenant_id, user_id, token, expires_at) VALUES ($1, $2, $3, $4)',
+      [tenantUuid, userId, sessionToken, sessionExpiresAt]
+    );
+
+    const displayName = firstName || lastName || '';
+    const response = NextResponse.json({
       success: true,
       trial_key: trialKey,
       email_sent: emailSent,
       message: `Account created! Check ${normalizedEmail} for your 3-day trial activation key.`,
+      user: {
+        id: userId,
+        email: normalizedEmail,
+        name: displayName,
+        tenantId: tenantUuid,
+        subscriptionPlan: plan,
+        subscriptionStatus: 'trial',
+        country: country || 'KE',
+      },
     });
+
+    response.cookies.set('bl_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    response.cookies.set('user_plan', plan, {
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: 'lax',
+    });
+
+    response.cookies.set('user_subscription_expiry', trialExpiry, {
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: 'lax',
+    });
+
+    return response;
   } catch (err: any) {
     console.error('[signup] Error:', err?.message || err);
     return NextResponse.json({ error: 'Signup failed: ' + (err?.message || 'Unknown') }, { status: 500 });
