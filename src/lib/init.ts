@@ -372,6 +372,30 @@ export async function ensureDbInitialized() {
         },
       },
       {
+        name: '2024-12-payment-requests',
+        run: async () => {
+          try {
+            await adminRun(`
+              CREATE TABLE IF NOT EXISTS public.payment_requests (
+                id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                user_id UUID NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                tenant_id UUID,
+                plan_name VARCHAR(50) NOT NULL,
+                amount REAL DEFAULT 0,
+                payment_method VARCHAR(50) DEFAULT 'mpesa',
+                transaction_id TEXT DEFAULT '',
+                status VARCHAR(20) DEFAULT 'pending',
+                admin_id UUID,
+                approved_at TIMESTAMPTZ,
+                notes TEXT DEFAULT '',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+              )
+            `);
+          } catch (e) { logError('init', e instanceof Error ? e.message : String(e)); }
+        },
+      },
+      {
         name: '2024-09-indexes',
         run: async () => {
           const allIndexNames = Object.keys(indexStatements);
