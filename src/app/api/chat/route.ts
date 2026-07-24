@@ -207,13 +207,32 @@ const KB = {
 };
 
 function getRelevantContext(message: string): string {
-  const lower = message.toLowerCase();
+  const lower = message.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const words = lower.split(' ');
 
-  if (lower.includes('hello') || lower.includes('hi ') || lower.includes('hey') || lower.includes('good')) {
+  const matches = (...kws: string[]) => kws.some(kw => lower.includes(kw));
+
+  function wordMatch(...kws: string[]) {
+    return kws.some(kw => words.some(w => w === kw));
+  }
+
+  // ─── GREETINGS ───
+  if (matches('hello', 'hi ', 'hey', 'good morning', 'good evening', 'good afternoon', 'howdy')) {
     return "Hello! Welcome to BiasharaLedger. I can help you with pricing, features, plans, industries, billing, support, payroll calculations, or anything else about our platform. What would you like to know?";
   }
 
-  if (lower.includes('price') || lower.includes('cost') || lower.includes('plan') || lower.includes('pricing') || lower.includes('kes') || lower.includes('how much') || lower.includes('subscription') || lower.includes('subscribe') || lower.includes('package')) {
+  // ─── COMPANY / FOUNDERS / ABOUT ───
+  if (matches('founder', 'founders', 'who created', 'who built', 'who started', 'who founded', 'who made', 'team behind', 'story', 'history', 'origin')) {
+    return KB.company.story;
+  }
+
+  // ─── DESCRIBE / OVERVIEW / INTRO ───
+  if (matches('describe', 'overview', 'tell me about', 'introduction', 'what is biasharaledger', 'what is this', 'explain biasharaledger', 'about biasharaledger', 'summarize', 'summary')) {
+    return `${KB.intro}\n\n**Key Facts:** ${KB.company.stats}\n\n**Values:** ${KB.company.values.join(' | ')}\n\n**Modules:** Core Accounting & Inventory (Basic), plus CRM (Standard), plus HR/Payroll, Projects, Automation & API (Premium).\n\nAll plans include a 3-day free trial.`;
+  }
+
+  // ─── PRICING / PLANS / PACKAGES ───
+  if (matches('price', 'pricing', 'cost', 'plan', 'plans', 'package', 'packages', 'subscription', 'subscribe', 'kes', 'how much', 'how much does', 'what are the', ' monthly', ' yearly', 'billing')) {
     const plans = KB.pricing.filter(p => p.name !== 'Custom').map(p =>
       `*${p.name}* — ${p.price} (${p.yearlyPrice} yearly): ${p.desc}\n  Features: ${p.features.slice(0, 4).join(', ')}${p.features.length > 4 ? '...' : ''}`
     ).join('\n\n');
@@ -221,121 +240,146 @@ function getRelevantContext(message: string): string {
     return `**Pricing Plans (Monthly):**\n\n${plans}\n\n*${custom!.name}: ${custom!.desc}*\n\n**Hosting:** ${KB.hosting.map(h => `${h.name} (${h.storage}) ${h.price}`).join(', ')}\n\n**Backup:** ${KB.backup.map(b => `${b.name} ${b.price} — ${b.desc}`).join(', ')}\n\nAll plans include a 3-day free trial. Yearly billing saves ~17%.`;
   }
 
-  if (lower.includes('trial') || lower.includes('free') || lower.includes('try') || lower.includes('demo') || lower.includes('sample')) {
+  // ─── TRIAL ───
+  if (matches('trial', 'free trial', 'try', 'demo', 'sample', 'test it', 'test out')) {
     return KB.trial;
   }
 
-  if (lower.includes('feature') || lower.includes('what can') || lower.includes('do you') || lower.includes('capabilities') || lower.includes('function') || lower.includes('tool') || lower.includes('module') || lower.includes('what does')) {
-    return `BiasharaLedger includes these modules:\n\n**Core Accounting:** ${KB.features.core.slice(0, 5).join(', ')}, and more.\n\n**CRM (Standard+):** ${KB.features.crm.join(', ')}.\n\n**HR & Payroll (Premium):** ${KB.features.hr.slice(0, 4).join(', ')}, and more.\n\n**Advanced (Premium):** ${KB.features.advanced.join(', ')}.\n\n**Platform:** ${KB.features.platform.join(', ')}.\n\n\nFeature availability depends on your plan. Basic covers core accounting + inventory, Standard adds CRM, Premium adds HR, payroll, projects, automation, and API access.`;
+  // ─── WHAT DO YOU OFFER / FEATURES OVERVIEW ───
+  if (matches('what do you offer', 'what do you do', 'offer', 'capabilities', 'what can', 'what does', 'modules', 'tools')) {
+    return `BiasharaLedger is a complete business management platform. Here is what we offer:\n\n**Core (All plans):** Inventory, Sales & POS, Purchases, Accounting (double-entry, GL, financial reports), Expense tracking, Banking, Multi-currency, Customer & Supplier management, Fixed Assets.\n\n**CRM (Standard+):** Pipeline management, Lead tracking, Deal stages, Customer analytics.\n\n**HR & Payroll (Premium):** Employee records, Attendance, Leave management, Salary processing, Payslips, Kenyan statutory deductions (PAYE, NSSF, SHIF, AHL), P9 forms.\n\n**Advanced (Premium):** Projects, Automation (recurring transactions, approvals), API keys & Webhooks, Budgeting.\n\n**Platform:** Cloud sync, Offline desktop (coming soon), Multi-branch, AES-256 encryption, Role-based access.\n\nFeature availability depends on your plan. Visit /features for full details.`;
   }
 
-  if (lower.includes('inventory') || lower.includes('stock') || lower.includes('warehouse') || lower.includes('barcode') || lower.includes('item') || lower.includes('product')) {
+  // ─── SPECIFIC FEATURE: INVENTORY ───
+  if (matches('inventory', 'stock', 'warehouse', 'barcode', 'item', 'items', 'products')) {
     return "**Inventory Management** is available from the Basic plan. Features include: real-time stock tracking, low-stock alerts, barcode scanning, multi-warehouse support, inventory valuation, stock items with categories, inventory transactions (receipts, issues, transfers), and inventory settings. You can manage inventory from /dashboard/inventory.";
   }
 
-  if (lower.includes('account') || lower.includes('bookkeep') || lower.includes('ledger') || lower.includes('journal') || lower.includes('chart of account') || lower.includes('gl ') || lower.includes('trial balance') || lower.includes('p&l') || lower.includes('profit') || lower.includes('balance sheet')) {
+  // ─── SPECIFIC FEATURE: ACCOUNTING ───
+  if (matches('accounting', 'bookkeep', 'bookkeeping', 'ledger', 'journal', 'chart of account', 'chart of accounts', 'trial balance', 'profit and loss', 'p&l', 'balance sheet', 'cash flow', 'general ledger')) {
     return "**Core Accounting** is included in all plans. Features: double-entry bookkeeping, chart of accounts (asset, liability, equity, revenue, expense types), journal entries with line items, general ledger, trial balance, financial statements (P&L, Balance Sheet, Cash Flow), accounts receivable/payable aging, budget vs actual, tax reports, audit trail, and multi-currency support.";
   }
 
-  if (lower.includes('payroll') || lower.includes('salary') || lower.includes('payslip') || lower.includes('employee') || lower.includes('nssf') || lower.includes('shif') || lower.includes('paye') || lower.includes('ahl') || lower.includes('deduction') || lower.includes('tax') && lower.includes('payroll') || lower.includes('p9')) {
+  // ─── SPECIFIC FEATURE: PAYROLL / HR ───
+  if (matches('payroll', 'salary', 'salaries', 'payslip', 'payslips', 'employee', 'employees', 'nssf', 'shif', 'paye', 'ahl', 'deduction', 'deductions', 'p9', 'hr', 'human resource', 'leave', 'attendance', 'overtime')) {
     return `**HR & Payroll** is available from the Premium plan.\n\n**Kenyan Statutory Deductions (2026):**\n- **PAYE:** Progressive brackets: 10% (0-24,000), 25% (24,001-32,333), 30% (32,334-500,000), 32.5% (500,001-800,000), 35% (800,001+). Personal relief KES 2,400/month.\n- **NSSF:** 6% employee + 6% employer. Tier I: max KES 540/side. Tier II: max KES 5,940/side.\n- **SHIF:** 2.75% of gross salary.\n- **AHL:** 1.5% of gross salary (employer matches).\n\n**Features:** Employee records, attendance tracking, leave management (21 days annual, 30 days sick, 12 weeks maternity, 2 weeks paternity), salary processing, payslip generation, P9 forms, deduction summaries, and payroll reports.\n\nEmployment types: full-time, part-time, contract, intern, casual.`;
   }
 
-  if (lower.includes('crm') || lower.includes('pipeline') || lower.includes('lead') || lower.includes('deal') || lower.includes('customer relationship')) {
+  // ─── SPECIFIC FEATURE: CRM ───
+  if (matches('crm', 'pipeline', 'lead', 'leads', 'deal', 'deals', 'customer relationship')) {
     return "**CRM** is available from the Standard plan. Features: Pipeline & Deal management (Lead → Qualified → Proposal → Negotiation → Closed Won/Lost with percentage stages), lead tracking & scoring, CRM Activities & analytics, enhanced customer view with communication history.";
   }
 
-  if (lower.includes('sales') || lower.includes('pos') || lower.includes('point of sale') || lower.includes('invoice') || lower.includes('quotation') || lower.includes('payment') || lower.includes('receipt') || lower.includes('credit note')) {
+  // ─── SPECIFIC FEATURE: SALES / POS ───
+  if (matches('sales', 'pos', 'point of sale', 'invoice', 'invoices', 'quotation', 'quotations', 'payment', 'payments', 'receipt', 'receipts', 'credit note', 'sell')) {
     return "**Sales & POS** is included in all plans. Features: fast point-of-sale with customer management, sales invoices, quotations, payments recording, credit notes, sales receipts, integrated payment support, and customer payment history. All sales transactions flow into your accounting automatically.";
   }
 
-  if (lower.includes('project') || lower.includes('task') || lower.includes('time tracking')) {
+  // ─── SPECIFIC FEATURE: PROJECTS ───
+  if (matches('project', 'projects', 'task', 'tasks', 'time tracking', 'costing')) {
     return "**Projects** is available from the Premium plan. Features: project creation and costing, project transaction tracking, and project management. Link project costs to specific clients or internal initiatives.";
   }
 
-  if (lower.includes('api') || lower.includes('webhook') || lower.includes('developer') || lower.includes('integrate') || lower.includes('connect') || lower.includes('third party')) {
+  // ─── API / WEBHOOKS ───
+  if (matches('api', 'apis', 'api key', 'api keys', 'webhook', 'webhooks', 'developer', 'developers', 'integrate', 'integration', 'connect', 'third party')) {
     return "**API & Webhooks** are available from the Premium plan. You can generate API keys for programmatic access and configure webhooks to receive real-time event notifications. Documentation is available once subscribed.";
   }
 
-  if (lower.includes('automat') || lower.includes('recurring') || lower.includes('approval') || lower.includes('workflow')) {
+  // ─── AUTOMATION ───
+  if (matches('automation', 'automate', 'recurring', 'approval', 'approvals', 'workflow', 'workflows')) {
     return "**Automation** is available from the Premium plan. Features: recurring transactions (for regular invoices, bills, etc.) and approval workflows for expense approvals, purchase approvals, and more.";
   }
 
-  if (lower.includes('support') || lower.includes('help') || lower.includes('contact') || lower.includes('email') || lower.includes('phone') || lower.includes('call') || lower.includes('reach')) {
+  // ─── SUPPORT / CONTACT ───
+  if (matches('support', 'help', 'contact', 'email', 'phone', 'call', 'reach', 'talk to', 'customer service')) {
     return `**Get in Touch:**\n\n📧 Email: ${KB.support.email}\n📞 Phone: ${KB.support.phone}\n📍 Location: ${KB.support.office}\n📝 Contact form: /contact\n\nOur support team typically responds within hours. The team includes accountants who understand your business challenges.`;
   }
 
-  if (lower.includes('industr') || lower.includes('sector') || lower.includes('retail') || lower.includes('restaurant') || lower.includes('pharmacy') || lower.includes('manufactur') || lower.includes('wholesale') || lower.includes('hospital') || lower.includes('school') || lower.includes('farm') || lower.includes('agri')) {
+  // ─── INDUSTRIES ───
+  if (matches('industries', 'industry', 'sector', 'sectors', 'retail', 'restaurant', 'restaurants', 'pharmacy', 'pharmacies', 'manufacturing', 'manufacturer', 'wholesale', 'wholesaler', 'hospital', 'hospitals', 'school', 'schools', 'farm', 'farming', 'agriculture', 'ecommerce', 'e-commerce', 'construction', 'fashion', 'clothing', 'electronics', 'bookshop', 'supermarket', 'supermarkets', 'hardware', 'distributor', 'distributors', 'agribusiness')) {
     return `BiasharaLedger serves these industries:\n\n${KB.industries.map(i => `• ${i}`).join('\n')}\n\nThe platform adapts to your industry with specialized features and workflows. For example, retail gets POS + inventory, healthcare gets patient billing, manufacturing gets raw material tracking.`;
   }
 
-  if (lower.includes('desktop') || lower.includes('download') || lower.includes('app') || lower.includes('mobile') || lower.includes('offline') || lower.includes('native') || lower.includes('electron')) {
+  // ─── DESKTOP / DOWNLOAD / APP ───
+  if (matches('desktop', 'download', 'app', 'mobile', 'offline', 'native', 'electron', 'windows', 'macos', 'linux', 'android', 'iphone')) {
     return KB.desktop;
   }
 
-  if (lower.includes('security') || lower.includes('secure') || lower.includes('safe') || lower.includes('encrypt') || lower.includes('privacy') || lower.includes('data') && (lower.includes('protect') || lower.includes('safe'))) {
+  // ─── SECURITY ───
+  if (matches('security', 'secure', 'safe', 'encrypt', 'encryption', 'privacy', 'data protection', 'protected')) {
     return KB.security;
   }
 
-  if (lower.includes('backup') || lower.includes('restore') || lower.includes('recover') || lower.includes('snapshot')) {
+  // ─── BACKUP ───
+  if (matches('backup', 'backups', 'restore', 'recover', 'recovery', 'snapshot', 'snapshots')) {
     return `**Backup Plans:**\n\n• **Basic Backup** (KES 750/month): Daily snapshots up to 10 GB, 7-day retention\n• **Advanced Backup** (KES 2,250/month — Most Popular): Real-time continuous backups, 30-day retention, multi-server redundancy\n\nAll backups are encrypted with AES-256-GCM before storage.`;
   }
 
-  if (lower.includes('hosting') || lower.includes('storage') || lower.includes('space') || lower.includes('gb') || lower.includes('tier')) {
+  // ─── HOSTING / STORAGE ───
+  if (matches('hosting', 'storage', 'space', 'gb', 'tier', 'tiers', 'cloud')) {
     return `**Hosting Plans:**\n\n• Free Tier: 0.5 GB (KES 0)\n• Starter Hosting: 5 GB (KES 750/month)\n• Growth Hosting: 20 GB (KES 2,250/month)\n• Enterprise Hosting: 100 GB+ (Custom pricing)`;
   }
 
-  if (lower.includes('multi') && (lower.includes('branch') || lower.includes('location') || lower.includes('store') || lower.includes('warehouse'))) {
+  // ─── MULTI-BRANCH ───
+  if ((matches('multi', 'multiple') && matches('branch', 'location', 'store', 'stores', 'warehouse')) || matches('branches', 'locations', 'multi-branch', 'multibranch')) {
     return "**Multi-Branch Support** is included. You can manage multiple locations from one account with centralized reporting. Each branch can have its own inventory, sales, and settings while you see consolidated reports across all branches.";
   }
 
-  if (lower.includes('license') || lower.includes('activate') || lower.includes('key') || lower.includes('bl-')) {
+  // ─── LICENSE / ACTIVATION ───
+  if (matches('license', 'licence', 'activate', 'activation', 'key', 'license key', 'licence key', 'bl-')) {
     return "**License System:** After subscribing, you receive a license key in the format BL-YYYY-UUID-HMAC. You can activate it online through your account dashboard. For the desktop app, you can also activate offline using a signed license file (.lic). The system supports trial licenses (3 days), which auto-convert to paid subscriptions. License expiry reminders are sent at 30, 7, 3, and 1 day before expiry.";
   }
 
-  if (lower.includes('onboard') || lower.includes('get started') || lower.includes('start') || lower.includes('setup') || lower.includes('sign up') || lower.includes('register') || lower.includes('create account')) {
+  // ─── ONBOARDING / SIGN UP ───
+  if (matches('onboard', 'onboarding', 'getting started', 'get started', 'setup', 'set up', 'sign up', 'signup', 'register', 'registration', 'create account', 'create an account', 'start using')) {
     return KB.onboarding;
   }
 
-  if (lower.includes('vat') || lower.includes('tax') || lower.includes('compliance') || lower.includes('kra') || lower.includes('gst') || lower.includes('sales tax')) {
+  // ─── TAX / VAT ───
+  if (matches('vat', 'tax', 'taxes', 'compliance', 'kra', 'gst', 'sales tax', 'withholding')) {
     return "BiasharaLedger supports VAT/GST/Sales Tax for 83 countries. Key rates: Kenya 16%, Uganda 18%, Tanzania 18%, Nigeria 7.5%, Ghana 12.5%, South Africa 15%, Rwanda 18%, UK 20%. The system generates tax reports, VAT returns data, and ensures compliance with local tax authorities like KRA in Kenya. Tax reports are available from the Basic plan.";
   }
 
-  if (lower.includes('report') || lower.includes('analytics') || lower.includes('dashboard') || lower.includes('kpi') || lower.includes('insight') || lower.includes('chart')) {
+  // ─── REPORTS / ANALYTICS ───
+  if (matches('report', 'reports', 'analytics', 'dashboard', 'kpi', 'kpis', 'insight', 'insights', 'chart', 'charts', 'graph', 'graphs')) {
     return "**Reports & Analytics** are included in all plans. Available reports: Profit & Loss, Balance Sheet, Cash Flow Statement, Trial Balance, General Ledger, Accounts Receivable Aging, Accounts Payable Aging, Expense Report, Sales Report, Inventory Valuation, Budget vs Actual, Owner's Equity, Tax Report, and Audit Trail. The dashboard gives you real-time KPIs of your business performance.";
   }
 
-  if (lower.includes('country') || lower.includes('currency') || lower.includes('multi-currency') || lower.includes('exchange rate') || lower.includes('usd') || lower.includes('eur') || lower.includes('gbp') || lower.includes('kes')) {
+  // ─── CURRENCIES ───
+  if (matches('currency', 'currencies', 'multi-currency', 'exchange rate', 'exchange rates', 'forex', 'usd', 'eur', 'gbp', 'kes', 'ngn', 'zar', 'ugx', 'tzs')) {
     return "BiasharaLedger supports 21 currencies including KES, USD, UGX, TZS, RWF, NGN, ZAR, GHS, EUR, GBP, and more. Multi-currency is included in all plans. You can transact in different currencies and the system handles exchange rate tracking and reporting.";
   }
 
-  if (lower.includes('m-pesa') || lower.includes('mpesa') || lower.includes('mobile money') || lower.includes('payment method') || lower.includes('how to pay')) {
+  // ─── M-PESA / PAYMENT METHODS ───
+  if (matches('m-pesa', 'mpesa', 'mobile money', 'payment method', 'payment methods', 'how to pay', 'pay', 'paying')) {
     return "We accept M-Pesa (preferred), credit/debit cards, and bank transfers (for annual plans). M-Pesa is our most popular payment method. After payment, your account is activated by an admin review process.";
   }
 
-  if (lower.includes('sign in') || lower.includes('login') || lower.includes('log in') || lower.includes('forgot password') || lower.includes('reset')) {
+  // ─── SIGN IN / LOGIN ───
+  if (matches('sign in', 'signin', 'login', 'log in', 'log into', 'forgot password', 'reset password', 'can\'t login', 'cannot login')) {
     return "You can sign in at /sign-in. If you forgot your password, click 'Forgot Password' on the sign-in page to reset it via OTP verification. New users can sign up for a free trial at /sign-up — no credit card required.";
   }
 
-  if (lower.includes('thank') || lower.includes('thanks') || lower.includes('appreciate') || lower.includes('great') || lower.includes('helpful')) {
+  // ─── THANKS ───
+  if (matches('thank', 'thanks', 'thank you', 'appreciate', 'great', 'helpful', 'awesome', 'cool', 'perfect')) {
     return "You're welcome! Is there anything else I can help you with? If you ever need more assistance, you can always reach us at support@biasharaledger.com.";
   }
 
-  if (lower.includes('bye') || lower.includes('goodbye') || lower.includes('see you')) {
+  // ─── BYE ───
+  if (matches('bye', 'goodbye', 'see you', 'talk later', 'cya', 'farewell')) {
     return "Goodbye! Feel free to come back anytime if you have more questions. You can also email support@biasharaledger.com for further assistance.";
   }
 
-  const allFaqQ = KB.faq.map(f => f.q.toLowerCase());
+  // ─── FAQ FALLBACK: check each FAQ question word-by-word ───
   for (let i = 0; i < KB.faq.length; i++) {
-    const words = KB.faq[i].q.toLowerCase().split(' ');
-    for (const word of words) {
-      if (word.length > 3 && lower.includes(word)) {
-        return KB.faq[i].a;
-      }
+    const faqWords = KB.faq[i].q.toLowerCase().split(' ');
+    const matchCount = faqWords.filter(w => w.length > 3 && lower.includes(w)).length;
+    if (matchCount >= 2) {
+      return KB.faq[i].a;
     }
   }
 
-  return `I'm not sure I understood that. You can ask me about:\n\n• **Pricing** — plans, costs, billing\n• **Features** — what BiasharaLedger can do\n• **Industries** — which sectors we serve\n• **Payroll** — salaries, NSSF, SHIF, PAYE, AHL\n• **Trial** — free trial details\n• **Support** — how to reach us\n• **Desktop app** — download and offline access\n• **CRM, Inventory, Accounting** — specific modules\n\nOr email support@biasharaledger.com for more help.`;
+  return `I'm not sure I understood that. You can ask me about:\n\n• **Pricing / Packages** — plans, costs, billing\n• **What we offer** — features, modules, capabilities\n• **Company** — founders, story, history\n• **Industries** — which sectors we serve\n• **Payroll** — salaries, NSSF, SHIF, PAYE, AHL\n• **Trial** — free trial details\n• **Support** — how to reach us\n• **Desktop app** — download and offline access\n• **CRM, Inventory, Accounting** — specific modules\n\nOr email support@biasharaledger.com for more help.`;
 }
 
 export async function POST(req: Request) {
