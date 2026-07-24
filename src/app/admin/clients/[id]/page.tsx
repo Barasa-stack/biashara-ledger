@@ -21,9 +21,173 @@ import {
   Shield,
   Clock as ClockIcon,
   Database,
+  Monitor,
+  Smartphone,
+  LogIn,
+  HardDrive,
+  Timer,
 } from 'lucide-react';
 
 const PLAN_OPTIONS = ['Basic', 'Standard', 'Premium'];
+
+function ActivityTabContent({ clientId, client }: { clientId: string; client: any }) {
+  const [tracking, setTracking] = useState<{ loginHistory: any[]; sessions: any[]; totalActiveHours: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/admin/clients/${clientId}/activity`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setTracking(data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [clientId]);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 flex items-center justify-center">
+        <Loader2 size={24} className="text-brand animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-blue-50">
+              <LogIn size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Logins</p>
+              <p className="text-xl font-bold text-gray-900">{tracking?.loginHistory?.length || 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-green-50">
+              <Timer size={20} className="text-green-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Active Hours</p>
+              <p className="text-xl font-bold text-gray-900">{tracking?.totalActiveHours || 0}h</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-purple-50">
+              <HardDrive size={20} className="text-purple-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Sessions</p>
+              <p className="text-xl font-bold text-gray-900">{tracking?.sessions?.length || 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">Login History</h3>
+        </div>
+        {!tracking?.loginHistory?.length ? (
+          <div className="p-8 text-center text-sm text-gray-400">No login history recorded yet</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Device Fingerprint</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User Agent</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {tracking.loginHistory.map((log: any) => {
+                  const loginTime = log.login_at ? new Date(log.login_at) : null;
+                  const logoutTime = log.logout_at ? new Date(log.logout_at) : null;
+                  let duration = '—';
+                  if (loginTime && logoutTime) {
+                    const mins = Math.round((logoutTime.getTime() - loginTime.getTime()) / 60000);
+                    duration = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+                  } else if (loginTime) {
+                    const mins = Math.round((Date.now() - loginTime.getTime()) / 60000);
+                    duration = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m (active)`;
+                  }
+                  return (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">
+                        {loginTime ? loginTime.toLocaleString() : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <code className="text-xs bg-gray-50 px-2 py-1 rounded text-gray-600">{log.ip_address || '—'}</code>
+                      </td>
+                      <td className="px-4 py-3">
+                        {log.device_fingerprint ? (
+                          <code className="text-xs bg-gray-50 px-2 py-1 rounded text-gray-500 font-mono max-w-[120px] block truncate" title={log.device_fingerprint}>
+                            {log.device_fingerprint.substring(0, 16)}...
+                          </code>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate" title={log.user_agent}>
+                        {log.user_agent?.substring(0, 60) || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{duration}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-900">Active Sessions</h3>
+        </div>
+        {!tracking?.sessions?.length ? (
+          <div className="p-8 text-center text-sm text-gray-400">No session data recorded yet</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Active</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {tracking.sessions.map((s: any) => (
+                  <tr key={s.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">
+                      {s.last_active_at ? new Date(s.last_active_at).toLocaleString() : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <code className="text-xs bg-gray-50 px-2 py-1 rounded text-gray-600">{s.ip_address || '—'}</code>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">
+                      {s.active_seconds >= 3600
+                        ? `${Math.floor(s.active_seconds / 3600)}h ${Math.floor((s.active_seconds % 3600) / 60)}m`
+                        : `${Math.floor(s.active_seconds / 60)}m ${s.active_seconds % 60}s`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
@@ -50,6 +214,8 @@ export default function ClientDetailPage() {
   const [resending, setResending] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [tracking, setTracking] = useState<{ loginHistory: any[]; sessions: any[]; totalActiveHours: number } | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
 
   useEffect(() => {
     if (!params.id) return;
@@ -395,29 +561,7 @@ export default function ClientDetailPage() {
       )}
 
       {activeTab === 'activity' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Recent Activity</h3>
-            {[
-              { action: 'Client created', date: client.created_at, icon: User, color: 'text-brand' },
-              { action: client.is_active ? 'Account active' : 'Account inactive', date: client.last_active, icon: Activity, color: client.is_active ? 'text-brand' : 'text-gray-400' },
-              { action: client.is_trial ? 'Trial period' : 'Active subscription', date: client.trial_start_date, icon: CreditCard, color: 'text-blue-600' },
-            ].map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <div key={i} className="flex items-start gap-3 py-2">
-                  <div className={`p-1.5 rounded-full bg-gray-100 ${item.color}`}>
-                    <Icon size={14} />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-700">{item.action}</p>
-                    <p className="text-xs text-gray-400">{item.date ? new Date(item.date).toLocaleString() : 'Unknown'}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <ActivityTabContent clientId={params.id as string} client={client} />
       )}
 
       {activeTab === 'licenses' && (
