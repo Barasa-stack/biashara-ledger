@@ -10,6 +10,8 @@ export type ArticleMeta = {
   category: string;
   readTime: string;
   published: boolean;
+  image?: string;
+  imageAlt?: string;
 };
 
 export type Article = ArticleMeta & {

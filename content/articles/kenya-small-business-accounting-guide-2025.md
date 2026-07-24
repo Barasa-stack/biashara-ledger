@@ -7,6 +7,8 @@ author: 'Edward Moodley'
 category: 'Accounting'
 readTime: '8 min read'
 published: true
+image: '/images/articles/accounting.jpg'
+imageAlt: 'Business owner reviewing financial reports and accounting documents on a wooden desk'
 ---
 
 For most small business owners in Kenya, accounting is the part of the job they dread most. Invoicing, receipts, M-Pesa reconciliation, KRA filings — the administrative load grows heavier the more customers walk through the door. Yet the businesses that get their books right are the ones that survive, scale, and secure funding.

@@ -7,6 +7,8 @@ author: 'Edward Moodley'
 category: 'Product'
 readTime: '5 min read'
 published: true
+image: '/images/articles/mobile-money.jpg'
+imageAlt: 'Person holding a smartphone displaying a mobile payment transaction screen'
 ---
 
 M-Pesa has transformed the way Kenyan businesses get paid. With over 30 million active users and trillions of shillings transacted annually, it is the backbone of the country's digital economy. But for business owners, every payment that comes in must be reconciled against an invoice or sale — a task that consumes hours each week and is fraught with risk.

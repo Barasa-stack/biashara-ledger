@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import { ArrowLeft, Calendar, User, Clock } from 'lucide-react';
 import { getArticleBySlug, getAllArticles } from '@/lib/articles';
@@ -84,6 +85,19 @@ export default async function ArticlePage({ params }: Props) {
             <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {article.readTime}</span>
           </div>
         </header>
+
+        {article.image && (
+          <div className="relative w-full h-[400px] rounded-xl overflow-hidden mb-10">
+            <Image
+              src={article.image}
+              alt={article.imageAlt || article.title}
+              fill
+              className="object-cover"
+              priority
+              sizes="(max-width: 768px) 100vw, 800px"
+            />
+          </div>
+        )}
 
         <div className="prose prose-gray max-w-none">
           {article.content.split('\n').map((line, i) => {

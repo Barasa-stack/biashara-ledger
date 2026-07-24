@@ -7,6 +7,8 @@ author: 'Edward Moodley'
 category: 'Tax'
 readTime: '6 min read'
 published: true
+image: '/images/articles/tax-compliance.jpg'
+imageAlt: 'Stack of tax documents and a calculator on a desk, representing KRA compliance and tax filing'
 ---
 
 Tax compliance remains one of the most significant operational challenges for small and medium enterprises in Kenya. As the Kenya Revenue Authority continues to digitise its systems and expand its data-sharing agreements with mobile money providers and banks, the margin for error is shrinking.

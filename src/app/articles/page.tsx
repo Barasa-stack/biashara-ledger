@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, Calendar, User as UserIcon, Clock } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getAllArticles } from '@/lib/articles';
@@ -53,8 +54,20 @@ export default async function ArticlesPage({
                   <Link
                     key={article.slug}
                     href={`/articles/${article.slug}`}
-                    className="group bg-white border border-gray-100 rounded-2xl p-6 hover:border-brand/20 transition-all duration-300 hover:shadow-lg hover:shadow-brand/5"
+                    className="group bg-white border border-gray-100 rounded-2xl overflow-hidden hover:border-brand/20 transition-all duration-300 hover:shadow-lg hover:shadow-brand/5"
                   >
+                    {article.image && (
+                      <div className="relative w-full h-48 overflow-hidden">
+                        <Image
+                          src={article.image}
+                          alt={article.imageAlt || article.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          sizes="(max-width: 768px) 100vw, 600px"
+                        />
+                      </div>
+                    )}
+                    <div className="p-6">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-xs font-semibold text-brand bg-brand/5 px-2.5 py-1 rounded-full">
                         {article.category}
@@ -70,6 +83,7 @@ export default async function ArticlesPage({
                       <span className="flex items-center gap-1"><UserIcon className="h-3 w-3" /> {article.author}</span>
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(article.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {article.readTime}</span>
+                    </div>
                     </div>
                   </Link>
                 ))}
