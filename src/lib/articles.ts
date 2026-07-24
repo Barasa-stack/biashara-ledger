@@ -51,6 +51,8 @@ export function getAllArticles(): Article[] {
       category: meta.category || '',
       readTime: meta.readTime || '',
       published: meta.published !== 'false',
+      image: meta.image || undefined,
+      imageAlt: meta.imageAlt || undefined,
       content,
     };
   });
