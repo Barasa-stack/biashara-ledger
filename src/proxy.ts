@@ -52,7 +52,7 @@ function getRequiredLevel(pathname: string, gates: [string, number][]): number |
   return null;
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('bl_session');
   const planCookie = request.cookies.get('user_plan');
@@ -73,6 +73,21 @@ export function proxy(request: NextRequest) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      return NextResponse.redirect(new URL(ADMIN_LOGIN_PATH, request.url));
+    }
+    try {
+      const apiUrl = new URL('/api/auth/me', request.url);
+      const response = await fetch(apiUrl.toString(), {
+        headers: { cookie: `bl_session=${sessionCookie.value}` },
+      });
+      if (!response.ok) {
+        return NextResponse.redirect(new URL(ADMIN_LOGIN_PATH, request.url));
+      }
+      const data = await response.json();
+      if (data?.user?.role !== 'super_admin') {
+        return NextResponse.redirect(new URL(ADMIN_LOGIN_PATH, request.url));
+      }
+    } catch {
       return NextResponse.redirect(new URL(ADMIN_LOGIN_PATH, request.url));
     }
   }
