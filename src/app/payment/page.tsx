@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Smartphone, Check, Loader, ArrowLeft, Sparkles, Copy } from 'lucide-react';
+import { Smartphone, Check, Loader, ArrowLeft, Sparkles, Copy, Clock } from 'lucide-react';
 
 const MPESA_NUMBER = '+254 115 804 761';
 
@@ -23,7 +23,7 @@ function PaymentContent() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [step, setStep] = useState<'choose' | 'success'>('choose');
+  const [step, setStep] = useState<'choose' | 'pending' | 'success'>('choose');
 
   async function handlePay() {
     setBusy(true);
@@ -41,11 +41,10 @@ function PaymentContent() {
       });
 
       if (confirmRes.ok) {
-        setStep('success');
-        setTimeout(() => router.push('/dashboard'), 2000);
+        setStep('pending');
       } else {
         const err = await confirmRes.json();
-        setError(err.error || 'Payment confirmation failed');
+        setError(err.error || 'Submission failed');
         setBusy(false);
       }
     } catch {
@@ -64,7 +63,26 @@ function PaymentContent() {
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
 
-        {step === 'success' ? (
+        {step === 'pending' ? (
+          <div className="bg-white rounded-xl border border-border p-8 text-center">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Clock className="h-8 w-8 text-amber-600" />
+            </div>
+            <h2 className="text-xl font-bold text-[#000000] mb-2">Payment Submitted</h2>
+            <p className="text-[#555555] mb-2">
+              Your payment request has been received and is now <strong>pending admin approval</strong>.
+            </p>
+            <p className="text-sm text-[#555555] mb-6">
+              The admin will verify your M-Pesa payment and activate your subscription shortly. You'll be able to access the system once approved.
+            </p>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="bg-brand hover:bg-brand-hover text-white rounded-xl px-6 py-3 text-base font-semibold transition-colors"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        ) : step === 'success' ? (
           <div className="bg-white rounded-xl border border-border p-8 text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Check className="h-8 w-8 text-red-600" />
@@ -74,7 +92,7 @@ function PaymentContent() {
               Your {planName} plan has been activated. Redirecting to dashboard...
             </p>
             <p className="text-xs text-[#555555]">
-              Transaction ID: {method?.toUpperCase()}-{Date.now()}
+              Transaction ID: MPESA-{Date.now()}
             </p>
           </div>
         ) : (

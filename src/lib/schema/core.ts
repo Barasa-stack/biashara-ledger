@@ -754,6 +754,22 @@ export async function initCoreTables() {
     last_active_at TIMESTAMPTZ DEFAULT NOW(),
     active_seconds INTEGER DEFAULT 0
   )`);
+  await safeExec(`CREATE TABLE IF NOT EXISTS public.payment_requests (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    tenant_id UUID,
+    plan_name VARCHAR(50) NOT NULL,
+    amount REAL DEFAULT 0,
+    payment_method VARCHAR(50) DEFAULT 'mpesa',
+    transaction_id TEXT DEFAULT '',
+    status VARCHAR(20) DEFAULT 'pending',
+    admin_id UUID,
+    approved_at TIMESTAMPTZ,
+    notes TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+
   await safeExec(`CREATE TABLE IF NOT EXISTS public.storage_usage (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     tenant_id UUID,

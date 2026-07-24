@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { Check, Loader, Smartphone, ArrowLeft, Key, Sparkles, Copy } from 'lucide-react';
+import { Check, Loader, Smartphone, ArrowLeft, Key, Sparkles, Copy, Clock } from 'lucide-react';
 
 const plans = [
   { name: 'Monthly', price: '1,500', period: 'month', popular: false },
@@ -17,8 +17,7 @@ export default function RenewPage() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('Monthly');
-  const [step, setStep] = useState<'plans' | 'payment' | 'confirm' | 'success' | 'license'>('plans');
-  const [transactionId, setTransactionId] = useState('');
+  const [step, setStep] = useState<'plans' | 'payment' | 'pending' | 'success' | 'license'>('plans');
   const [message, setMessage] = useState('');
   const [licenseKey, setLicenseKey] = useState('');
   const [licenseError, setLicenseError] = useState('');
@@ -47,7 +46,6 @@ export default function RenewPage() {
     setMessage('');
     const plan = selectedPlan === 'Monthly' ? 'Basic' : selectedPlan === 'Quarterly' ? 'Standard' : 'Premium';
     const txId = `MPESA-${selectedPlan}-${Date.now()}`;
-    setTransactionId(txId);
     try {
       const res = await fetch('/api/payments/confirm', {
         method: 'POST',
@@ -56,9 +54,9 @@ export default function RenewPage() {
       });
       const data = await res.json();
       if (data.success) {
-        router.push('/activation-success');
+        setStep('pending');
       } else {
-        setMessage(data.error || 'Confirmation failed');
+        setMessage(data.error || 'Submission failed');
       }
     } catch {
       setMessage('Network error. Please try again.');
@@ -81,7 +79,6 @@ export default function RenewPage() {
       });
       const data = await res.json();
       if (data.success) {
-        // Redirect to dedicated success page that handles cookie refresh
         router.push('/activation-success');
       } else {
         setLicenseError(data.error || 'Failed to activate license');
@@ -106,6 +103,31 @@ export default function RenewPage() {
             className="inline-block bg-brand hover:bg-brand-hover text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors"
           >
             Go to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#ffffff]">
+        <div className="text-center max-w-sm mx-auto p-8">
+          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+            <Clock className="h-8 w-8 text-amber-600" />
+          </div>
+          <h1 className="text-xl font-bold text-[#000000] mb-2">Payment Submitted</h1>
+          <p className="text-sm text-gray-600 mb-2">
+            Your payment request has been received and is now <strong>pending admin approval</strong>.
+          </p>
+          <p className="text-xs text-gray-500 mb-6">
+            The admin will verify your M-Pesa payment and activate your subscription shortly.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-block bg-brand hover:bg-brand-hover text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors"
+          >
+            Back to Dashboard
           </Link>
         </div>
       </div>

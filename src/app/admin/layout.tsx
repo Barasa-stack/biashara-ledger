@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard, Users, Building2, Key, Monitor, Upload, Settings,
   LogOut, Bell, Search, ChevronDown, Menu, X, ExternalLink,
-  Activity, Shield, RefreshCw, UserCircle
+  Activity, Shield, RefreshCw, UserCircle, Smartphone
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/admin/clients', label: 'Clients', icon: Users },
   { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
   { href: '/admin/licenses', label: 'Licenses', icon: Key },
+  { href: '/admin/payment-requests', label: 'Payments', icon: Smartphone },
   { href: '/admin/offline', label: 'Offline', icon: Monitor },
   { href: '/admin/electron-users', label: 'Electron', icon: Monitor },
   { href: '/admin/users', label: 'Users', icon: UserCircle },
