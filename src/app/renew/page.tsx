@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { Check, Loader, CreditCard, Smartphone, ArrowLeft, Key, Sparkles } from 'lucide-react';
+import { Check, Loader, Smartphone, ArrowLeft, Key, Sparkles, Copy } from 'lucide-react';
 
 const plans = [
   { name: 'Monthly', price: '1,500', period: 'month', popular: false },
@@ -17,14 +17,13 @@ export default function RenewPage() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('Monthly');
-  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card'>('mpesa');
-  const [mpesaPhone, setMpesaPhone] = useState('');
   const [step, setStep] = useState<'plans' | 'payment' | 'confirm' | 'success' | 'license'>('plans');
   const [transactionId, setTransactionId] = useState('');
   const [message, setMessage] = useState('');
   const [licenseKey, setLicenseKey] = useState('');
   const [licenseError, setLicenseError] = useState('');
   const [activating, setActivating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace('/sign-in');
@@ -41,55 +40,22 @@ export default function RenewPage() {
     );
   }
 
-  async function handleInitiatePayment() {
-    setBusy(true);
-    setMessage('');
-    const plan = selectedPlan === 'Monthly' ? 'Basic' : selectedPlan === 'Quarterly' ? 'Standard' : 'Premium';
-    const endpoint = paymentMethod === 'card' ? '/api/payments/stripe' : '/api/payments/mpesa';
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan,
-          paymentMethod,
-          phone: mpesaPhone || user!.phone,
-          email: user!.email,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTransactionId(data.transactionId);
-        setMessage(data.message || 'Payment initiated!');
-        if (data._demoAutoConfirm) {
-          setStep('confirm');
-        }
-      } else {
-        setMessage(data.error || 'Payment failed');
-      }
-    } catch {
-      setMessage('Network error. Please try again.');
-    }
-    setBusy(false);
-  }
+  const MPESA_NUMBER = '+254 115 804 761';
 
   async function handleConfirmPayment() {
     setBusy(true);
     setMessage('');
+    const plan = selectedPlan === 'Monthly' ? 'Basic' : selectedPlan === 'Quarterly' ? 'Standard' : 'Premium';
+    const txId = `MPESA-${selectedPlan}-${Date.now()}`;
+    setTransactionId(txId);
     try {
       const res = await fetch('/api/payments/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transactionId,
-          plan: selectedPlan === 'Monthly' ? 'Basic' : selectedPlan === 'Quarterly' ? 'Standard' : 'Premium',
-          paymentMethod,
-        }),
+        body: JSON.stringify({ plan, paymentMethod: 'mpesa', transactionId: txId }),
       });
       const data = await res.json();
       if (data.success) {
-        // Refresh session and redirect
-        await fetch('/api/auth/refresh-session', { method: 'POST', credentials: 'include' });
         router.push('/activation-success');
       } else {
         setMessage(data.error || 'Confirmation failed');
@@ -285,79 +251,42 @@ export default function RenewPage() {
               <p className="text-lg font-bold text-[#000000]">{plans.find(p => p.name === selectedPlan)?.price}</p>
             </div>
 
-            <div className="space-y-3 mb-6">
-              <p className="text-xs font-medium text-[#000000]">Payment Method</p>
-              <div className="flex gap-3">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Smartphone className="h-5 w-5 text-green-600" />
+                <p className="text-sm font-semibold text-green-800">Pay via M-Pesa Send Money</p>
+              </div>
+              <p className="text-xs text-green-700 mb-3">
+                Send the exact amount to the M-Pesa number below using the <strong>Send Money</strong> (Lipa na M-Pesa) option on your M-Pesa menu.
+              </p>
+              <div className="bg-white rounded-lg border border-green-200 p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5">M-Pesa Number</p>
+                  <p className="text-lg font-bold text-[#000000] tracking-wide">{MPESA_NUMBER}</p>
+                </div>
                 <button
-                  onClick={() => setPaymentMethod('mpesa')}
-                  className={`flex-1 flex items-center justify-center gap-2 border-2 rounded-lg px-4 py-3 text-xs transition-colors ${
-                    paymentMethod === 'mpesa'
-                      ? 'border-[#df1c1c] bg-brand/5 text-brand'
-                      : 'border-border text-[#000000] hover:border-[#df1c1c]/50'
-                  }`}
+                  onClick={() => { navigator.clipboard.writeText(MPESA_NUMBER); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                  className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                 >
-                  <Smartphone className="h-4 w-4" /> M-Pesa
-                </button>
-                <button
-                  onClick={() => setPaymentMethod('card')}
-                  className={`flex-1 flex items-center justify-center gap-2 border-2 rounded-lg px-4 py-3 text-xs transition-colors ${
-                    paymentMethod === 'card'
-                      ? 'border-[#df1c1c] bg-brand/5 text-brand'
-                      : 'border-border text-[#000000] hover:border-[#df1c1c]/50'
-                  }`}
-                >
-                  <CreditCard className="h-4 w-4" /> Card
+                  <Copy className="h-3.5 w-3.5" />
+                  {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
             </div>
 
-            {paymentMethod === 'mpesa' && (
-              <div className="mb-4">
-                <label className="block text-xs font-medium text-[#000000] mb-1">M-Pesa Phone Number</label>
-                <input
-                  type="tel"
-                  value={mpesaPhone || user!.phone || ''}
-                  onChange={e => setMpesaPhone(e.target.value)}
-                  className="w-full border border-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                  placeholder="0712 345 678"
-                />
-              </div>
-            )}
-
             <button
-              onClick={handleInitiatePayment}
+              onClick={handleConfirmPayment}
               disabled={busy}
-              className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover text-white rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
             >
               {busy ? <Loader className="h-4 w-4 animate-spin" /> : null}
-              {busy ? 'Processing...' : `Pay $${plans.find(p => p.name === selectedPlan)?.price}`}
+              {busy ? 'Please wait...' : 'I\'ve Sent the Payment'}
             </button>
 
             {message && (
               <p className="text-xs text-center mt-3 text-gray-600">{message}</p>
             )}
           </>
-        )}
-
-        {step === 'confirm' && (
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
-              <Smartphone className="h-8 w-8 text-blue-600" />
-            </div>
-            <p className="text-sm font-medium text-[#000000] mb-2">Check your phone</p>
-            <p className="text-xs text-gray-500 mb-6">Enter your M-Pesa PIN to complete payment of {plans.find(p => p.name === selectedPlan)?.price}</p>
-
-            {message && <p className="text-xs text-gray-600 mb-4">{message}</p>}
-
-            <button
-              onClick={handleConfirmPayment}
-              disabled={busy}
-              className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {busy ? <Loader className="h-4 w-4 animate-spin" /> : null}
-              {busy ? 'Confirming...' : 'I Have Confirmed Payment'}
-            </button>
-          </div>
         )}
       </div>
     </div>
