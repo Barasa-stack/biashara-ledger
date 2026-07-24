@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
+import ChatWidget from '@/components/ChatWidget';
 
 const baseUrl = 'https://biasharaledger.qzz.io';
 
@@ -60,7 +61,10 @@ export default async function RootLayout({
         />
       </head>
       <body className="bg-[#ffffff] antialiased" suppressHydrationWarning>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <ChatWidget />
+        </AuthProvider>
       </body>
     </html>
   );
