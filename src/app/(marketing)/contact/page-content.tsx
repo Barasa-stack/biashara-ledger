@@ -144,26 +144,26 @@ export default function ContactPage() {
       <section className="py-20 bg-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-3 gap-8 stagger-children animate-on-scroll">
-            <div className="bg-white rounded-xl p-8 border border-gray-100 contact-card">
+            <a href="mailto:support@biasharaledger.com" className="bg-white rounded-xl p-8 border border-gray-100 contact-card block">
               <Mail className="h-8 w-8 text-brand mb-4" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Email Us</h3>
               <p className="text-sm text-gray-600 mb-4">Our support team typically responds within 24 hours.</p>
-              <a href="mailto:support@biasharaledger.com" className="text-brand font-semibold text-sm hover:underline">support@biasharaledger.com</a>
-            </div>
+              <span className="text-brand font-semibold text-sm hover:underline">support@biasharaledger.com</span>
+            </a>
 
-            <div className="bg-white rounded-xl p-8 border border-gray-100 contact-card">
+            <a href="https://maps.google.com/?q=Nairobi+Kenya" target="_blank" rel="noopener noreferrer" className="bg-white rounded-xl p-8 border border-gray-100 contact-card block">
               <MapPin className="h-8 w-8 text-brand mb-4" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Visit Us</h3>
               <p className="text-sm text-gray-600 mb-4">Come say hello at our office.</p>
-              <p className="text-gray-900 font-medium text-sm">Nairobi, Kenya</p>
-            </div>
+              <span className="text-gray-900 font-medium text-sm">Nairobi, Kenya</span>
+            </a>
 
-            <div className="bg-white rounded-xl p-8 border border-gray-100 contact-card">
+            <a href="tel:+254115804761" className="bg-white rounded-xl p-8 border border-gray-100 contact-card block">
               <Phone className="h-8 w-8 text-brand mb-4" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">Call Us</h3>
               <p className="text-sm text-gray-600 mb-4">Mon-Fri 8:00 AM - 6:00 PM EAT</p>
-              <a href="tel:+254115804761" className="text-brand font-semibold text-sm hover:underline">+254 115 804 761</a>
-            </div>
+              <span className="text-brand font-semibold text-sm hover:underline">+254 115 804 761</span>
+            </a>
           </div>
         </div>
       </section>
