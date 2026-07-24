@@ -3,7 +3,7 @@ title: 'KRA Compliance Tips Every Business Owner Should Know'
 slug: kra-compliance-tips-2025
 excerpt: 'Stay on the right side of KRA with these essential compliance tips for VAT, income tax, and payroll reporting.'
 date: '2025-06-01'
-author: 'Enock Shimakabara'
+author: 'Edward Moodley'
 category: 'Tax'
 readTime: '6 min read'
 published: true

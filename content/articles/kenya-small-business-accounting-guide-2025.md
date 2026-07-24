@@ -3,7 +3,7 @@ title: 'The Complete Guide to Small Business Accounting in Kenya (2025)'
 slug: kenya-small-business-accounting-guide-2025
 excerpt: 'Everything you need to know about bookkeeping, KRA compliance, PAYE, and financial management for Kenyan SMEs.'
 date: '2025-06-15'
-author: 'Enock Shimakabara'
+author: 'Edward Moodley'
 category: 'Accounting'
 readTime: '8 min read'
 published: true
