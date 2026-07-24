@@ -34,4 +34,4 @@ Businesses using BiasharaLedger report:
 - **Zero missed payments**
 - **Real-time visibility** into cash flow
 
-Ready to automate your reconciliation? [Try BiasharaLedger free for 14 days](/sign-up).
+Ready to automate your reconciliation? [Try BiasharaLedger free for 3 days](/sign-up).

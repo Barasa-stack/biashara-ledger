@@ -34,4 +34,4 @@ Penalties for late filing can add up quickly. Set reminders or use software that
 
 BiasharaLedger generates KRA-ready reports with a single click. Our platform automatically calculates VAT, PAYE, and income tax based on your transactions. No more spreadsheet errors or missed deadlines.
 
-[Start your 14-day free trial](/sign-up) and simplify your tax compliance today.
+[Start your 3-day free trial](/sign-up) and simplify your tax compliance today.
