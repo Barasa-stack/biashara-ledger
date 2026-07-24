@@ -22,16 +22,12 @@ export async function GET() {
     try {
       let userQuery = `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.subscription_plan, u.subscription_status, u.subscription_expiry, u.license_status, u.verified, u.created_at FROM users u WHERE 1=1`;
       if (clients.length > 0) {
-        const adminClientIds = clients.map(c => c.id);
-        const placeholders = adminClientIds.map((_, i) => `$${i + 1}`).join(',');
-        userQuery += ` AND u.tenant_id NOT IN (${placeholders}) ORDER BY u.created_at DESC`;
-        const usersResult = await adminQuery(userQuery, adminClientIds);
-        selfRegistered = usersResult;
+        userQuery += ` AND NOT EXISTS (SELECT 1 FROM admin_clients ac WHERE ac.id::text = u.tenant_id::text) ORDER BY u.created_at DESC`;
       } else {
         userQuery += ` ORDER BY u.created_at DESC`;
-        const usersResult = await adminQuery(userQuery);
-        selfRegistered = usersResult;
       }
+      const usersResult = await adminQuery(userQuery);
+      selfRegistered = usersResult;
     } catch (e: any) {
       console.error('selfRegistered query error:', e.message);
     }
