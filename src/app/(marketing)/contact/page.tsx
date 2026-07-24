@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Mail, MapPin, Send } from 'lucide-react';
+import { Mail, MapPin, Send, Phone } from 'lucide-react';
 import PageHero from '@/components/PageHero';
 import type { CityImage } from '@/components/PageHero';
 import { useEffect, useState } from 'react';
@@ -129,6 +129,14 @@ export default function ContactPage() {
                 <p className="text-sm text-gray-600">support@biasharaledger.com</p>
               </div>
               
+              <div className="contact-card bg-white rounded-xl p-6 border border-gray-100">
+                <div className="bg-brand/10 rounded-lg p-3 w-12 h-12 flex items-center justify-center mb-4">
+                  <Phone className="h-6 w-6 text-brand" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">Phone</h3>
+                <p className="text-sm text-gray-600">+254 115 804 761</p>
+              </div>
+
               <div className="contact-card bg-white rounded-xl p-6 border border-gray-100">
                 <div className="bg-brand/10 rounded-lg p-3 w-12 h-12 flex items-center justify-center mb-4">
                   <MapPin className="h-6 w-6 text-brand" />

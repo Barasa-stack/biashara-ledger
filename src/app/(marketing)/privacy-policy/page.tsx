@@ -80,7 +80,9 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-lg font-semibold text-white mt-8 mb-3">8. Contact Us</h2>
           <p>
             If you have questions about this Privacy Policy, please contact us at{' '}
-            <a href="mailto:support@biasharaledger.com" className="text-brand hover:text-white transition-colors">support@biasharaledger.com</a>.
+            <a href="mailto:support@biasharaledger.com" className="text-brand hover:text-white transition-colors">support@biasharaledger.com</a>{' '}
+            or call{' '}
+            <a href="tel:+254115804761" className="text-brand hover:text-white transition-colors">+254 115 804 761</a>.
           </p>
         </section>
       </div>
