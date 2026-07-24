@@ -8,6 +8,16 @@ type Message = {
   text: string;
 };
 
+function formatText(text: string) {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const withBreaks = escaped.replace(/\n/g, '<br>');
+  const withBold = withBreaks.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+  return withBold;
+}
+
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -93,8 +103,7 @@ export default function ChatWidget() {
                       : 'bg-white border border-gray-200 text-gray-700 rounded-bl-md'
                   }`}
                 >
-                  {msg.text}
-                </div>
+                  <span dangerouslySetInnerHTML={{ __html: formatText(msg.text) }} /></div>
               </div>
             ))}
             {loading && (
