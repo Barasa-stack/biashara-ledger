@@ -73,8 +73,8 @@ export async function POST(req: Request) {
     messages.push({ role: 'user', content: message.slice(0, 2000) });
 
     // Try Cloudflare Workers AI
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
 
     if (accountId && apiToken) {
       try {
