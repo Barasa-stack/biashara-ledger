@@ -52,7 +52,11 @@ Specialised platforms like BiasharaLedger were built specifically for this marke
 
 Once payment matching is automated, the real value emerges. Business owners gain real-time visibility into who has paid, who has not, and what their cash position looks like at any moment. Inventory updates automatically when items are sold. Financial reports reflect current data instead of last month's numbers.
 
-For the Kenyan SME owner, that means fewer late nights with a phone and a spreadsheet — and more time focused on what actually grows the business.
+BiasharaLedger was built from the ground up for the Kenyan market — [M-Pesa reconciliation](/features) is not an add-on, it is part of the core workflow. Our [pricing](/pricing) is designed for businesses of every size, across every [industry](/industries) we serve.
+
+## The Bottom Line
+
+The Kenyan business landscape runs on mobile money. Businesses that continue reconciling payments manually are burning hours every week that could be spent on growth. Automated reconciliation is no longer a luxury for large enterprises — it is accessible to any business that chooses the right platform. The only question is whether you want to spend your evenings with a spreadsheet or with your family.
 
 *Edward Moodley is a business technology analyst covering financial software and SME digitisation in East Africa.*
 

@@ -39,8 +39,27 @@ export default async function ArticlePage({ params }: Props) {
   const article = getArticleBySlug(slug);
   if (!article) notFound();
 
+  const articleSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: article.title,
+    description: article.excerpt,
+    author: { '@type': 'Person', name: article.author },
+    datePublished: article.date,
+    publisher: {
+      '@type': 'Organization',
+      name: 'BiasharaLedger',
+      url: 'https://biasharaledger.qzz.io',
+    },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://biasharaledger.qzz.io/articles/${article.slug}` },
+  };
+
   return (
     <div className="min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <Link
           href="/articles"

@@ -61,7 +61,11 @@ When evaluating accounting software for a Kenyan SME, look for:
 - **Inventory tracking** — real-time stock visibility across locations
 - **Offline capability** — internet is not always reliable
 
-BiasharaLedger was built specifically for these requirements. From automated bookkeeping to KRA-ready tax reports, it consolidates the full accounting workflow into a single platform.
+BiasharaLedger was built specifically for these requirements. From automated bookkeeping to KRA-ready tax reports, it consolidates the full accounting workflow into a single platform. Our [features](/features) cover every pillar discussed here, and our [pricing](/pricing) is designed for businesses of all sizes across [industries](/industries) from retail to manufacturing.
+
+## The Bottom Line
+
+Accounting is not just about compliance — it is about clarity. Business owners who understand their numbers make better decisions, negotiate better terms, and build more resilient companies. The technology to eliminate manual bookkeeping exists today. The question is whether business owners will adopt it before their competitors do.
 
 *Edward Moodley is a business technology analyst covering financial software and SME digitisation in East Africa.*
 

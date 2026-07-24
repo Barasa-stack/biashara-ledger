@@ -62,7 +62,11 @@ Modern accounting platforms designed for the Kenyan market automate the complian
 - **Income tax summaries** that consolidate annual performance into a single report
 - **Automated reminders** for filing deadlines
 
-BiasharaLedger generates all these reports directly from your transaction data. The result is a tax filing process that takes minutes instead of days.
+BiasharaLedger generates all these reports directly from your transaction data. The result is a tax filing process that takes minutes instead of days. Our [features](/features) include full KRA-compliant reporting, and our [pricing](/pricing) plans cover businesses at every stage.
+
+## The Bottom Line
+
+KRA compliance is becoming more automated and more transparent every year. The businesses that will thrive are those that invest in systems that keep them ahead of filing deadlines, penalty cycles, and audit requirements. Tax compliance is not a once-a-year exercise — it is a daily operational discipline that the right software makes nearly invisible.
 
 *Edward Moodley is a business technology analyst covering financial software and SME digitisation in East Africa.*
 
