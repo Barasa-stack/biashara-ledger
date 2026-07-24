@@ -40,7 +40,7 @@ export default function RenewPage() {
     );
   }
 
-  const MPESA_NUMBER = '+254 115 804 761';
+  const MPESA_NUMBER = '+254 715 434 805';
 
   async function handleConfirmPayment() {
     setBusy(true);

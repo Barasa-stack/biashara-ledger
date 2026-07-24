@@ -82,7 +82,7 @@ export default function PrivacyPolicyPage() {
             If you have questions about this Privacy Policy, please contact us at{' '}
             <a href="mailto:support@biasharaledger.com" className="text-brand hover:text-white transition-colors">support@biasharaledger.com</a>{' '}
             or call{' '}
-            <a href="tel:+254115804761" className="text-brand hover:text-white transition-colors">+254 115 804 761</a>.
+            <a href="tel:+254715434805" className="text-brand hover:text-white transition-colors">+254 715 434 805</a>.
           </p>
         </section>
       </div>
